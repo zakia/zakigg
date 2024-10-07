@@ -10,19 +10,28 @@ export const projects = [
   {
     company: "TurboMenu",
     description: [
-      "**A [free and open-source](https://github.com/azakiio/turbomenu){target=_blank}** tool for restaurants to **create QR code menus.**",
-      "Over [50,000 active users](/resume/tb_analytics.pdf){target=_blank} in the **last 16 months.**",
+      "A free tool for restaurants to **create QR code menus.** [10,000+ monthly visits](https://winken.io/turbo.menu){target=_blank}.",
     ],
-    link: "https://turbo.menu",
+    website: "https://turbo.menu",
+    code: "https://github.com/azakiio/turbomenu",
     icon: TurboMenu,
   },
   {
     company: "Quickset",
     description: [
-      "**A real-time, multiplayer** card game built on **Elixir** and **Phoenix LiveView**.",
-      "Implemented shared game state and **real-time updates** using [Phoenix Channels](https://hexdocs.pm/phoenix/channels.html){target=_blank}.",
+      "A **real-time, multiplayer** card game built on **Elixir** and **Phoenix LiveView**.",
     ],
-    link: "https://www.quickset.online/",
+    website: "https://www.quickset.online/",
+    code: "https://github.com/azakiio/quickset",
+    icon: Quickset,
+  },
+  {
+    company: "Nice Buttons",
+    description: [
+      "A **CSS generator** for creating beautiful gradient hover effects built with **Svelte**.",
+    ],
+    website: "https://www.quickset.online/",
+    code: "https://github.com/azakiio/quickset",
     icon: Quickset,
   },
 ];
@@ -52,9 +61,9 @@ export const experiences = [
       },
     ],
     description: [
-      "**Spearheaded a web development agency**, producing **polished, high-performance** web applications for a wide [range of clients](/projects){target=_blank}.",
-      "**Drove the full project lifecycle**, from initial designs to deployment, ensuring **robust, secure, and efficient** solutions.",
-      "**Collaborated closely with clients** to gather requirements, scope projects, and **align technical strategies with stakeholder** expectations.",
+      "Founded & operate a web development start-up producing **polished, high-performance** web applications for a wide [range of clients](/projects){target=_blank}.",
+      "**Leading the full project lifecycle**, from design to deployment, ensuring **robust, secure, and efficient** solutions.",
+      "Engage deeply with clients to accurately scope projects, and **align technical strategies with stakeholder** expectations.",
       "**Balanced trade-offs** to meet long-term goals and adhere to engineering principles, consistently **delivering within strict deadlines.**",
     ],
     icon: Siteful,
@@ -64,27 +73,17 @@ export const experiences = [
     link: "https://www.konrad.com/",
     positions: [
       {
-        role: "Software Developer II",
-        startDate: "2022-06-02",
-        endDate: "2023-06-02",
-      },
-      {
-        role: "Software Developer",
-        startDate: "2021-06-02",
-        endDate: "2022-06-02",
-      },
-      {
-        role: "Associate SWD",
+        role: "Full Stack Developer",
         startDate: "2020-06-02",
-        endDate: "2021-06-02",
-      },
+        endDate: "2023-06-02",
+      }
     ],
     description: [
-      "Developed **10+ responsive full-stack** applications, integrating **multiple APIs** and **databases/CMS.**",
-      "Navigated a fast-paced, complex environment, effectively managing client expectations and **delivering high-quality solutions.**",
+      "Developed and shipped **responsive** websites involving **multiple backend services** and **Content Management Systems**",
+      "Navigated a fast-paced environment, effectively managing client expectations and **delivering high-quality solutions.**",
       "Developed a custom shopping experience for [Equinox+](https://shop.equinoxplus.com/){target=_blank} powered by **React**, **Stripe** and **Shopify**, enhancing the user experience and streamlining transactions.",
       "Implemented technical patterns like **user authentication** and **location services** for [Kia.ca](http://kia.ca/){target=_blank}.",
-      "Replaced manual database migration tasks with automated scripts, **saving** roughly **8 hours per week.**",
+      "Automated laborious CMS migration tasks, **saving** roughly **8 hours per week.**",
     ],
     icon: Konrad,
   },

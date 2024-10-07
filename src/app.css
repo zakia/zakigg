@@ -99,7 +99,6 @@ h5,
 .H5 {
 	@apply text-lg font-bold;
 }
-
 h6,
 .H6 {
 	@apply font-bold;

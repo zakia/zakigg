@@ -13,6 +13,7 @@
 	},
 	"devDependencies": {
 		"@fontsource/fira-mono": "^5.1.0",
+		"@svelte-put/inline-svg": "4.0.0-next.4",
 		"@sveltejs/adapter-auto": "^3.2.5",
 		"@sveltejs/kit": "^2.6.1",
 		"@sveltejs/vite-plugin-svelte": "4.0.0-next.7",
@@ -38,6 +39,7 @@
 		"@fontsource-variable/inter": "^5.1.0",
 		"@fontsource/inter": "^5.1.0",
 		"@iconify/svelte": "^4.0.2",
+		"@poppanator/sveltekit-svg": "^4.2.1",
 		"@speed-highlight/core": "^1.2.6",
 		"@types/markdown-it": "^14.1.2",
 		"@types/markdown-it-attrs": "^4.1.3",

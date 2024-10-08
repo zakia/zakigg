@@ -1,3 +1,3 @@
-<div>
-	<h2>Projects</h2>
+<div class="layout">
+  <h1>Coming Soon...</h1>
 </div>

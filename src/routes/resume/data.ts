@@ -1,40 +1,72 @@
-import TurboMenu from "./assets/turbomenu-icon.svg";
-import Quickset from "./assets/quickset.svg";
 
 import Konrad from "./assets/konrad.svg";
 import Procter from "./assets/procter.svg";
-import uoft from "./assets/uoft.svg";
 import Siteful from "./assets/siteful.svg";
+import uoft from "./assets/uoft.svg";
 
 export const projects = [
   {
     company: "TurboMenu",
-    description: [
-      "A free tool for restaurants to **create QR code menus.** [10,000+ monthly visits](https://winken.io/turbo.menu){target=_blank}.",
-    ],
+    description:
+      "Built a scalable platform for restaurants to **create QR code menus**, handling [10,000+ monthly visitors](https://winken.io/turbo.menu){target=_blank}, and delivering fast, interactive menus **optimized for mobile**.",
     website: "https://turbo.menu",
     code: "https://github.com/azakiio/turbomenu",
-    icon: TurboMenu,
   },
   {
     company: "Quickset",
-    description: [
-      "A **real-time, multiplayer** card game built on **Elixir** and **Phoenix LiveView**.",
-    ],
+    description:
+      "Developed a **real-time multiplayer** card game using **WebSockets** and **PostgreSQL**, with a scalable backend deployed on **AWS** to ensure smooth, low-latency gameplay.",
     website: "https://www.quickset.online/",
     code: "https://github.com/azakiio/quickset",
-    icon: Quickset,
   },
   {
     company: "Nice Buttons",
-    description: [
-      "A **CSS generator** for creating beautiful gradient hover effects built with **Svelte**.",
-    ],
-    website: "https://www.quickset.online/",
-    code: "https://github.com/azakiio/quickset",
-    icon: Quickset,
+    description:
+      "Created an **open-source CSS generator** for beautiful, customizable gradient hover effects, featuring a **live preview**, **one-click copy**, and an intuitive interface for easy use.",
+    website: "https://www.nicebuttons.com/",
+    code: "https://github.com/azakiio/nice-buttons",
   },
 ];
+
+
+// export const projects = [
+//   {
+//     company: "TurboMenu",
+//     description:
+//       "A free tool for restaurants to **create QR code menus.**",
+//     points: [
+//       "Built a scalable web platform handling [10,000+ monthly visits](https://winken.io/turbo.menu){target=_blank}, optimizing user engagement and mobile accessibility.",
+//       "Engineered a backend that supports fast-loading, interactive menus, ensuring seamless experiences across devices.",
+//     ],
+//     website: "https://turbo.menu",
+//     code: "https://github.com/azakiio/turbomenu",
+//     icon: TurboMenu,
+//   },
+//   {
+//     company: "Quickset",
+//     description:
+//       "A **real-time multiplayer** card game built on **Phoenix LiveView**",
+//     points: [
+//       "Implemented real-time game logic and WebSocket functionality, enabling fluid, synchronous gameplay for multiple users.",
+//       "Deployed a scalable backend on AWS, handling high traffic with low latency, ensuring smooth real-time interactions.",
+//     ],
+//     website: "https://www.quickset.online/",
+//     code: "https://github.com/azakiio/quickset",
+//     icon: Quickset,
+//   },
+//   {
+//     company: "Nice Buttons",
+//     description:
+//       "A **CSS generator** for creating beautiful gradient hover effects built with **Svelte**.",
+
+//     points: [
+//       "A CSS generator for beautiful gradient hover effects built with Svelte.",
+//     ],
+//     website: "https://www.nicebuttons.com/",
+//     code: "https://github.com/azakiio/nice-buttons",
+//     icon: Quickset,
+//   },
+// ];
 
 export const education = {
   company: "University of Toronto",
@@ -61,10 +93,10 @@ export const experiences = [
       },
     ],
     description: [
-      "Founded & operate a web development start-up producing **polished, high-performance** web applications for a wide [range of clients](/projects){target=_blank}.",
-      "**Leading the full project lifecycle**, from design to deployment, ensuring **robust, secure, and efficient** solutions.",
-      "Engage deeply with clients to accurately scope projects, and **align technical strategies with stakeholder** expectations.",
-      "**Balanced trade-offs** to meet long-term goals and adhere to engineering principles, consistently **delivering within strict deadlines.**",
+      "Spearhead a dynamic web development start-up, **delivering polished, high-performance** web applications across diverse [platforms](/projects){target=_blank}.",
+      "Oversee the complete project lifecycle, from **design to deployment**, ensuring robust, secure, and optimized solutions with **Lighthouse scores over 90**.",
+      "Collaborate closely with clients to **define project scope** and **align technical strategies** with **stakeholder expectations**.",
+      "Navigate the balance between technical feasibility and long-term objectives, adhering to engineering best practices.",
     ],
     icon: Siteful,
   },
@@ -76,15 +108,13 @@ export const experiences = [
         role: "Full Stack Developer",
         startDate: "2020-06-02",
         endDate: "2023-06-02",
-      }
+      },
     ],
     description: [
-      "Developed and shipped **responsive** websites involving **multiple backend services** and **Content Management Systems**",
-      "Navigated a fast-paced environment, effectively managing client expectations and **delivering high-quality solutions.**",
-      "Developed a custom shopping experience for [Equinox+](https://shop.equinoxplus.com/){target=_blank} powered by **React**, **Stripe** and **Shopify**, enhancing the user experience and streamlining transactions.",
-      "Implemented technical patterns like **user authentication** and **location services** for [Kia.ca](http://kia.ca/){target=_blank}.",
-      "Automated laborious CMS migration tasks, **saving** roughly **8 hours per week.**",
-    ],
+      "Consistently shipped **production-level** websites built on **Next.js**, integrating various APIs and services for **engaging, interactive experiences.**",
+      "Integrated **headless CMS** solutions, empowering non-technical clients to manage content independently while avoiding **vendor lock-in**.",
+      "Built a **custom e-commerce platform** for [Equinox+](https://shop.equinoxplus.com/){target=_blank} using **Shopify** and **Stripe**, simplifying **product and transactions** managements for clients.",
+      "Automated laborious database migration tasks, **saving** roughly **8 hours weekly.**"],
     icon: Konrad,
   },
   {
@@ -98,9 +128,9 @@ export const experiences = [
       },
     ],
     description: [
-      "Developed data pipelines in Python to **analyze web traffic** and **assess online marketing performance**. Optimized advertisement spending, achieving a **15% increase in conversions** with the **same budget** by refining channel strategies and targeting high-value opportunities.",
-      "Created interactive dashboards to **visualize marketing metrics**, facilitating real-time performance tracking and **data-driven decision-making.**",
-      "Automated web-page performance audits using JavaScript and **collaborated with brand teams** to implement improvements, resulting in a **3-5 second reduction in page load times** and a **~2-position boost in Google Search rankings.**",
+      "Developed data pipelines in Python to **analyze web traffic** and **optimize marketing performance**, achieving a **15% increase in conversions** while maintaining the **same budget**.",
+      "Created interactive dashboards to **visualize marketing metrics**, enabling real-time performance tracking and **data-driven decisions**.",
+      "Automated web-page performance audits using JavaScript, **collaborating with brand teams** to implement enhancements, resulting in a **3-5 second reduction in load times**.",
     ],
     icon: Procter,
   },
@@ -125,7 +155,7 @@ export const skills = {
   backendDevelopment: [
     { label: "Node.js", icon: "logos:nodejs-icon" },
     { label: "Elixir", icon: "devicon:elixir" },
-    { label: "PostgreSQL", icon: "logos:postgresql" },
+    { label: "SQL", icon: "logos:postgresql" },
     { label: "Firebase", icon: "logos:firebase" },
     { label: "MongoDB", icon: "logos:mongodb-icon" },
     { label: "AWS", icon: "logos:aws" },

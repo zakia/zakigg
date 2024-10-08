@@ -16,7 +16,9 @@
 	];
 </script>
 
-<div class="grid max-w-4xl mx-a gap-8 items-start md:grid-cols-[3fr_4fr] print:max-w-none">
+<div
+	class="layout print:py-4 max-w-5xl mx-a gap-8 items-start md:grid-cols-[3fr_4fr] print:max-w-none print:mt-0"
+>
 	<!-- <div class="col-span-full flex justify-between gap-2"></div> -->
 
 	<section class="grid gap-4">
@@ -42,13 +44,14 @@
 		</div> -->
 
 		<p>
-			<b>Full Stack Developer & Entrepreneur</b> with a background in <b>Industrial Engineering</b>;
-			currently based in Toronto.
+			<b>Full Stack Developer & Entrepreneur</b> with a background in <b>Industrial Engineering</b>,
+			based in <b>Toronto</b>.
 		</p>
 
 		<p>
-			Passionate about creating intuitive and efficient digital experiences, with a focus on both
-			technical excellence and usability.
+			Passionate about creating intuitive and pleasing digital experiences; balancing
+			<b> technical excellence </b>
+			with <b>user-centric design</b>.
 		</p>
 
 		<div class="flex gap-3">

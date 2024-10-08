@@ -59,8 +59,8 @@
 	</div>
 	<div>
 		{#each props.description as item}
-			<div class="relative flex gap-2 not-last:mb-2">
-				<Icon icon="fa6-solid:circle-dot" class="text-primary w-3 flex-shrink-0 mt-1" />
+			<div class="relative flex gap-1 not-last:mb-2">
+				<Icon icon="fa-solid:dot-circle" class="text-primary w-3 h-3 flex-shrink-0 mt-1.5" />
 				<p class="text-base-8">
 					{@html md.renderInline(item)}
 				</p>

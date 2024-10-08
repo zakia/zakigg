@@ -19,6 +19,14 @@
 	// });
 </script>
 
+<svelte:head>
+	<title>Adham Zaki</title>
+	<meta
+		name="description"
+		content="Crafting interfaces. Building polished software and web experiences. Toronto-based Full Stack Developer and Entrepreneur."
+	/>
+</svelte:head>
+
 <div class="app">
 	<Header />
 

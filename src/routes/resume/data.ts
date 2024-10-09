@@ -28,46 +28,6 @@ export const projects = [
   },
 ];
 
-
-// export const projects = [
-//   {
-//     company: "TurboMenu",
-//     description:
-//       "A free tool for restaurants to **create QR code menus.**",
-//     points: [
-//       "Built a scalable web platform handling [10,000+ monthly visits](https://winken.io/turbo.menu){target=_blank}, optimizing user engagement and mobile accessibility.",
-//       "Engineered a backend that supports fast-loading, interactive menus, ensuring seamless experiences across devices.",
-//     ],
-//     website: "https://turbo.menu",
-//     code: "https://github.com/azakiio/turbomenu",
-//     icon: TurboMenu,
-//   },
-//   {
-//     company: "Quickset",
-//     description:
-//       "A **real-time multiplayer** card game built on **Phoenix LiveView**",
-//     points: [
-//       "Implemented real-time game logic and WebSocket functionality, enabling fluid, synchronous gameplay for multiple users.",
-//       "Deployed a scalable backend on AWS, handling high traffic with low latency, ensuring smooth real-time interactions.",
-//     ],
-//     website: "https://www.quickset.online/",
-//     code: "https://github.com/azakiio/quickset",
-//     icon: Quickset,
-//   },
-//   {
-//     company: "Nice Buttons",
-//     description:
-//       "A **CSS generator** for creating beautiful gradient hover effects built with **Svelte**.",
-
-//     points: [
-//       "A CSS generator for beautiful gradient hover effects built with Svelte.",
-//     ],
-//     website: "https://www.nicebuttons.com/",
-//     code: "https://github.com/azakiio/nice-buttons",
-//     icon: Quickset,
-//   },
-// ];
-
 export const education = {
   company: "University of Toronto",
   positions: [
@@ -112,8 +72,8 @@ export const experiences = [
     ],
     description: [
       "Consistently shipped **production-level** websites built on **Next.js**, integrating various APIs and services for **engaging, interactive experiences.**",
-      "Integrated **headless CMS** solutions, empowering non-technical clients to manage content independently while avoiding **vendor lock-in**.",
-      "Built a **custom e-commerce platform** for [Equinox+](https://shop.equinoxplus.com/){target=_blank} using **Shopify** and **Stripe**, simplifying **product and transactions** managements for clients.",
+      "Integrated **headless CMS** solutions, empowering non-technical clients to **manage content independently** while avoiding **vendor lock-in**.",
+      "Built a **custom e-commerce platform** for [Equinox+](https://shop.equinoxplus.com/){target=_blank} using **Shopify** and **Stripe**, simplifying **product and transaction** management for clients.",
       "Automated laborious database migration tasks, **saving** roughly **8 hours weekly.**"],
     icon: Konrad,
   },
@@ -128,9 +88,9 @@ export const experiences = [
       },
     ],
     description: [
-      "Developed data pipelines in Python to **analyze web traffic** and **optimize marketing performance**, achieving a **15% increase in conversions** while maintaining the **same budget**.",
-      "Created interactive dashboards to **visualize marketing metrics**, enabling real-time performance tracking and **data-driven decisions**.",
-      "Automated web-page performance audits using JavaScript, **collaborating with brand teams** to implement enhancements, resulting in a **3-5 second reduction in load times**.",
+      "Developed data pipelines in **Python** to **analyze web traffic** and **optimize for high ROI channels**, achieving a **15% increase in conversions** with the **same budget**.",
+      "Created **interactive dashboards** to visualize marketing metrics, enabling **real-time performance** tracking and **data-driven decisions**.",
+      "Automated web-page performance audits using **JavaScript**, **collaborating with brand teams** to implement enhancements, resulting in a **3-5 second reduction in load times**.",
     ],
     icon: Procter,
   },

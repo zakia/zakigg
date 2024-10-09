@@ -25,9 +25,8 @@
 			<Icon icon="mdi:github" class="w-7 h-7" />
 		</a>
 	</div>
-	<div class="grid gap-2">
-		<p>{@html md.renderInline(props.description)}</p>
-		<!-- {#each props.points as item}
+	<p>{@html md.renderInline(props.description)}</p>
+	<!-- {#each props.points as item}
 			<div class="relative flex gap-1 text-base-8">
         <Icon icon="fa-solid:dot-circle" class="w-3 h-3 text-primary flex-shrink-0 mt-1.5" />
 				<p>
@@ -35,5 +34,4 @@
 				</p>
 			</div>
 		{/each} -->
-	</div>
 </div>

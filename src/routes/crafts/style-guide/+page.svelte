@@ -1,6 +1,14 @@
-<script lang="ts">
-	import { browser } from '$app/environment';
+<script module>
+	export const metadata = {
+		title: 'Style Guide',
+		description: 'Building a style guide for the site',
+		date: '2024-09-01',
+		updates: '2024-10-01',
+		tags: ['teaching']
+	};
+</script>
 
+<script lang="ts">
 	// export let data: PageData;
 	let color = $state('#000');
 	let colorEls = $state<HTMLDivElement[]>([]);

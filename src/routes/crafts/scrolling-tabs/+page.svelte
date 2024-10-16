@@ -1,3 +1,13 @@
+<script module>
+	export const metadata = {
+		title: 'Scrolling Tabs',
+		description: 'My attempt at tackling this common design pattern.',
+		date: '2021-10-01',
+		updates: '2021-10-01',
+		tags: ['teaching']
+	};
+</script>
+
 <script lang="ts">
 	import Icon from '@iconify/svelte';
 	import ScrollingTabs from './content/ScrollingTabs.svelte';

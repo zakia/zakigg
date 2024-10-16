@@ -1,3 +1,13 @@
+<script module>
+	export const metadata = {
+		title: 'Tic Tac Toe',
+		description: 'How do computers play games?',
+		date: '2021-10-01',
+		updates: '2021-10-01',
+		tags: ['teaching']
+	};
+</script>
+
 <script lang="ts">
 	import Icon from '@iconify/svelte';
 	import { AI, bestMove, checkWinner, EMPTY, HUMAN } from './minimax';
@@ -105,6 +115,7 @@
 	<div id="game-board" class="select-none">
 		{#each board as cell, i}
 			<button
+				aria-label={`cell_${i}`}
 				class="box"
 				class:circle={cell === AI || (!cell && step % 2 === 1)}
 				class:square={cell === HUMAN || (!cell && step % 2 === 0)}

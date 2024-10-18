@@ -54,6 +54,7 @@
 		"marked": "^14.1.2",
 		"mdsvex": "^0.12.3",
 		"open-props": "^1.7.6",
+		"pdf-lib": "^1.17.1",
 		"pocketbase": "^0.21.5",
 		"prismjs": "^1.29.0",
 		"radash": "^12.1.0",

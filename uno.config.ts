@@ -37,7 +37,7 @@ export default defineConfig({
         7: 'oklch(from var(--p7) l c h / <alpha-value>)',
         8: 'oklch(from var(--p8) l c h / <alpha-value>)',
         9: 'oklch(from var(--p9) l c h / <alpha-value>)',
-        content: 'oklch(from var(--pc) l c h / <alpha-value>)',
+        content: 'oklch(from var(--p0) l c h / <alpha-value>)',
         DEFAULT: 'oklch(from var(--p5) l c h / <alpha-value>)'
       },
       base: {

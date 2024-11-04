@@ -3,7 +3,7 @@
 		title: 'Scrolling Tabs',
 		description: 'My attempt at tackling this common design pattern.',
 		date: '2021-10-01',
-		updates: '2021-10-01',
+		updated: '2021-10-01',
 		tags: ['teaching']
 	};
 </script>
@@ -12,19 +12,11 @@
 	import Icon from '@iconify/svelte';
 	import ScrollingTabs from './content/ScrollingTabs.svelte';
 	import ScrollingTabsAnchors from './content/ScrollingTabsAnchors.svelte';
+	import Layout from '$lib/Layout.svelte';
+	import { data } from './content/Tabs.svelte';
 </script>
 
-<section class="layout max-w-2xl gap-4">
-	<a href="/" class="btn w-fit p-0 border-0 mb-2 text-primary">
-		<Icon icon="ep:top-left" />Back
-	</a>
-
-	<hgroup>
-		<h1 class="H4">Scrolling Tabs</h1>
-		<p class="text-base-6">April 2024</p>
-	</hgroup>
-	<p>My attempt at tackling this common design pattern.</p>
-	<!--more-->
+<Layout {...metadata}>
 	<p>
 		You don't have to look far on the internet to come across <strong>tabs</strong> or
 		<strong>carousels</strong>.
@@ -38,8 +30,15 @@
 		The goal here isn't to replace the numerous carousel and tab libraries out there. <br />
 		Instead, I'd just like to explore what's possible using some basic CSS and JavaScript.
 	</p>
-	<ScrollingTabs />
-	<h2 class="H3">Bloopers</h2>
+	<!-- <ScrollingTabs /> -->
+	{#each data as { title, icon, Content }}
+		<h2 class="heading-3 flex items-center gap-2 text-primary mt-4">
+			<Icon {icon} class="w-8 h-8" />
+			{title}
+		</h2>
+		<Content />
+	{/each}
+	<h2 class="heading-3 mt-4">Bloopers</h2>
 
 	<p>
 		I would have loved to implement a version without JavaScript, using anchor tags as triggers — <code
@@ -60,7 +59,7 @@
 		shared the implementation below if you’d like to experiment with it.
 	</p>
 	<ScrollingTabsAnchors />
-	<h2 class="H3">That's a wrap!</h2>
+	<h2 class="heading-3 mt-4">That's a wrap!</h2>
 	<p>
 		I hope you learned something from this <em>Craft.</em> I had a lot of fun putting it together :)
 	</p>
@@ -77,4 +76,4 @@
 			href="mailto:a@zaki.gg">reach out!</a
 		>
 	</p>
-</section>
+</Layout>

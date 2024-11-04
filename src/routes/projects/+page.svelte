@@ -61,12 +61,12 @@
 </script>
 
 <section class="layout gap-4">
-	<h1 class="text-center mb-4">Client Projects</h1>
-	<div class="grid md:grid-cols-3 gap-6">
+	<h1 class="text-center">Client Projects</h1>
+	<div class="grid md:grid-cols-2 gap-6">
 		{#each projects as project}
 			<div class="border border-primary rounded-xl p-3 flex flex-col">
 				<a href={project.link} target="_blank" aria-label={project.name} class="btn p-0">
-					<svg use:inlineSvg={project.thumbnail} class="max-w-50 h-16 mb-1" />
+					<svg use:inlineSvg={project.thumbnail} class="max-w-52 h-16 mb-1" />
 				</a>
 				<p>{project.description}</p>
 				<p class="font-bold mt-auto pt-4">Built with:</p>

@@ -46,12 +46,9 @@ export default defineConfig({
         2: 'oklch(from var(--b2) l c h / <alpha-value>)',
         3: 'oklch(from var(--b3) l c h / <alpha-value>)',
         4: 'oklch(from var(--b4) l c h / <alpha-value>)',
-        5: 'oklch(from var(--b5) l c h / <alpha-value>)',
-        6: 'oklch(from var(--b6) l c h / <alpha-value>)',
-        7: 'oklch(from var(--b7) l c h / <alpha-value>)',
-        8: 'oklch(from var(--b8) l c h / <alpha-value>)',
-        9: 'oklch(from var(--b9) l c h / <alpha-value>)',
-        content: 'oklch(from var(--bc) l c h / <alpha-value>)',
+        content: 'oklch(from var(--content) l c h / <alpha-value>)',
+        dimmed: 'oklch(from var(--dimmed) l c h / <alpha-value>)',
+        contrast: 'oklch(from var(--contrast) l c h / <alpha-value>)',
         DEFAULT: 'oklch(from var(--b0) l c h / <alpha-value>)',
       }
     }
@@ -61,7 +58,7 @@ export default defineConfig({
       layout: 'grid px-4 py-12 max-w-4xl mx-auto',
       btn: 'flex gap-2 items-center py-2 px-4 font-medium rounded-lg whitespace-nowrap transition-property-transform duration-[0.3s] hover:-translate-y-1 justify-center disabled:opacity-50 will-change-transform cursor-pointer active:scale-95',
       'variant-primary': 'bg-primary text-primary-content',
-      'variant-base': 'bg-base-3 text-base-content',
+      'variant-base': 'bg-base-2 text-base-content',
       input:
         'flex w-full rounded-md border-2 px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus:outline-none focus:ring-3 focus:ring-primary-4/50 disabled:opacity-50 bg-transparent border-current',
       'card-shadow': 'shadow-primary/15 shadow-[-0.5em_0.5em_0.2em]'

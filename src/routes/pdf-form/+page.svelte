@@ -3,6 +3,8 @@
 
 	let { form } = $props();
 	let file = $state<File | undefined>();
+
+  console.log(form?.fields);
 </script>
 
 <section class="layout gap-4 justify-items-center">

@@ -2,7 +2,7 @@
 	import Highlight from '$lib/Highlight.svelte';
 </script>
 
-<ol class="list-decimal-inside mb-4">
+<ol class="list-decimal-inside">
 	<li>A list of <strong>slides</strong> and <strong>triggers</strong></li>
 	<li>
 		Clicking a <strong>trigger</strong> should scroll to the appropriate <strong>slide</strong>

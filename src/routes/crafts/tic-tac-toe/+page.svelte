@@ -2,8 +2,7 @@
 	export const metadata = {
 		title: 'Tic Tac Toe',
 		description: 'How do computers play games?',
-		date: '2021-10-01',
-		updates: '2021-10-01',
+		date: '2023-04-01',
 		tags: ['teaching']
 	};
 </script>
@@ -11,6 +10,7 @@
 <script lang="ts">
 	import Icon from '@iconify/svelte';
 	import { AI, bestMove, checkWinner, EMPTY, HUMAN } from './minimax';
+	import Layout from '$lib/Layout.svelte';
 
 	let board = $state<number[]>(Array(9).fill(EMPTY));
 	let winner = $state(-1);
@@ -107,8 +107,8 @@
 	let status2 = $state<HTMLElement>();
 </script>
 
-<div class="layout">
-	<div class="w-full relative text-center mb-4 grid grid-cols-[100%_100%] overflow-hidden">
+<Layout {...metadata}>
+	<div class="w-full relative text-center grid grid-cols-[100%_100%] overflow-hidden mt-8">
 		<h2 bind:this={status1} class="H2">X's Turn</h2>
 		<h2 bind:this={status2} class="H2">O's Turn</h2>
 	</div>
@@ -143,13 +143,13 @@
 			</button>
 		</div>
 		<button
-			class="btn bg-base-3 text-base-content justify-self-center"
+			class="btn variant-base justify-self-center"
 			onclick={() => restartGame()}
 		>
 			Restart Game
 		</button>
 	</div>
-</div>
+</Layout>
 
 <style>
 	#game-board {
@@ -188,7 +188,7 @@
 
 	.circle {
 		@apply ring-2px ring-base-content ring-inset;
-		filter: drop-shadow(12px 12px 0px oklch(from var(--bc) l c h / 0.2));
+		filter: drop-shadow(12px 12px 0px oklch(from var(--content) l c h / 0.2));
 		border-radius: 50%;
 	}
 

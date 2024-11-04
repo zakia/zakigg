@@ -30,10 +30,10 @@
 	};
 </script>
 
-<div class="grid border-1.5 border-primary gap-2 p-4 rounded-xl shadow">
+<div class="grid border-1.5 border-primary gap-2 p-4 rounded-xl shadow bg-surface-1">
 	<div class="flex">
 		<div class="flex items-center justify-start gap-2 text-base-content border-b-0 w-fit mr-auto">
-			<img src={props.icon} alt="icon" class="w-8 h-8 flex-shrink-0" />
+			<img src={props.icon} alt="icon" class="w-8 h-8 shrink-0" />
 
 			<h3 class="font-semibold mb-0">
 				{props.company}
@@ -60,7 +60,7 @@
 	<div>
 		{#each props.description as item}
 			<div class="relative flex gap-1 not-last:mb-2">
-				<Icon icon="fa-solid:dot-circle" class="text-primary w-3 h-3 flex-shrink-0 mt-1.5" />
+				<Icon icon="fa-solid:dot-circle" class="text-primary w-3 h-3 shrink-0 mt-1.5" />
 				<p class="text-base-8">
 					{@html md.renderInline(item)}
 				</p>

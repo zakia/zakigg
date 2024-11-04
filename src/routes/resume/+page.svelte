@@ -56,7 +56,7 @@
 
 		<div class="flex gap-3">
 			{#each contactLinks as link}
-				<a href={link.href} class="flex gap-1 items-center w-fit text-primary" target="_blank">
+				<a href={link.href} class="flex gap-1 items-center w-fit slide-link" target="_blank">
 					<Icon icon={link.icon} class="w-6 h-6" />
 					{#if link.text}
 						{link.text}
@@ -83,9 +83,9 @@
 				<div class="flex flex-wrap gap-2">
 					{#each items as item}
 						<div
-							class="flex gap-1 border-1.5 border-t-0 border-r-0 rounded-full px-2 py-1 border-primary items-center font-medium shadow"
+							class="flex gap-1 bg-surface-1 rounded-full px-2 py-1 items-center font-medium shadow"
 						>
-							<Icon icon={item.icon} class="flex-shrink-0 h-4 w-4" />
+							<Icon icon={item.icon} class="shrink-0 h-4 w-4" />
 							{item.label}
 						</div>
 					{/each}
@@ -108,9 +108,3 @@
 		<Card {...education} compact={true} />
 	</section> -->
 </div>
-
-<style>
-	/* h2 {
-		color: var(--color-4);
-	} */
-</style>

@@ -1,6 +1,6 @@
 <script module>
 	export const metadata = {
-		title: '🗿📄✂️ VS AI',
+		title: '🗿📄✂️ vs AI',
 		description: 'Play Rock, Paper, Scissors vs AI',
 		date: '2021-10-01',
 		updates: '2021-10-01',

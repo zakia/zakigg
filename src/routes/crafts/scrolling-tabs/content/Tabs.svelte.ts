@@ -7,7 +7,7 @@ import whatWeNeed from "./what-we-need.svelte";
 export const data = [
   {
     icon: "carbon:idea",
-    title: "Key Idea",
+    title: "The Key Idea",
     Content: keyIdea,
   },
   {

@@ -70,7 +70,7 @@
 	<div class="grid sm:grid-cols-2 gap-4 mt-4">
 		{#each [crafts, projects] as { title, children }}
 			<div>
-				<h6 class="text-base-8 mb-2 font-bold">{title}</h6>
+				<h6 class="text-base-contrast mb-2 font-bold">{title}</h6>
 				{#each children as { title, link, description, external }}
 					<div class="mb-3">
 						<div class="flex items-center gap-1">
@@ -82,10 +82,10 @@
 								{title}
 							</a>
 							{#if external}
-								<Icon icon="ep-top-right" class="text-base-content/40" />
+								<Icon icon="ep-top-right" class="text-base-dimmed" />
 							{/if}
 						</div>
-						<div class="text-base-content/65">{parseInline(description)}</div>
+						<div class="text-base-contrast">{parseInline(description)}</div>
 					</div>
 				{/each}
 			</div>

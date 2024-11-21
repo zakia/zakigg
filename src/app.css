@@ -3,7 +3,6 @@
 @property --color-content-0 {
 	syntax: '<color>';
 	inherits: true;
-	initial-value: hsl(0, 0%, 98%);
 }
 
 [data-theme='dark'] {

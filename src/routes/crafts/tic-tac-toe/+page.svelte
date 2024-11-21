@@ -108,11 +108,16 @@
 </script>
 
 <Layout {...metadata}>
-	<div class="w-full relative text-center grid grid-cols-[100%_100%] overflow-hidden mt-8">
-		<h2 bind:this={status1} class="H2">X's Turn</h2>
-		<h2 bind:this={status2} class="H2">O's Turn</h2>
+	<div
+		class="w-full relative text-center grid grid-cols-[100%_100%] overflow-hidden mt-8"
+		class:text-primary={!(step % 2)}
+	>
+		<h2 bind:this={status1} class="mt-0">X's Turn</h2>
+		<h2 bind:this={status2} class="mt-0">O's Turn</h2>
 	</div>
-	<div id="game-board" class="select-none">
+	<div
+		class="select-none grid grid-cols-3 gap-1 mx-auto mb-8 relative w-100 h-100 place-items-center"
+	>
 		{#each board as cell, i}
 			<button
 				aria-label={`cell_${i}`}
@@ -142,20 +147,13 @@
 				<Icon icon="mdi:people" class="w-6 h-6" />
 			</button>
 		</div>
-		<button
-			class="btn variant-base justify-self-center"
-			onclick={() => restartGame()}
-		>
+		<button class="btn variant-base justify-self-center" onclick={() => restartGame()}>
 			Restart Game
 		</button>
 	</div>
 </Layout>
 
 <style>
-	#game-board {
-		@apply grid grid-cols-3 gap-1 mx-auto mb-8 relative w-100 h-100 place-items-center;
-	}
-
 	.box {
 		margin: 12.5px;
 		width: 75px;
@@ -165,7 +163,7 @@
 	}
 
 	.box:hover {
-		@apply ring-5;
+		box-shadow: inset 0 0 0 5px var(--ring-color);
 	}
 
 	.box:active {
@@ -173,39 +171,24 @@
 	}
 
 	.square {
-		@apply ring ring-primary ring-inset;
-		filter: drop-shadow(12px 12px 0px oklch(from var(--p5) l c h / 0.2));
+		--ring-color: var(--color-primary);
+		filter: drop-shadow(12px 12px 0px oklch(from var(--ring-color) l c h / 0.2));
 		border-radius: 10%;
+		box-shadow: inset 0 0 0 2px var(--ring-color);
 	}
 
 	.square.filled {
-		@apply ring-32 bg-primary;
+		box-shadow: inset 0 0 0 38px var(--ring-color);
 	}
 
 	.circle.filled {
-		@apply ring-18;
+		box-shadow: inset 0 0 0 18px var(--ring-color);
 	}
 
 	.circle {
-		@apply ring-2px ring-base-content ring-inset;
-		filter: drop-shadow(12px 12px 0px oklch(from var(--content) l c h / 0.2));
+		--ring-color: var(--color-content-0);
+		box-shadow: inset 0 0 0 1px var(--ring-color);
+		filter: drop-shadow(12px 12px 0px oklch(from var(--ring-color) l c h / 0.2));
 		border-radius: 50%;
 	}
-
-	/* .link {
-		fill: none;
-		stroke: #555;
-		stroke-opacity: 0.4;
-		stroke-width: 1.5px;
-	}
-
-	.node circle {
-		fill: #999;
-		stroke: #000;
-		stroke-width: 1.5px;
-	}
-
-	.node text {
-		font: 10px sans-serif;
-	} */
 </style>

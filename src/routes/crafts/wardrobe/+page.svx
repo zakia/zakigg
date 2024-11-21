@@ -1,0 +1,32 @@
+---
+title: Open Source Wardrobe.
+description: community-built minimal wardrobe
+date: 2024-11-18
+---
+
+### Open Source Wardrobe
+
+So, I’ve just returned to Toronto after spending over a year abroad, living in Germany. During that time, I learned a lot, and I traveled a lot throughout Europe. I saw new places, had some experiences I hadn’t had before. But one thing I got out of all this—one thing in particular—was learning how to travel light.
+
+You know, there’s something about the trade-off between mobility and having a good selection of things to wear. If you’re just traveling with a carry-on or maybe a single duffel bag, you’re basically giving up variety for the ability to move around easily. But I started thinking, you know, is there a way to optimize this? Could you build a super-light wardrobe, something that still gives you a good range of outfits but fits into one bag?
+
+Obviously, there’s some subjectivity here—everyone’s different. But the idea would be to focus on basics, on items that you can reuse in different outfits, and probably stick to some standard colors. There are a lot of “minimal wardrobe” resources out there, but each has its own take. So, I thought, maybe there’s a way to open-source the process, the same way you’d open-source software.
+
+Here’s what I’m thinking: I’ll upload my minimal wardrobe onto my website, and then open it up for people to contribute. You’d be able to vote on what should stay in the wardrobe, or what should be removed, and even add new items for others to vote on. It would be like a community-built wardrobe, something that could keep evolving over time.
+
+So that’s the project. I’ll start by putting my own wardrobe up there, and we’ll see where it goes from there. Hopefully, with other people’s input, we can figure out what really makes the cut in a minimal, travel-friendly wardrobe.
+
+---
+
+### Thoughts on the Project
+
+This open-source wardrobe idea sounds really cool! It’s not only about finding the right mix of clothes but also about getting insights from other travelers, minimalists, and people who value practicality. Plus, with community feedback, it could really become a solid, useful resource.
+
+Some ideas that might help take it further:
+
+1. **Filters or Tags**: Maybe organize items by type—like tops, bottoms, outerwear—or by situations, like casual, business, or outdoor.
+2. **Seasonal Options**: People could vote on items needed for different climates or seasons so it works for year-round travel.
+3. **Packing Lists**: Eventually, you could create sample packing lists for different types of trips, like a weekend getaway or a month-long stay.
+4. **Comments and Tips**: Users could leave comments on how they use specific items or share tips for different destinations.
+
+Overall, I think it could be a great mix of practicality, minimalism, and creativity.

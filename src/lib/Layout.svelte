@@ -9,6 +9,7 @@
 		if (!isoDate) return 'Invalid Date';
 		return Temporal.PlainDate.from(isoDate.split('T')[0]).toLocaleString(undefined, {
 			month: 'long',
+			day: 'numeric',
 			year: 'numeric'
 		});
 	};

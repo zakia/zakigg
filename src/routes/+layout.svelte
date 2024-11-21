@@ -4,6 +4,7 @@
 	import '@fontsource-variable/inter';
 	import 'open-props/open-props.min.css';
 	import '../app.css';
+	import '$lib/prism.css';
 	import Header from './Header.svelte';
 	// onNavigate((navigation) => {
 	// 	if (!document.startViewTransition) return;
@@ -28,6 +29,7 @@
 	<main id="main" class="mb-32 print:mb-0;">
 		<slot />
 	</main>
+	<div class="preview"></div>
 </div>
 
 <style>

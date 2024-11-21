@@ -60,11 +60,15 @@
 			});
 		});
 	});
+
+	const path = $page.url.pathname;
+	console.log(path);
 </script>
 
 <header
-	class="fixed bottom-4 w-fit z-999 flex bg-surface-1/50 rounded-full p-2 dock left-1/2 backdrop-blur items-end h-14 print:hidden"
+	class="fixed bottom-0 w-fit z-999 flex bg-surface-1 rounded-xl p-2 dock left-1/2 backdrop-blur-lg items-end h-14 print:hidden"
 	style="view-transition-name: header;"
+	class:hidden={path === '/sevarox-demo'}
 	style:translate="-50% {isHidden ? '200%' : '0%'}"
 >
 	{#each links as link}
@@ -123,7 +127,7 @@
 		border-radius: 999px;
 		width: 3rem;
 		height: 2.5rem;
-		font-weight: 700;
+		font-weight: 600;
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -131,19 +135,24 @@
 	}
 
 	.tooltip {
-		display: none;
+		opacity: 0;
+		pointer-events: none;
 		position: absolute;
-		bottom: 100%;
+		bottom: 115%;
 		left: 50%;
 		transform: translateX(-50%);
 		padding: 0.25rem 0.5rem;
 		border-radius: 0.25rem;
 		font-size: 0.75rem;
 		white-space: nowrap;
-		background-color: var(--color-surface-2);
+		background-color: var(--color-surface-1);
+		transition: opacity 0.2s;
+		box-shadow:
+			0 4px 6px -1px rgb(0 0 0 / 0.1),
+			0 2px 4px -2px rgb(0 0 0 / 0.1);
 	}
 
 	.dock-item:hover .tooltip {
-		display: block;
+		opacity: 1;
 	}
 </style>

@@ -14,16 +14,20 @@ export const load = (async () => {
     Object.entries(import.meta.glob('./*/+page.*')).map(
       async ([path, resolver]) => {
         const data = await resolver() as { metadata: Metadata };
+        console.log(path, data.metadata);
+
         const slug = path.split('/')[1];
 
-        const date = parseDate(data.metadata.date || '');
+        const date = parseDate(data?.metadata.date || '');
 
-        return { ...data.metadata, slug, date };
+        return { ...data?.metadata, slug, date };
       }
     )
   );
 
   posts.sort((a, b) => Temporal.PlainDate.compare(b.date, a.date));
+
+  console.log(posts);
 
   return { posts };
 

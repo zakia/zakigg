@@ -1,47 +1,29 @@
 @import 'tailwindcss';
 
+@property --color-content-0 {
+	syntax: '<color>';
+	inherits: true;
+	initial-value: hsl(0, 0%, 98%);
+}
+
 [data-theme='dark'] {
 	color-scheme: dark;
 }
 
 @theme {
-	--color-surface-0: light-dark(var(--color-zinc-50), var(--color-zinc-950));
-	--color-surface-1: light-dark(var(--color-zinc-100), var(--color-zinc-900));
-	--color-surface-2: light-dark(var(--color-zinc-200), var(--color-zinc-800));
-	--color-surface-3: light-dark(var(--color-zinc-300), var(--color-zinc-700));
-	--color-surface-4: light-dark(var(--color-zinc-400), var(--color-zinc-600));
+	--color-surface-0: light-dark(var(--color-gray-50), var(--color-gray-950));
+	--color-surface-1: light-dark(var(--color-gray-100), var(--color-gray-900));
+	--color-surface-2: light-dark(var(--color-gray-200), var(--color-gray-800));
+	--color-surface-3: light-dark(var(--color-gray-300), var(--color-gray-700));
+	--color-surface-4: light-dark(var(--color-gray-400), var(--color-gray-600));
 
-	--color-content-0: light-dark(var(--color-zinc-700), var(--color-zinc-300));
-	--color-content-1: light-dark(var(--color-zinc-400), var(--color-zinc-600));
-	/* --color-content-2: light-dark(var(--color-zinc-700), var(--color-zinc-300));
-	--color-content-3: light-dark(var(--color-zinc-600), var(--color-zinc-400)); */
+	--color-content-0: light-dark(var(--color-gray-800), var(--color-gray-200));
+	--color-content-1: light-dark(var(--color-gray-600), var(--color-gray-400));
+	--color-content-2: light-dark(var(--color-gray-400), var(--color-gray-600));
+	--color-content-3: light-dark(var(--color-gray-200), var(--color-gray-800));
 
-	--color-primary: hsl(200, 100%, 50%);
+	--color-primary: oklch(68% 0.19 var(--color-hue, 0));
 	--color-primary-on: white;
-}
-
-@layer components {
-	.layout {
-		@apply grid max-w-2xl mx-auto px-4 pt-12;
-	}
-
-	.btn {
-		@apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md font-medium disabled:opacity-50;
-		transition-property: translate;
-    transition-duration: 0.3s;
-
-		&:hover {
-			translate: 0 -4px;
-		}
-	}
-
-	.variant-primary {
-		@apply bg-primary text-primary-on;
-	}
-
-	.prose {
-		@apply max-w-prose leading-7;
-	}
 }
 
 @layer base {
@@ -51,19 +33,125 @@
 
 	h1,
 	.heading-1 {
-		@apply text-4xl font-bold tracking-tight;
+		@apply text-3xl font-bold tracking-tight not-first:mt-[1em];
 	}
 	h2,
 	.heading-2 {
-		@apply text-3xl font-bold tracking-tight;
+		@apply text-2xl font-bold tracking-tight not-first:mt-[1em];
 	}
 	h3,
 	.heading-3 {
-		@apply text-2xl font-bold;
+		@apply text-xl font-bold not-first:mt-[1em];
 	}
 	h4,
 	.heading-4 {
-		@apply text-xl font-bold;
+		@apply text-lg font-bold not-first:mt-[1em];
+	}
+
+	.display-1 {
+		font-size: clamp(2rem, 9vw, 3.5rem);
+	}
+	.display-2 {
+		font-size: clamp(1.5rem, 6vw, 2.5rem);
+	}
+	.display-3 {
+		font-size: clamp(1rem, 4vw, 1.5rem);
+	}
+	.display-4 {
+		font-size: clamp(0.75rem, 2vw, 1rem);
+	}
+
+	th {
+		text-align: start;
+	}
+	tr {
+		border-bottom: 1px solid var(--color-surface-3);
+	}
+	th,
+	td {
+		padding-block: 0.5rem;
+	}
+
+	figcaption {
+		@apply text-sm text-content-1;
+	}
+
+	blockquote {
+		@apply border-l-4 border-primary pl-4 my-2 italic font-medium;
+	}
+
+	hr {
+		@apply border-surface-3;
+	}
+}
+
+@layer components {
+	.layout {
+		@apply grid max-w-2xl mx-auto px-4 pt-12;
+	}
+
+	.btn {
+		@apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md font-medium 
+             transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed;
+		&:hover:not(:disabled) {
+			transform: translateY(-2px);
+		}
+	}
+
+	.prose {
+		@apply max-w-prose leading-7;
+	}
+
+	/* Cards */
+	.card {
+		@apply rounded-lg border border-surface-2 overflow-hidden shadow;
+	}
+
+	.surface-1 {
+		@apply bg-surface-1;
+	}
+
+	.surface-2 {
+		@apply bg-surface-2;
+	}
+
+	/* Form Elements */
+	.form-group {
+		@apply space-y-1;
+	}
+
+	.form-label {
+		@apply block text-sm font-medium text-content-0;
+	}
+
+	.input {
+		@apply w-full px-3 py-2 rounded-md bg-surface-1 border border-surface-3 
+             text-content-0 placeholder:text-content-1
+             focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent
+             disabled:opacity-50 disabled:cursor-not-allowed;
+	}
+}
+
+@layer utilities {
+	/* Button Variants */
+	.variant-base {
+		@apply bg-surface-2 text-content-0;
+	}
+
+	.variant-primary {
+		@apply bg-primary text-primary-on;
+	}
+
+	.variant-ghost {
+		@apply bg-surface-1 text-content-0;
+	}
+
+	.variant-light {
+		@apply bg-primary/15;
+	}
+
+	.variant-outline {
+		@apply border-2 border-primary text-content-0 hover:bg-primary hover:text-primary-on;
 	}
 }
 
@@ -91,7 +179,7 @@ body:has(dialog[open]) {
 }
 
 :root *::-webkit-scrollbar-thumb {
-	background-color: var(--b7);
+	background-color: var(--color-surface-3);
 	border-radius: 1rem;
 }
 
@@ -104,20 +192,21 @@ body {
 	background-color: var(--color-surface-0);
 	color: var(--color-content-0);
 }
-pre {
+/* pre {
 	font-family: var(--font-mono);
 	border-radius: 3px;
 	padding: 0.5em;
 	overflow-x: auto;
-	/* @apply bg-b1; */
+
 }
 
+*/
 code {
-	@apply px-1.5 rounded-lg whitespace-nowrap;
+	@apply px-1.5 rounded-lg whitespace-nowrap bg-surface-2;
 }
 
 .text-column {
-	display: flex;
+	fluid: flex;
 	max-width: 48rem;
 	flex: 0.6;
 	flex-direction: column;
@@ -149,21 +238,32 @@ ul ul {
 	list-style-type: circle;
 }
 
-ul::marker {
-	color: var(--accent);
+li {
+	margin-top: 0.5rem;
+}
+
+li > * {
+	margin-top: 0.5rem;
+}
+
+li::marker {
+	@apply text-primary;
 }
 
 .footnotes {
-	@apply text-sm;
-	color: var(--contrast);
+	@apply text-sm text-content-1;
 
 	li {
 		margin-top: 1rem;
 	}
+
+	li::marker {
+		@apply text-content-1;
+	}
 }
 
 /* Custom css */
-p a,
+p a:not(:has(code)),
 .slide-link {
 	@apply text-primary bg-gradient-to-b from-transparent from-50% to-primary to-50%;
 	background-size: auto 185%;
@@ -177,6 +277,45 @@ p a,
 	}
 }
 
-li a {
+li a,
+a:has(code) {
 	@apply text-primary;
+}
+
+.preview {
+	position: relative;
+	-webkit-user-select: none;
+	-moz-user-select: none;
+	user-select: none;
+	pointer-events: none;
+	--h: 56px;
+	position: fixed;
+	width: 100%;
+	height: var(--h);
+	z-index: 1;
+	backdrop-filter: blur(8px);
+	mask-image: linear-gradient(to top, #000, transparent);
+	background-image: linear-gradient(to top, var(--color-surface-0) 25%, transparent);
+	bottom: 0;
+}
+
+.brand-gradient {
+	background-image: linear-gradient(
+		to bottom right,
+		var(--color-primary),
+		var(--color-primary),
+		var(--color-surface-0),
+		var(--color-surface-0)
+	);
+	color: #fff;
+	background-size: 300% 300%;
+	background-position: 0% 0%;
+	transition:
+		background-position 0.7s,
+		translate 1s;
+
+	&:hover {
+		translate: 0 -0.25rem;
+		background-position: 100% 100%;
+	}
 }

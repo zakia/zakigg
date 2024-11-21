@@ -27,7 +27,6 @@ export const useTheme = () => {
 
   const setTheme = (newTheme: string) => {
     document.cookie = `theme=${newTheme}; path=/; max-age=31536000;`;
-    document.cookie = `test=${newTheme}; path=/; max-age=31536000;`;
     console.log(document.cookie);
     document.documentElement.dataset.theme = newTheme;
     theme = newTheme;

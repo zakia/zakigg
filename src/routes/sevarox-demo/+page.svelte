@@ -229,7 +229,7 @@
 		<!-- Trust Section -->
 		<section class="py-16 bg-primary text-primary-on">
 			<div class="max-w-4xl mx-auto px-4">
-				<h2 class="text-3xl font-bold text-center mb-12">
+				<h2 class="text-3xl font-bold text-center mb-12 text-primary-on">
 					{pageData.trustSection.headline}
 				</h2>
 				<div class="grid md:grid-cols-3 gap-8">

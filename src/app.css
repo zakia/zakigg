@@ -10,16 +10,34 @@
 }
 
 @theme {
-	--color-surface-0: light-dark(var(--color-gray-50), var(--color-gray-950));
-	--color-surface-1: light-dark(var(--color-gray-100), var(--color-gray-900));
-	--color-surface-2: light-dark(var(--color-gray-200), var(--color-gray-800));
-	--color-surface-3: light-dark(var(--color-gray-300), var(--color-gray-700));
-	--color-surface-4: light-dark(var(--color-gray-400), var(--color-gray-600));
+	--color-surface-0: var(--color-gray-50);
+	--color-surface-1: var(--color-gray-100);
+	--color-surface-2: var(--color-gray-200);
+	--color-surface-3: var(--color-gray-300);
+	--color-surface-4: var(--color-gray-400);
+	--color-surface: var(--color-surface-0);
 
-	--color-content-0: light-dark(var(--color-gray-800), var(--color-gray-200));
-	--color-content-1: light-dark(var(--color-gray-600), var(--color-gray-400));
-	--color-content-2: light-dark(var(--color-gray-400), var(--color-gray-600));
-	--color-content-3: light-dark(var(--color-gray-200), var(--color-gray-800));
+	--color-content-0: var(--color-gray-800);
+	--color-content-1: var(--color-gray-600);
+	--color-content-2: var(--color-gray-400);
+	--color-content-3: var(--color-gray-200);
+	--color-content: var(--color-content-1);
+
+	--color-primary: oklch(68% 0.19 var(--color-hue, 0));
+	--color-primary-on: white;
+}
+
+[data-theme='dark'] {
+	--color-surface-0: var(--color-gray-950);
+	--color-surface-1: var(--color-gray-900);
+	--color-surface-2: var(--color-gray-800);
+	--color-surface-3: var(--color-gray-700);
+	--color-surface-4: var(--color-gray-600);
+
+	--color-content-0: var(--color-gray-300);
+	--color-content-1: var(--color-gray-400);
+	--color-content-2: var(--color-gray-600);
+	--color-content-3: var(--color-gray-800);
 
 	--color-primary: oklch(68% 0.19 var(--color-hue, 0));
 	--color-primary-on: white;
@@ -32,19 +50,19 @@
 
 	h1,
 	.heading-1 {
-		@apply text-3xl font-bold tracking-tight not-first:mt-[1em];
+		@apply text-3xl font-bold tracking-tight text-content-0 not-first:mt-[1em];
 	}
 	h2,
 	.heading-2 {
-		@apply text-2xl font-bold tracking-tight not-first:mt-[1em];
+		@apply text-2xl font-bold tracking-tight text-content-0  not-first:mt-[1em];
 	}
 	h3,
 	.heading-3 {
-		@apply text-xl font-bold not-first:mt-[1em];
+		@apply text-xl font-bold  text-content-0 not-first:mt-[1em];
 	}
 	h4,
 	.heading-4 {
-		@apply text-lg font-bold not-first:mt-[1em];
+		@apply text-lg font-bold  text-content-0 not-first:mt-[1em];
 	}
 
 	.display-1 {
@@ -104,14 +122,6 @@
 	/* Cards */
 	.card {
 		@apply rounded-lg border border-surface-2 overflow-hidden shadow;
-	}
-
-	.surface-1 {
-		@apply bg-surface-1;
-	}
-
-	.surface-2 {
-		@apply bg-surface-2;
 	}
 
 	/* Form Elements */
@@ -188,8 +198,8 @@ body {
 	line-height: 1.5;
 	/* background-attachment: fixed;
 	background-size: 100vw 100vh; */
-	background-color: var(--color-surface-0);
-	color: var(--color-content-0);
+	background-color: var(--color-surface);
+	color: var(--color-content);
 }
 /* pre {
 	font-family: var(--font-mono);
@@ -294,7 +304,7 @@ a:has(code) {
 	z-index: 1;
 	backdrop-filter: blur(8px);
 	mask-image: linear-gradient(to top, #000, transparent);
-	background-image: linear-gradient(to top, var(--color-surface-0) 25%, transparent);
+	background-image: linear-gradient(to top, var(--color-surface) 25%, transparent);
 	bottom: 0;
 }
 

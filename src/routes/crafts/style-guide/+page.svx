@@ -82,7 +82,7 @@ tags: ['teaching']
 
 	const colors = {
 		surface: ['surface-0', 'surface-1', 'surface-2', 'surface-3', 'surface-4'],
-		content: ['content-0', 'content-1'],
+		content: ['content-0', 'content-1', 'content-2', 'content-3'],
 		primary: ['primary', 'primary-on']
 	};
 

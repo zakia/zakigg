@@ -9,6 +9,8 @@
 </script>
 
 <script lang="ts">
+	import Layout from '$lib/Layout.svelte';
+
 	import Icon from '@iconify/svelte';
 
 	let cheating = $state(false);
@@ -132,11 +134,11 @@
 	<script src="//unpkg.com/brain.js"></script>
 </svelte:head>
 
-<section class="layout relative overflow-clip">
-	<hgroup class="text-center">
+<Layout {...metadata}>
+	<!-- <hgroup class="text-center">
 		<h1 class="mb-2">Rock, Paper, Scissors</h1>
 		<p class="mb-0 text-base-6">with Artificial Intelligence</p>
-	</hgroup>
+	</hgroup> -->
 
 	<div class="my-10 grid justify-items-center">
 		<div class="text-center">
@@ -193,4 +195,4 @@
 			</div>
 		{/if}
 	</div>
-</section>
+</Layout>

@@ -14,7 +14,7 @@ const config = {
 		mdsvex({
 			layout: {
 				_: './src/lib/Layout.svelte',
-				interface: './src/routes/crafts/interface/Layout.svelte'
+				interface: './src/routes/(crafts)/interface/Layout.svelte'
 			},
 			remarkPlugins: [remarkFootnote, remarkGfm, remarkAttr]
 		}),

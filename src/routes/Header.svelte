@@ -7,8 +7,7 @@
 	const theme = useTheme();
 	const links = [
 		{ label: 'Home', path: '/', icon: 'line-md:home' },
-		{ label: 'Resume', path: '/resume', icon: 'line-md:file-document' },
-		{ label: 'Crafts', path: '/crafts', icon: 'line-md:pencil' },
+		{ label: 'About', path: '/about', icon: 'line-md:file-document' },
 		{ label: 'Projects', path: '/projects', icon: 'line-md:lightbulb' }
 	];
 	const socials = [
@@ -62,7 +61,6 @@
 	});
 
 	const path = $page.url.pathname;
-	console.log(path);
 </script>
 
 <header

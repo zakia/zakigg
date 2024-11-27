@@ -60,9 +60,9 @@
 	];
 </script>
 
-<section class="layout gap-4">
-	<h1 class="text-center">Client Projects</h1>
-	<div class="grid md:grid-cols-2 gap-6">
+<section class="layout max-w-6xl gap-4">
+	<h1 class="text-start">Websites I've built</h1>
+	<div class="grid grid-cols-[repeat(auto-fit,minmax(20rem,1fr))] gap-6">
 		{#each projects as project}
 			<div class="border border-primary rounded-xl p-3 flex flex-col">
 				<a href={project.link} target="_blank" aria-label={project.name} class="btn p-0">

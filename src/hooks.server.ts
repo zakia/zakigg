@@ -28,7 +28,7 @@ export const handle: Handle = async ({ event, resolve }) => {
       let currentHue = event.cookies.get("hue");
 
       if (!currentTheme) {
-        currentTheme = "light";
+        currentTheme = "default";
         event.cookies.set("theme", currentTheme, { path: '/', maxAge: 31536000, httpOnly: false });
       }
 

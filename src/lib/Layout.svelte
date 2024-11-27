@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Icon from '@iconify/svelte';
 	import { Temporal } from 'temporal-polyfill';
-	import type { Metadata } from '../routes/crafts/+page';
+	import type { Metadata } from '../routes/(crafts)/+page';
 
 	const { title, date, description }: Metadata = $props();
 
@@ -16,14 +16,14 @@
 </script>
 
 <section class="grid gap-4 w-full items-start mx-auto max-w-4xl">
-	<a href="/crafts" class="btn w-fit p-0 text-primary md:sticky top-[var(--spacing-top)]">
+	<a href="/" class="btn w-fit p-0 text-primary md:sticky top-[var(--spacing-top)]">
 		<Icon icon="ep:top-left" />Back
 	</a>
 
 	<div class="grid gap-4">
 		<hgroup>
 			<h1 class="heading-3">{title}</h1>
-			<time class="text-content-1">{printDate(date)}</time>
+			<time class="text-content-2">{printDate(date)}</time>
 		</hgroup>
 
 		<slot />

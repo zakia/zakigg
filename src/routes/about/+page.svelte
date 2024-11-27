@@ -1,26 +1,31 @@
-<svelte:head>
-	<title>About</title>
-	<meta name="description" content="About this app" />
-</svelte:head>
+<script lang="ts">
+	import Logo from '../(crafts)/logo.svelte';
+</script>
 
-<div class="text-column">
-	<h1>About this app</h1>
-
+<article class="layout max-w-2xl gap-4">
+	<div class="flex w-full justify-between items-center">
+		<h1 class="font-hand">Adham Zaki</h1>
+		<Logo class="h-16 w-16 hithere shrink-0" />
+	</div>
 	<p>
-		This is a <a href="https://kit.svelte.dev">SvelteKit</a> app. You can make your own by typing the
-		following into your command line and following the prompts:
+		<em>Crafting interfaces.</em> Building polished software and web experiences. Experimenting with
+		magical details in user interfaces. Founder of
+		<a href="https://siteful.io" target="_blank">siteful.io.</a>
 	</p>
 
-	<pre>npm create svelte@latest</pre>
-
+	<h2 class="H3 mt-4">Now</h2>
 	<p>
-		The page you're looking at is purely static HTML, with no client-side interactivity needed.
-		Because of that, we don't need to load any JavaScript. Try viewing the page's source, or opening
-		the devtools network panel and reloading.
+		Developing skill through doing, guiltlessly exploring passion and interests, imbuing quality.
+		Mindful that
+		<em>everything around me is someone’s life work.</em>
 	</p>
-
 	<p>
-		page illustrates SvelteKit's data loading and form handling. Try using it with JavaScript
-		disabled!
+		I love building websites. Typography, motion design, copywriting, performance — the web is an
+		endless medium of opportunity and creativity of which I’ve only scratched the surface.
 	</p>
-</div>
+	<h2 class="H3 mt-4">Connect</h2>
+	<p>
+		Reach me at <a href="mailto:a@zaki.gg">a@zaki.gg</a> or read more on
+		<a href="/resume">my resume.</a>
+	</p>
+</article>

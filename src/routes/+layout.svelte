@@ -26,7 +26,7 @@
 </svelte:head>
 <div class="app">
 	<Header />
-	<main id="main" class="mb-32 print:mb-0;">
+	<main id="main" class="mb-32 print:mb-0">
 		<slot />
 	</main>
 	<div class="preview"></div>

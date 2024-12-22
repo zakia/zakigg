@@ -2,7 +2,8 @@
 	export const metadata = {
 		title: 'Tic Tac Toe',
 		description: 'How do computers play games?',
-		date: '2023-04-01',
+		date: '2024-07-23',
+    draft: false,
 		tags: ['teaching']
 	};
 </script>

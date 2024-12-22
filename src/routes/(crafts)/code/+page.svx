@@ -1,0 +1,89 @@
+---
+title: 'The Code'
+description: 'Rules of Conduct Discovered Through Hard Experience'
+date: '2024-07-01'
+draft: false
+---
+
+#### Rules of Conduct Discovered Through Hard Experience
+
+I maintain this page as a public, but personal page. It's not easy to find on my website, but it is linked. By making it public I hope if someone stumbles upon it, they might find some value. However, the document below isn't really intended as a universal code, some things are specific to my pursuits, and experience. We each are on our own path, not everything will apply to every reader.
+
+## Life
+
+1. How you do anything is how you do everything.
+1. Perfect is the enemy of the good.
+1. As soon as you notice a mistake, correct it.
+1. Don't work so hard that you lack the energy to clean up.
+1. Once you experience a problem, prevent it from ever happening again.
+1. Do what the next guy wished you had done.
+1. Effects matter and intentions matter.
+1. Always be prepared.
+1. If you are going onto your roof, wear a rope.
+
+## Travel
+
+1. Pack like a nested doll. It is efficient to unpack a smaller pack for day trips, and an even smaller one for a night out.
+1. Have a detachable go bag with critical day items and no more: passport, water, battery pack, money, phone, etc.
+1. Carry a pen and notepad.
+1. Underwear is pretty much all you need to worry about.
+1. Linen slacks and a collared shirt look good everywhere.
+1. Have a check list for your things and check it every time you leave an area.
+
+## Running a Business
+
+1. Don't trust anything to be done to your standards, expect everything to need a revision.
+1. Communicate project budgets to all parties.
+1. Do it right the first time, regardless of delays, or expense. Done right is better than done fast.
+1. Deposit checks the second they arrive.
+1. Define a project budget and save receipts. Only reimburse documented expenses.
+1. Charge by value delivered, not by hour: *"You don't pay the plumber for banging on the pipes, you pay him for knowing where to bang."*
+
+## Caring for the Earth
+
+1. Always have a refillable water bottle with you.
+1. Have a burn pile or barrel, burn wood and paper, ideally for heat, compost organic stuff.
+1. Reduce first, then reuse, then if it actually helps, recycle.
+
+<!--
+## Designing a Home
+
+1. Have the minimum number of lights and switches, turning on and off lights should be sensible, and effortless, for anyone.
+1. Design the electrical system to allow a complete shutdown of non critical circuits with one switch.
+1. Place a heater such that your towels are warm and dry and the bathroom is warm.
+1. Size a house only as big as you can perfectly organize and maintain.
+1. Smaller is better, simpler is better.
+
+## Designing a Shop
+
+1. Separate the large machines from the main work area for sound and dust control.
+1. Consider your process, move from dirty and rough to clean and precise zones.
+1. An overhead air hose and extension cord will save much time and headache.
+1. Light the space from 3 angles to eliminate shadows.
+1. Store glue and chemicals in an sealed and insulated cabinet like an old fridge.
+1. Decide on a style, quality, and standard of fasteners early, and stock up on various sizes and lengths. Design for these fasteners, try not to use too many custom parts.
+
+## Large Building Projects
+
+1. Have huge stacks of 2x4, 2x6, and plywood proportional to the size of your job up front. You need more than you think, and constant trips to the store wastes time.
+1. Always dig from top to bottom.
+1. Have an area for materials to be organized where they won't blow away.
+1. Label everything.
+
+## Vehicles
+
+1. If you get a vehicle, immediately get the professional diagnostic and repair manuals and a scanner.
+1. A car should have jumper cables and a can of fuel in it immediately and at all times.
+1. Research common failures first, when times are good, prevent and remedy them.
+1. Always, always, always, shower off chemical grime after working on a vehicle.
+1. Replace unknown fasteners with quality ones, you never know what a replacement part comes with.
+1. Print out all torque specs and instructions for each component first.
+
+ -->
+
+## Organization and Minimalism
+
+1. Keep a supply closet, this is your first stop on the way to the store.
+1. Have a single todo list, don't use just any scrap of paper.
+1. Get rid of multiples, how many #1 flat head screwdrivers do you need?
+1. All your items incur a debt of care, too many will suffocate you.

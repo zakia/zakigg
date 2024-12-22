@@ -1,7 +1,8 @@
 ---
 title: Web Interface Guidelines
 description: A non-exhaustive list of details that make a good (web) interface.
-date: 2023-03-01
+date: 2024-08-24
+draft: false
 ---
 
 This document outlines a non-exhaustive list of details that make a good (web) interface. It is a living document, periodically updated based on learnings. Some of these may be subjective, but most apply to all websites.

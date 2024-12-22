@@ -2,8 +2,8 @@
 	export const metadata = {
 		title: 'Scrolling Tabs',
 		description: 'My attempt at tackling this common design pattern.',
-		date: '2021-10-01',
-		updated: '2021-10-01',
+		date: '2024-10-04',
+    draft: false,
 		tags: ['teaching']
 	};
 </script>

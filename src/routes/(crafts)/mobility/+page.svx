@@ -2,6 +2,7 @@
 title: Mo(ve) + (a)bility.
 description: The foundations of a capable body
 date: 2024-11-11
+draft: true
 ---
 
 **Mobility is the ability to move freely.**  

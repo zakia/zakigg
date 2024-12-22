@@ -2,6 +2,7 @@
 title: How to Change
 date: 2024-10-20
 description: A collection of resources about change
+draft: true
 ---
 
 A slight change in your daily habits can guide your life to a very different destination.

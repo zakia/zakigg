@@ -2,7 +2,7 @@
 title: 'Style Guide'
 description: 'Building a style guide for the site'
 date: '2024-09-01'
-updated: '2024-10-01'
+draft: false
 tags: ['teaching']
 ---
 

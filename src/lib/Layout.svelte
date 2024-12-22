@@ -15,6 +15,12 @@
 	};
 </script>
 
+<svelte:head>
+  <title>{title}</title>
+  <meta name="description" content={description} />
+  <meta property="og:title" content={title} />
+</svelte:head>
+
 <section class="grid gap-4 w-full items-start mx-auto max-w-4xl">
 	<a href="/" class="btn w-fit p-0 text-primary md:sticky top-[var(--spacing-top)]">
 		<Icon icon="ep:top-left" />Back
@@ -22,7 +28,7 @@
 
 	<div class="grid gap-4">
 		<hgroup>
-			<h1 class="heading-3">{title}</h1>
+			<h1 class="heading-3 mb-0">{title}</h1>
 			<time class="text-content-2">{printDate(date)}</time>
 		</hgroup>
 

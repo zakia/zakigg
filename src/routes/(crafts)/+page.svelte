@@ -2,11 +2,11 @@
 	let { data } = $props();
 </script>
 
-<div class="layout gap-4 w-full max-w-2xl">
-	<h1 class="H4">zaki.gg</h1>
+<div class="layout w-full max-w-2xl gap-4">
+	<h1 class="display-3 mb-2">zaki.gg</h1>
 	<div data-parent>
-		{#each data.posts as post, i}
-			<div class="w-full h-[1px] bg-content-3"></div>
+		{#each data.posts.filter((post) => !post.draft) as post, i}
+			<div class="bg-content-3 h-[1px] w-full"></div>
 			<a
 				href={`/${post.slug}`}
 				class="grid grid-cols-[1fr_4fr]"
@@ -20,12 +20,12 @@
 						</p>
 					{/if}
 				</div>
-				<div class="py-3 flex justify-between">
+				<div class="flex justify-between py-3">
 					<div>
 						{post.title}
 					</div>
 					<p class="text-content-2">
-						{post.date.toLocaleString(undefined, { month: '2-digit', day: '2-digit' })}
+						{post.date.toLocaleString(undefined, { month: 'short', day: '2-digit' })}
 					</p>
 				</div>
 			</a>

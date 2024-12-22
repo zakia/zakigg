@@ -45,19 +45,23 @@
 
 	h1,
 	.heading-1 {
-		@apply text-3xl font-bold tracking-tight text-content-0 not-first:mt-[1em];
+		@apply text-content-0 text-3xl font-bold tracking-tight not-first:mt-[1em];
+		margin-bottom: -0.5rem;
 	}
 	h2,
 	.heading-2 {
-		@apply text-2xl font-bold tracking-tight text-content-0  not-first:mt-[1em];
+		@apply text-content-0 text-2xl font-bold tracking-tight not-first:mt-[1em];
+		margin-bottom: -0.5rem;
 	}
 	h3,
 	.heading-3 {
-		@apply text-xl font-bold  text-content-0 not-first:mt-[1em];
+		@apply text-content-0 text-xl font-bold not-first:mt-[1em];
+		margin-bottom: -0.5rem;
 	}
 	h4,
 	.heading-4 {
-		@apply text-lg font-bold  text-content-0 not-first:mt-[1em];
+		@apply text-content-0 text-lg font-bold not-first:mt-[1em];
+		margin-bottom: -0.5rem;
 	}
 
 	.display-1 {
@@ -85,11 +89,11 @@
 	}
 
 	figcaption {
-		@apply text-sm text-content-1;
+		@apply text-content-1 text-sm;
 	}
 
 	blockquote {
-		@apply border-l-4 border-primary pl-4 my-2 italic font-medium;
+		@apply border-primary my-2 border-l-4 pl-4 font-medium italic;
 	}
 
 	hr {
@@ -99,12 +103,11 @@
 
 @layer components {
 	.layout {
-		@apply grid max-w-2xl mx-auto px-4 pt-12;
+		@apply mx-auto grid max-w-2xl px-4 pt-12;
 	}
 
 	.btn {
-		@apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md font-medium 
-             transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed;
+		@apply inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 font-medium transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50;
 		&:hover:not(:disabled) {
 			transform: translateY(-2px);
 		}
@@ -116,7 +119,7 @@
 
 	/* Cards */
 	.card {
-		@apply rounded-lg border border-surface-2 overflow-hidden shadow;
+		@apply border-surface-2 overflow-hidden rounded-lg border shadow;
 	}
 
 	/* Form Elements */
@@ -125,18 +128,15 @@
 	}
 
 	.form-label {
-		@apply block text-sm font-medium text-content-0;
+		@apply text-content-0 block text-sm font-medium;
 	}
 
 	.input {
-		@apply w-full px-3 py-2 rounded-md bg-surface-1 border border-surface-3 
-             text-content-0 placeholder:text-content-1
-             focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent
-             disabled:opacity-50 disabled:cursor-not-allowed;
+		@apply bg-surface-1 border-surface-3 text-content-0 placeholder:text-content-1 focus:ring-primary w-full rounded-md border px-3 py-2 focus:border-transparent focus:ring-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50;
 	}
 }
 
-@layer utilities {
+@utilities {
 	/* Button Variants */
 	.variant-base {
 		@apply bg-surface-2 text-content-0;
@@ -155,7 +155,7 @@
 	}
 
 	.variant-outline {
-		@apply border-2 border-primary text-content-0 hover:bg-primary hover:text-primary-on;
+		@apply border-primary text-content-0 hover:bg-primary hover:text-primary-on border-2;
 	}
 }
 
@@ -206,7 +206,7 @@ body {
 
 */
 code {
-	@apply px-1.5 rounded-lg whitespace-nowrap bg-surface-2;
+	@apply bg-surface-2 rounded-lg px-1.5 whitespace-nowrap;
 }
 
 .text-column {
@@ -255,7 +255,7 @@ li::marker {
 }
 
 .footnotes {
-	@apply text-sm text-content-2;
+	@apply text-content-2 text-sm;
 
 	li {
 		margin-top: 1rem;
@@ -269,7 +269,7 @@ li::marker {
 /* Custom css */
 p a:not(:has(code)),
 .slide-link {
-	@apply text-primary bg-gradient-to-b from-transparent from-50% to-primary to-50%;
+	@apply text-primary to-primary bg-gradient-to-b from-transparent from-50% to-50%;
 	background-size: auto 185%;
 	transition:
 		background 0.3s,

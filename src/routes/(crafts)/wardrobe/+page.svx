@@ -2,6 +2,7 @@
 title: Open Source Wardrobe.
 description: community-built minimal wardrobe
 date: 2024-11-18
+draft: true
 ---
 
 ### Open Source Wardrobe

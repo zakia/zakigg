@@ -2,8 +2,8 @@
 	export const metadata = {
 		title: '🗿📄✂️ vs AI',
 		description: 'Play Rock, Paper, Scissors vs AI',
-		date: '2021-10-01',
-		updates: '2021-10-01',
+		date: '2024-07-14',
+    draft: false,
 		tags: ['teaching']
 	};
 </script>

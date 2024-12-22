@@ -34,7 +34,7 @@
 			</ul>
 		{/each}
 		<h3 class="mt-4">Steps</h3>
-		<ol class="grid gap-1 list-decimal marker:font-bold pl-6">
+		<ol class="grid list-decimal marker:font-bold pl-6">
 			{#each steps as step}
 				<li>{step}</li>
 			{/each}

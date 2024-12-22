@@ -1,7 +1,8 @@
 ---
-title: 🐑🍞
+title: 🐑 🍞
 description: Choosing between security and adventure.
 date: 2024-11-10
+draft: false
 ---
 
 “Why do you tend a flock of sheep?”

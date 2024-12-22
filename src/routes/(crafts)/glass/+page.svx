@@ -2,6 +2,7 @@
 title: 'Glass'
 description: 'The history of glass'
 date: '2024-11-13'
+draft: true
 ---
 
 Glass is inherently brittle. It is the very symbol we use for fragility. But these days, we expect so much from this material. We want it to be perfectly transparent, scratch resistant, thin, and even flexible. But most of all, we want it not to break. So is it possible to make unbreakable glass? Well, in this video, I will make the case that glass is one of the most important materials humans have ever made. It has transformed how we live, launched numerous scientific revolutions, and forever altered how we think about our place in the universe.

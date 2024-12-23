@@ -46,22 +46,22 @@
 	h1,
 	.heading-1 {
 		@apply text-content-0 text-3xl font-bold tracking-tight not-first:mt-[1em];
-		margin-bottom: -0.5rem;
+
 	}
 	h2,
 	.heading-2 {
 		@apply text-content-0 text-2xl font-bold tracking-tight not-first:mt-[1em];
-		margin-bottom: -0.5rem;
+
 	}
 	h3,
 	.heading-3 {
 		@apply text-content-0 text-xl font-bold not-first:mt-[1em];
-		margin-bottom: -0.5rem;
+
 	}
 	h4,
 	.heading-4 {
 		@apply text-content-0 text-lg font-bold not-first:mt-[1em];
-		margin-bottom: -0.5rem;
+
 	}
 
 	.display-1 {

@@ -26,7 +26,7 @@
 		<Icon icon="ep:top-left" />Back
 	</a>
 
-	<div class="grid gap-4">
+	<div class="grid gap-2">
 		<hgroup>
 			<h1 class="heading-3 mb-0">{title}</h1>
 			<time class="text-content-2">{printDate(date)}</time>

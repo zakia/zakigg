@@ -1,9 +1,9 @@
 <script module>
 	export const metadata = {
-		title: 'Scrolling Tabs',
-		description: 'My attempt at tackling this common design pattern.',
+		title: 'Carousels',
+    description: 'My attempt at tackling this common design pattern.',
 		date: '2024-10-04',
-    draft: false,
+		draft: false,
 		tags: ['teaching']
 	};
 </script>
@@ -30,15 +30,18 @@
 		The goal here isn't to replace the numerous carousel and tab libraries out there. <br />
 		Instead, I'd just like to explore what's possible using some basic CSS and JavaScript.
 	</p>
-	<!-- <ScrollingTabs /> -->
+	<ScrollingTabs />
 	{#each data as { title, icon, Content }}
-		<h2 class="heading-3 flex items-center gap-2 text-primary mt-4">
-			<Icon {icon} class="w-8 h-8" />
+		<h2 class="text-primary flex items-center gap-2">
+			<Icon {icon} class="h-8 w-8" />
 			{title}
 		</h2>
 		<Content />
 	{/each}
-	<h2 class="heading-3 mt-4">Bloopers</h2>
+  <h2 class="text-primary flex items-center gap-2">
+    <Icon icon="lucide:clapperboard" class="h-8 w-8" />
+    Bloopers
+  </h2>
 
 	<p>
 		I would have loved to implement a version without JavaScript, using anchor tags as triggers — <code
@@ -47,7 +50,7 @@
 	</p>
 
 	<p><strong>However, it's a bit limited:</strong></p>
-	<ul class="list-disc-outside mb-4 p-s-5">
+	<ul class="list-disc-outside p-s-5 mb-4">
 		<li>
 			Most browsers first scroll the entire page to the anchor, then to the correct slide. In some
 			cases, this behavior might be desired, but it's not ideal for a carousel.
@@ -59,7 +62,7 @@
 		shared the implementation below if you’d like to experiment with it.
 	</p>
 	<ScrollingTabsAnchors />
-	<h2 class="heading-3 mt-4">That's a wrap!</h2>
+	<h3>That's a wrap!</h3>
 	<p>
 		I hope you learned something from this <em>Craft.</em> I had a lot of fun putting it together :)
 	</p>

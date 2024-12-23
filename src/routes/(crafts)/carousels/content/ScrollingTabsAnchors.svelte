@@ -46,10 +46,9 @@
 		{#each data as title, i}
 			<a
 				href="#{title}"
-				class="btn rounded-full bg-base3"
+				class="btn rounded-full variant-base"
 				style="transition: 0.3s;"
-				class:bg-primary-5={activeIndex === i}
-				class:text-primary-content={activeIndex === i}
+				class:variant-light={activeIndex === i}
 			>
 				{i + 1}
 			</a>

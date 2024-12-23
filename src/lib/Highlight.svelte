@@ -25,18 +25,18 @@
 </script>
 
 <div
-	class="bg-surface-1 rounded-lg text-content-0 relative overflow-hidden shadow-lg"
+	class="bg-surface-1 text-content-0 relative overflow-hidden rounded-lg shadow-lg"
 	data-theme="dark"
 >
-	<div class="flex justify-between p-3 items-center bg-surface-2">
+	<div class="bg-surface-2 flex items-center justify-between p-3">
 		{#if header}
-			<div class="font-bold text-lg">{header}</div>
+			<div class="text-lg font-bold">{header}</div>
 		{/if}
 		<button class="btn" onclick={copyToClipboard} disabled={isCopied}>
 			{#if isCopied}
 				Copied!
 			{:else}
-				<Icon icon="solar:copy-linear" class="w-6 h-6" />
+				<Icon icon="solar:copy-linear" class="h-6 w-6" />
 			{/if}
 		</button>
 	</div>

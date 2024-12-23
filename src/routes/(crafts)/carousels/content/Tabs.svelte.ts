@@ -9,26 +9,31 @@ export const data = [
     icon: "carbon:idea",
     title: "The Key Idea",
     Content: keyIdea,
+    thumbnail: "https://picsum.photos/720/560"
   },
   {
     icon: "clarity:design-line",
     title: "What we need",
     Content: whatWeNeed,
+    thumbnail: "https://picsum.photos/720/560"
   },
   {
     icon: "carbon:education",
     title: "Scroll Position",
     Content: scrollingPosition,
+    thumbnail: "https://picsum.photos/720/560"
   },
   {
     icon: "carbon:lightning",
     title: "A better way",
     Content: aBetterWay,
+    thumbnail: "https://picsum.photos/720/560"
   },
   {
     icon: "carbon:tools",
     title: "Options & Enhancements",
     Content: optionsAndEnhancements,
+    thumbnail: "https://picsum.photos/720/560"
   },
 ];
 

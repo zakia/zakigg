@@ -136,7 +136,7 @@
 	}
 }
 
-@utilities {
+@layer utilities {
 	/* Button Variants */
 	.variant-base {
 		@apply bg-surface-2 text-content-0;
@@ -151,7 +151,7 @@
 	}
 
 	.variant-light {
-		@apply bg-primary/15;
+		@apply bg-primary/30;
 	}
 
 	.variant-outline {

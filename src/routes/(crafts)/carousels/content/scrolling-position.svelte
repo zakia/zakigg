@@ -10,7 +10,7 @@
 
 <p>Turns out, the <b>scroll position</b> of a slide is just the amount of space to it's left.</p>
 
-<video src={tabsDemo} autoplay muted loop playsinline class="rounded-lg mb-4"> </video>
+<video src={tabsDemo} autoplay muted loop playsinline class="rounded-lg my-4"> </video>
 <p>
 	You could probably spot the formula <code class="whitespace-nowrap">index * (width + gap)</code>
 </p>

@@ -2,6 +2,14 @@
 	let { data } = $props();
 </script>
 
+<svelte:head>
+	<title>Adham Zaki</title>
+	<meta
+		name="description"
+		content="Crafting interfaces. Building polished software and web experiences. Toronto-based Full Stack Developer and Entrepreneur."
+	/>
+</svelte:head>
+
 <div class="layout w-full max-w-2xl gap-4">
 	<h1 class="display-3 mb-2">zaki.gg</h1>
 	<div data-parent>

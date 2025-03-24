@@ -2,7 +2,7 @@ import { Temporal } from 'temporal-polyfill';
 import type { PageLoad } from './$types';
 
 export type Metadata = {
-  title: string, description?: string, image?: string, date?: string, draft?: boolean, tags?: string[],
+  title: string, description?: string, image?: string, date?: string, draft?: boolean, tags?: string[], children: any
 }
 
 const parseDate = (dateString: string) => {
@@ -16,8 +16,7 @@ export const load = (async () => {
         const data = await resolver() as { metadata: Metadata };
 
         const slug = path.split('/')[1];
-
-        const date = parseDate(data?.metadata.date || '');
+        const date = parseDate(data?.metadata?.date || '');
 
         return { ...data?.metadata, slug, date };
       }

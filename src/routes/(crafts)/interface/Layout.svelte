@@ -13,3 +13,9 @@
 <Layout {...metadata}>
 	<slot />
 </Layout>
+
+<style>
+	img {
+		border-radius: 10px;
+	}
+</style>

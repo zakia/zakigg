@@ -1,4 +1,6 @@
 <script>
+	import { page } from '$app/state';
+
 	let { data } = $props();
 </script>
 
@@ -11,9 +13,9 @@
 </svelte:head>
 
 <div class="layout w-full max-w-2xl gap-4">
-	<h1 class="display-3 mb-2">zaki.gg</h1>
+	<h1 class="display-2 mb-2">zaki.gg</h1>
 	<div data-parent>
-		{#each data.posts.filter((post) => !post.draft) as post, i}
+		{#each data.posts.filter((post) => !post.draft || page.url.hostname === 'localhost') as post, i}
 			<div class="bg-content-3 h-[1px] w-full"></div>
 			<a
 				href={`/${post.slug}`}
@@ -31,6 +33,7 @@
 				<div class="flex justify-between py-3">
 					<div>
 						{post.title}
+						{post.draft ? '(Draft)' : ''}
 					</div>
 					<p class="text-content-2">
 						{post.date.toLocaleString(undefined, { month: 'short', day: '2-digit' })}

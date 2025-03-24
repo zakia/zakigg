@@ -1,0 +1,11 @@
+---
+title: 'Flipism'
+description: 'A personal philosophy under which decisions are made by flipping a coin.'
+date: '2025-01-12'
+draft: false
+---
+A personal philosophy under which decisions are made by flipping a coin.
+
+It's a great way to turn your life into a disaster... or is it? Psychologists have found that if, instead of doing what the coin says, you simply listen to it, it can actually help.
+
+Simply ask a question, flip a coin, then observe your reaction to what the coin says. Do you feel relief or disappointment? Sometimes that's all it takes to remove the mental block that is keeping you from making a choice.

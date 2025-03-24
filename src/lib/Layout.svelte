@@ -3,7 +3,7 @@
 	import { Temporal } from 'temporal-polyfill';
 	import type { Metadata } from '../routes/(crafts)/+page';
 
-	const { title, date, description }: Metadata = $props();
+	const { title, date, description, children }: Metadata = $props();
 
 	const printDate = (isoDate?: string) => {
 		if (!isoDate) return 'Invalid Date';
@@ -16,27 +16,28 @@
 </script>
 
 <svelte:head>
-  <title>{title}</title>
-  <meta name="description" content={description} />
-  <meta property="og:title" content={title} />
+	<title>{title}</title>
+	<meta name="description" content={description} />
+	<meta property="og:title" content={title} />
+	<meta property="og:description" content={description} />
 </svelte:head>
 
-<section class="grid gap-4 w-full items-start mx-auto max-w-4xl">
-	<a href="/" class="btn w-fit p-0 text-primary md:sticky top-[var(--spacing-top)]">
+<section class="mx-auto grid w-full max-w-4xl items-start gap-4">
+	<a href="/" class="btn text-primary top-[var(--spacing-top)] w-fit p-0 md:sticky">
 		<Icon icon="ep:top-left" />Back
 	</a>
 
-	<div class="grid gap-2">
+	<div class="article grid gap-2 w-full">
 		<hgroup>
-			<h1 class="heading-3 mb-0">{title}</h1>
+			<h1 class="heading-3">{title}</h1>
 			<time class="text-content-2">{printDate(date)}</time>
 		</hgroup>
 
-		<slot />
+		{@render children?.()}
 	</div>
 </section>
 
-<style scoped>
+<style>
 	section {
 		--spacing-top: 5rem;
 		display: grid;

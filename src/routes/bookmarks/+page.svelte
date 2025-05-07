@@ -26,7 +26,7 @@
 		{ name: 'Berlin', timezone: 'Europe/Berlin', flag: '🇩🇪' },
 		{ name: 'Cairo', timezone: 'Africa/Cairo', flag: '🇪🇬' },
 		{ name: 'Dubai', timezone: 'Asia/Dubai', flag: '🇦🇪' },
-		{ name: 'China', timezone: 'Asia/Shanghai', flag: '🇨🇳' }
+		{ name: 'Shanghai', timezone: 'Asia/Shanghai', flag: '🇨🇳' }
 	];
 
 	const times = $derived.by(() => {

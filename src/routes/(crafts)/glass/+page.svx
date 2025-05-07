@@ -14,7 +14,7 @@ import runningIntoGlass from './running-into-glass.webp'
 
 Take a look around you, chances are there’s quite a bit of glass! It’s one of the most incredible materials we’ve ever made and a lot of people take for granted. It has transformed the way we live and shaped our understanding of the universe.
 
-We expect so much from glass nowadays, it should be <span class="text-content-2">transparent</span>, ~~scratch-resistant~~, <span class="font-extralight">thin</span>, and flexible - all while not breaking. I’m just amazed something like that can exist. It’s no surprise we see everywhere! (or don’t sometimes)
+We expect so much from glass nowadays, it should be <span class="text-base-content">transparent</span>, ~~scratch-resistant~~, <span class="font-extralight">thin</span>, and flexible - all while not breaking. I’m just amazed something like that can exist. It’s no surprise we see everywhere! (or don’t sometimes)
 
 ![]({runningIntoGlass}){.w-100}
 

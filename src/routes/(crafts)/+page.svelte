@@ -16,16 +16,16 @@
 	<h1 class="display-2 mb-2">zaki.gg</h1>
 	<div data-parent>
 		{#each data.posts.filter((post) => !post.draft || page.url.hostname === 'localhost') as post, i}
-			<div class="bg-content-3 h-[1px] w-full"></div>
+			<div class="bg-base-content/10 h-[1px] w-full"></div>
 			<a
 				href={`/${post.slug}`}
 				class="grid grid-cols-[1fr_4fr]"
 				data-link
 				data-year={post.date.year}
 			>
-				<div class="border-content-2">
+				<div class="border-base-content">
 					{#if i === 0 || post.date.year !== data.posts[i - 1].date.year}
-						<p class="text-content-2 py-3">
+						<p class="text-base-content py-3">
 							{post.date.year}
 						</p>
 					{/if}
@@ -35,7 +35,7 @@
 						{post.title}
 						{post.draft ? '(Draft)' : ''}
 					</div>
-					<p class="text-content-2">
+					<p class="text-base-content">
 						{post.date.toLocaleString(undefined, { month: 'short', day: '2-digit' })}
 					</p>
 				</div>

@@ -83,7 +83,7 @@
 				<div class="flex flex-wrap gap-2">
 					{#each items as item}
 						<div
-							class="flex gap-1 bg-surface-1 rounded-full px-2 py-1 items-center font-medium shadow"
+							class="flex gap-1 bg-base-200 rounded-full px-2 py-1 items-center font-medium shadow"
 						>
 							<Icon icon={item.icon} class="shrink-0 h-4 w-4" />
 							{item.label}

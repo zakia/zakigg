@@ -32,7 +32,7 @@
 <Layout {...metadata}>
 	{#key quoteIndex}
 		<div class="flex min-h-80 items-center justify-center gap-2" in:fade={{ duration: 500 }}>
-			<div class="text-content-0 text-center text-lg font-medium text-balance">
+			<div class="text-base-content text-center text-lg font-medium text-balance">
 				{shuffledQuotes[quoteIndex]}
 			</div>
 		</div>

@@ -87,9 +87,9 @@
 	const md = new MarkdownIt();
 
 	const colors = {
-		surface: ['surface-0', 'surface-1', 'surface-2', 'surface-3', 'surface-4'],
-		content: ['content-0', 'content-1', 'content-2', 'content-3'],
-		primary: ['primary', 'primary-on']
+		surface: ['base-100', 'base-200', 'base-300'],
+		content: ['base-content'],
+		primary: ['primary', 'primary-content']
 	};
 
 	const buttonVariants = [
@@ -171,16 +171,16 @@
 	<section class="space-y-4">
 		<h2 class="heading-2">Cards</h2>
 		<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-			<div class="card surface-1">
+			<div class="card base-200">
 				<div class="p-6">
 					<h3 class="heading-3 mb-2">Surface 1 Card</h3>
-					<p class="text-content-0">Primary content with surface-1 background.</p>
+					<p class="text-base-content">Primary content with base-200 background.</p>
 				</div>
 			</div>
-			<div class="card surface-1">
+			<div class="card base-200">
 				<div class="p-6">
 					<h3 class="heading-3 mb-2">Surface 2 Card</h3>
-					<p class="text-content-1">Secondary content with surface-2 background.</p>
+					<p class="text-base-content">Secondary content with base-300 background.</p>
 				</div>
 			</div>
 		</div>
@@ -208,7 +208,7 @@
 	</section>
 
 	<section
-		class="bg-surface-0 relative flex min-h-screen max-w-3xl flex-col justify-center gap-4 overflow-hidden"
+		class="bg-base-100 relative flex min-h-screen max-w-3xl flex-col justify-center gap-4 overflow-hidden"
 	>
 		{@html md.render(typographyMD)}
 	</section>

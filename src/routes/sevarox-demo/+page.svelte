@@ -107,7 +107,7 @@
 
 <div class="min-h-screen">
 	<!-- Header -->
-	<header class="sticky top-0 w-full bg-surface-0 bg-opacity-90 shadow-sm z-50">
+	<header class="sticky top-0 w-full bg-base-100 bg-opacity-90 shadow-sm z-50">
 		<div class="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
 			<h1 class="text-2xl font-bold text-primary">{pageData.header.logo}</h1>
 
@@ -128,7 +128,7 @@
 				{#each pageData.header.navigation as item}
 					<a
 						href="#{item.toLowerCase()}"
-						class="text-content-0 hover:text-primary transition-colors"
+						class="text-base-content hover:text-primary transition-colors"
 					>
 						{item}
 					</a>
@@ -137,11 +137,11 @@
 
 			<!-- Mobile navigation -->
 			{#if isMenuOpen}
-				<nav class="absolute top-full left-0 w-full bg-surface-0 shadow-lg md:hidden">
+				<nav class="absolute top-full left-0 w-full bg-base-100 shadow-lg md:hidden">
 					{#each pageData.header.navigation as item}
 						<a
 							href="#{item.toLowerCase()}"
-							class="block px-4 py-2 text-content-1 hover:bg-surface-1"
+							class="block px-4 py-2 text-base-content hover:bg-base-200"
 							onclick={() => (isMenuOpen = false)}
 						>
 							{item}
@@ -156,10 +156,10 @@
 		<!-- Hero Section -->
 		<section class="pt-24 pb-16 bg-gradient-to-r from-primary/10 to-primary/20">
 			<div class="max-w-4xl mx-auto px-4 py-16 text-center">
-				<h2 class="text-3xl md:text-4xl font-bold text-content-0 mb-6">
+				<h2 class="text-3xl md:text-4xl font-bold text-base-content mb-6">
 					{pageData.hero.headline}
 				</h2>
-				<p class="text-xl text-content-1 mb-8 max-w-xl mx-auto">
+				<p class="text-xl text-base-content mb-8 max-w-xl mx-auto">
 					{pageData.hero.subheadline}
 				</p>
 				<button
@@ -172,15 +172,15 @@
 		</section>
 
 		<!-- Problem Section -->
-		<section class="py-16 bg-surface-0">
+		<section class="py-16 bg-base-100">
 			<div class="max-w-4xl mx-auto px-4">
-				<h2 class="text-3xl font-bold text-center mb-12 text-content-0">
+				<h2 class="text-3xl font-bold text-center mb-12 text-base-content">
 					{pageData.problemSection.headline}
 				</h2>
 				<div class="grid md:grid-cols-3 gap-8">
 					{#each pageData.problemSection.painPoints as point}
-						<div class="p-6 bg-surface-1 rounded-lg">
-							<p class="text-content-1">{point}</p>
+						<div class="p-6 bg-base-200 rounded-lg">
+							<p class="text-base-content">{point}</p>
 						</div>
 					{/each}
 				</div>
@@ -188,16 +188,16 @@
 		</section>
 
 		<!-- Solution Section -->
-		<section class="py-16 bg-surface-1">
+		<section class="py-16 bg-base-200">
 			<div class="max-w-4xl mx-auto px-4">
-				<h2 class="text-3xl font-bold text-center mb-12 text-content-0">
+				<h2 class="text-3xl font-bold text-center mb-12 text-base-content">
 					{pageData.solutionSection.headline}
 				</h2>
 				<div class="grid md:grid-cols-3 gap-8">
 					{#each pageData.solutionSection.benefits as benefit}
-						<div class="p-6 bg-surface-0 rounded-lg shadow-sm">
+						<div class="p-6 bg-base-100 rounded-lg shadow-sm">
 							<h3 class="text-xl font-semibold mb-4 text-primary">{benefit.title}</h3>
-							<p class="text-content-1">{benefit.description}</p>
+							<p class="text-base-content">{benefit.description}</p>
 						</div>
 					{/each}
 				</div>
@@ -205,21 +205,21 @@
 		</section>
 
 		<!-- Process Section -->
-		<section class="py-16 bg-surface-0">
+		<section class="py-16 bg-base-100">
 			<div class="max-w-4xl mx-auto px-4">
-				<h2 class="text-3xl font-bold text-center mb-12 text-content-0">
+				<h2 class="text-3xl font-bold text-center mb-12 text-base-content">
 					{pageData.processSection.headline}
 				</h2>
 				<div class="grid md:grid-cols-3 gap-8">
 					{#each pageData.processSection.steps as step}
 						<div class="text-center">
 							<div
-								class="w-12 h-12 bg-primary rounded-full flex items-center justify-center text-primary-on text-xl font-bold mb-4 mx-auto"
+								class="w-12 h-12 bg-primary rounded-full flex items-center justify-center text-primary-content text-xl font-bold mb-4 mx-auto"
 							>
 								{step.number}
 							</div>
 							<h3 class="text-xl font-semibold mb-2">{step.title}</h3>
-							<p class="text-content-1">{step.description}</p>
+							<p class="text-base-content">{step.description}</p>
 						</div>
 					{/each}
 				</div>
@@ -227,9 +227,9 @@
 		</section>
 
 		<!-- Trust Section -->
-		<section class="py-16 bg-primary text-primary-on">
+		<section class="py-16 bg-primary text-primary-content">
 			<div class="max-w-4xl mx-auto px-4">
-				<h2 class="text-3xl font-bold text-center mb-12 text-primary-on">
+				<h2 class="text-3xl font-bold text-center mb-12 text-primary-content">
 					{pageData.trustSection.headline}
 				</h2>
 				<div class="grid md:grid-cols-3 gap-8">
@@ -244,16 +244,16 @@
 		</section>
 
 		<!-- Values Section -->
-		<section class="py-16 bg-surface-0">
+		<section class="py-16 bg-base-100">
 			<div class="max-w-4xl mx-auto px-4">
-				<h2 class="text-3xl font-bold text-center mb-12 text-content-0">
+				<h2 class="text-3xl font-bold text-center mb-12 text-base-content">
 					{pageData.valuesSection.headline}
 				</h2>
 				<div class="grid md:grid-cols-3 gap-8">
 					{#each pageData.valuesSection.values as value}
-						<div class="p-6 bg-surface-1 rounded-lg">
+						<div class="p-6 bg-base-200 rounded-lg">
 							<h3 class="text-xl font-semibold mb-4 text-primary">{value.title}</h3>
-							<p class="text-content-1">{value.description}</p>
+							<p class="text-base-content">{value.description}</p>
 						</div>
 					{/each}
 				</div>
@@ -261,12 +261,12 @@
 		</section>
 
 		<!-- CTA Section -->
-		<section class="py-16 bg-surface-1">
+		<section class="py-16 bg-base-200">
 			<div class="max-w-4xl mx-auto px-4 text-center">
-				<h2 class="text-3xl font-bold mb-4 text-content-0">
+				<h2 class="text-3xl font-bold mb-4 text-base-content">
 					{pageData.ctaSection.headline}
 				</h2>
-				<p class="text-xl text-content-1 mb-8">
+				<p class="text-xl text-base-content mb-8">
 					{pageData.ctaSection.subheadline}
 				</p>
 				<button class="variant-primary btn px-8 py-3 rounded-lg text-lg font-semibold">

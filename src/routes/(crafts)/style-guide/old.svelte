@@ -83,9 +83,9 @@
 	};
 
 	const colors = {
-		surface: ['surface-0', 'surface-1', 'surface-2', 'surface-3', 'surface-4'],
-		content: ['content-0', 'content-1'],
-		primary: ['primary', 'primary-on']
+		surface: ['base-100', 'base-200', 'base-300'],
+		content: ['base-content'],
+		primary: ['primary', 'primary-content']
 	};
 
 	const buttonVariants = [
@@ -98,9 +98,8 @@
 </script>
 
 <Layout {...metadata}>
-
-<!-- <input type="color" bind:value={color} />a -->
-<!-- <div class="grid w-full grid-cols-3">
+	<!-- <input type="color" bind:value={color} />a -->
+	<!-- <div class="grid w-full grid-cols-3">
 		<div>
 			{#each Object.entries(darkGray) as [name, color], i}
 				<div
@@ -145,117 +144,116 @@
 		</div>
 	</div> -->
 
-    <div class="space-y-12">
-    	<!-- Color System -->
-    	<section class="space-y-4">
-    		<div class="grid md:grid-cols-3 gap-8">
-    			<!-- Surface Colors -->
-    			<div class="space-y-4">
-    				<h3 class="heading-3">Surface Colors</h3>
-    				<div class="grid gap-2">
-    					{#each colors.surface as color}
-    						<div class="flex items-center space-x-2">
-    							<div
-    								class="w-8 h-8 rounded-full shadow"
-    								style="background-color: var(--color-{color})"
-    							></div>
-    							<div class="font-mono text-sm">{color}</div>
-    						</div>
-    					{/each}
-    				</div>
-    			</div>
+	<div class="space-y-12">
+		<!-- Color System -->
+		<section class="space-y-4">
+			<div class="grid gap-8 md:grid-cols-3">
+				<!-- Surface Colors -->
+				<div class="space-y-4">
+					<h3 class="heading-3">Surface Colors</h3>
+					<div class="grid gap-2">
+						{#each colors.surface as color}
+							<div class="flex items-center space-x-2">
+								<div
+									class="h-8 w-8 rounded-full shadow"
+									style="background-color: var(--color-{color})"
+								></div>
+								<div class="font-mono text-sm">{color}</div>
+							</div>
+						{/each}
+					</div>
+				</div>
 
-    			<!-- Content Colors -->
-    			<div class="space-y-4">
-    				<h3 class="heading-3">Content Colors</h3>
-    				<div class="grid gap-2">
-    					{#each colors.content as color}
-    						<div class="flex items-center space-x-2">
-    							<div
-    								class="w-8 h-8 rounded-full shadow"
-    								style="background-color: var(--color-{color})"
-    							></div>
-    							<div class="font-mono text-sm">{color}</div>
-    						</div>
-    					{/each}
-    				</div>
-    			</div>
+				<!-- Content Colors -->
+				<div class="space-y-4">
+					<h3 class="heading-3">Content Colors</h3>
+					<div class="grid gap-2">
+						{#each colors.content as color}
+							<div class="flex items-center space-x-2">
+								<div
+									class="h-8 w-8 rounded-full shadow"
+									style="background-color: var(--color-{color})"
+								></div>
+								<div class="font-mono text-sm">{color}</div>
+							</div>
+						{/each}
+					</div>
+				</div>
 
-    			<!-- Theme Colors -->
-    			<div class="space-y-4">
-    				<h3 class="heading-3">Theme Colors</h3>
-    				<div class="grid gap-2">
-    					{#each colors.primary as color}
-    						<div class="flex items-center space-x-2">
-    							<div
-    								class="w-8 h-8 rounded-full shadow"
-    								style="background-color: var(--color-{color})"
-    							></div>
-    							<div class="font-mono text-sm">{color}</div>
-    						</div>
-    					{/each}
-    				</div>
-    			</div>
-    		</div>
-    	</section>
+				<!-- Theme Colors -->
+				<div class="space-y-4">
+					<h3 class="heading-3">Theme Colors</h3>
+					<div class="grid gap-2">
+						{#each colors.primary as color}
+							<div class="flex items-center space-x-2">
+								<div
+									class="h-8 w-8 rounded-full shadow"
+									style="background-color: var(--color-{color})"
+								></div>
+								<div class="font-mono text-sm">{color}</div>
+							</div>
+						{/each}
+					</div>
+				</div>
+			</div>
+		</section>
 
-    	<!-- Buttons -->
-    	<section class="space-y-4">
-    		<h2 class="heading-2">Buttons</h2>
-    		<div class="flex flex-wrap gap-4">
-    			{#each buttonVariants as variant}
-    				<button class="btn {variant.class}">
-    					{variant.label}
-    					{#if variant.icon}
-    						<Icon icon={variant.icon} class="w-4 h-4" />
-    					{/if}
-    				</button>
-    			{/each}
-    			<button disabled class="btn variant-primary">Disabled</button>
-    		</div>
-    	</section>
+		<!-- Buttons -->
+		<section class="space-y-4">
+			<h2 class="heading-2">Buttons</h2>
+			<div class="flex flex-wrap gap-4">
+				{#each buttonVariants as variant}
+					<button class="btn {variant.class}">
+						{variant.label}
+						{#if variant.icon}
+							<Icon icon={variant.icon} class="h-4 w-4" />
+						{/if}
+					</button>
+				{/each}
+				<button disabled class="btn variant-primary">Disabled</button>
+			</div>
+		</section>
 
-    	<!-- Cards -->
-    	<section class="space-y-4">
-    		<h2 class="heading-2">Cards</h2>
-    		<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-    			<div class="card surface-1">
-    				<div class="p-6">
-    					<h3 class="heading-3 mb-2">Surface 1 Card</h3>
-    					<p class="text-content-0">Primary content with surface-1 background.</p>
-    				</div>
-    			</div>
-    			<div class="card surface-1">
-    				<div class="p-6">
-    					<h3 class="heading-3 mb-2">Surface 2 Card</h3>
-    					<p class="text-content-1">Secondary content with surface-2 background.</p>
-    				</div>
-    			</div>
-    		</div>
-    	</section>
+		<!-- Cards -->
+		<section class="space-y-4">
+			<h2 class="heading-2">Cards</h2>
+			<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+				<div class="card base-200">
+					<div class="p-6">
+						<h3 class="heading-3 mb-2">Surface 1 Card</h3>
+						<p class="text-base-content">Primary content with base-200 background.</p>
+					</div>
+				</div>
+				<div class="card base-200">
+					<div class="p-6">
+						<h3 class="heading-3 mb-2">Surface 2 Card</h3>
+						<p class="text-base-content">Secondary content with base-300 background.</p>
+					</div>
+				</div>
+			</div>
+		</section>
 
-    	<!-- Form Elements -->
-    	<section class="space-y-4">
-    		<h2 class="heading-2">Form Elements</h2>
-    		<div class="grid gap-4 max-w-md">
-    			<div class="form-group">
-    				<label for="text" class="form-label">Text Input</label>
-    				<input type="text" id="text" class="input" placeholder="Enter text..." />
-    			</div>
-    			<div class="form-group">
-    				<label for="email" class="form-label">Email Input</label>
-    				<input type="email" id="email" class="input" placeholder="Enter email..." />
-    			</div>
-    			<div class="form-group">
-    				<label for="textarea" class="form-label">Textarea</label>
-    				<textarea id="textarea" class="input" rows="3" placeholder="Enter long text..."
-    				></textarea>
-    			</div>
-    			<div class="form-group">
-    				<button class="btn variant-primary">Submit</button>
-    			</div>
-    		</div>
-    	</section>
-    </div>
-
+		<!-- Form Elements -->
+		<section class="space-y-4">
+			<h2 class="heading-2">Form Elements</h2>
+			<div class="grid max-w-md gap-4">
+				<div class="form-group">
+					<label for="text" class="form-label">Text Input</label>
+					<input type="text" id="text" class="input" placeholder="Enter text..." />
+				</div>
+				<div class="form-group">
+					<label for="email" class="form-label">Email Input</label>
+					<input type="email" id="email" class="input" placeholder="Enter email..." />
+				</div>
+				<div class="form-group">
+					<label for="textarea" class="form-label">Textarea</label>
+					<textarea id="textarea" class="input" rows="3" placeholder="Enter long text..."
+					></textarea>
+				</div>
+				<div class="form-group">
+					<button class="btn variant-primary">Submit</button>
+				</div>
+			</div>
+		</section>
+	</div>
 </Layout>

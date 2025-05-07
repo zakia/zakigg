@@ -30,7 +30,7 @@
 	<div class="article grid gap-2 w-full">
 		<hgroup>
 			<h1 class="heading-3">{title}</h1>
-			<time class="text-content-2">{printDate(date)}</time>
+			<time class="text-base-content/50">{printDate(date)}</time>
 		</hgroup>
 
 		{@render children?.()}

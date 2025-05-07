@@ -1,5 +1,6 @@
 import { NOTION_TOKEN } from '$env/static/private';
-import { Client } from '@notionhq/client';
+import { Client, isFullDatabase } from '@notionhq/client';
+import type { PageServerLoad } from './$types';
 
 // Initializing a client
 const notion = new Client({
@@ -11,8 +12,16 @@ const getUsers = async () => {
 	return listUsersResponse;
 };
 
-export const load = async () => {
-	const users = await getUsers();
-	console.log(users);
-	return { users };
+const getQuotes = async () => {
+	const listQuotesResponse = await notion.blocks.children.list({
+		block_id: '1d7729937a2f4df7a96f168cbe465da7'
+	});
+
+	listQuotesResponse.results[0]
+	return listQuotesResponse;
+};
+
+export const load: PageServerLoad = async () => {
+	const quotes = getQuotes();
+	return { quotes };
 };

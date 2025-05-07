@@ -70,7 +70,7 @@
 </script>
 
 <header
-	class="bg-surface-1 dock fixed bottom-0 left-1/2 z-999 flex h-14 w-fit items-end rounded-xl p-2 backdrop-blur-lg print:hidden"
+	class="bg-base-200 dock fixed bottom-0 left-1/2 z-999 flex h-14 w-fit items-end rounded-xl p-2 backdrop-blur-lg print:hidden"
 	style="view-transition-name: header;"
 	class:hidden={path === '/sevarox-demo'}
 	style:translate="-50% {isHidden ? '200%' : '0%'}"
@@ -83,7 +83,7 @@
 			<Icon icon={link.icon} class="h-full w-full"></Icon>
 		</a>
 	{/each}
-	<div class="bg-surface-2 my-a h-3/4 w-px"></div>
+	<div class="bg-base-300 my-a h-3/4 w-px"></div>
 	{#each socials as social}
 		<a href={social.path} class="dock-item" target="_blank">
 			<div class="tooltip">
@@ -92,7 +92,7 @@
 			<Icon icon={social.icon} class="h-full w-full"></Icon>
 		</a>
 	{/each}
-	<div class="bg-surface-2 my-auto h-3/4 w-px"></div>
+	<div class="bg-base-300 my-auto h-3/4 w-px"></div>
 
 	<button class="dock-item" onclick={theme.toggle}>
 		<div class="tooltip">Toggle Theme</div>
@@ -149,7 +149,7 @@
 		border-radius: 0.25rem;
 		font-size: 0.75rem;
 		white-space: nowrap;
-		background-color: var(--color-surface-1);
+		background-color: var(--color-base-200);
 		transition: opacity 0.2s;
 		box-shadow:
 			0 4px 6px -1px rgb(0 0 0 / 0.1),

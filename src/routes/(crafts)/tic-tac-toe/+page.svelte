@@ -187,7 +187,7 @@
 	}
 
 	.circle {
-		--ring-color: var(--color-content-0);
+		--ring-color: var(--color-base-content);
 		box-shadow: inset 0 0 0 1px var(--ring-color);
 		filter: drop-shadow(12px 12px 0px oklch(from var(--ring-color) l c h / 0.2));
 		border-radius: 50%;

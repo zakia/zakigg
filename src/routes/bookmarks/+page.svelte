@@ -57,7 +57,7 @@
 	});
 </script>
 
-<div class="flex flex-col justify-center mx-auto p-4">
+<div class="mx-auto flex flex-col justify-center p-4">
 	<div class="mb-8 flex flex-col items-center gap-4">
 		<div class="flex flex-col items-center gap-1">
 			<div class="text-2xl font-bold">
@@ -74,7 +74,9 @@
 
 		<div class="flex flex-wrap justify-center gap-4">
 			{#each times as time}
-				<div class="flex flex-col items-center gap-1 rounded-lg border p-2 text-center">
+				<div
+					class="flex flex-col items-center gap-1 rounded-lg border border-current/10 shadow p-2 text-center"
+				>
 					<div class="text-xl font-medium">
 						{time.timeString}
 					</div>
@@ -94,7 +96,7 @@
 	<div class="flex flex-wrap justify-center gap-4">
 		{#each Object.entries(groupedBookmarks) as [category, items]}
 			{#if items.length > 0}
-				<div class="w-fit rounded-lg ring ring-primary p-2">
+				<div class="w-fit rounded-lg p-2 ring ring-current/10">
 					<h2 class="mb-2 text-lg font-light">{category}</h2>
 					<div class="flex flex-wrap">
 						{#each items as bookmark}

@@ -10,7 +10,7 @@ export const categories = {
 
 export const bookmarks = [
 	{
-		url: 'https://my.beanfield.com/',
+		url: 'https://www.amazon.ca/',
 		icon: 'arcticons:amazon',
 		tags: [categories.billing]
 	},

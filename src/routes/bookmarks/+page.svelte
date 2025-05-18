@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Icon from '@iconify/svelte';
-	import { bookmarks, categories } from './bookmarks';
 	import { Temporal } from 'temporal-polyfill';
+	import { bookmarks } from './bookmarks';
 
 	function getFaviconUrl(url: string) {
 		try {
@@ -11,14 +11,6 @@
 			return ''; // Return empty string if URL is invalid
 		}
 	}
-
-	const groupedBookmarks = Object.entries(categories).reduce(
-		(acc, [key, label]) => {
-			acc[label] = bookmarks.filter((bookmark) => bookmark.tags.includes(label));
-			return acc;
-		},
-		{} as Record<string, typeof bookmarks>
-	);
 
 	const cities = [
 		// { name: 'Toronto', timezone: 'America/Toronto', flag: '🇨🇦' },
@@ -57,8 +49,8 @@
 	});
 </script>
 
-<div class="mx-auto flex flex-col justify-center p-4">
-	<div class="mb-8 flex flex-col items-center gap-4">
+<div class="page-grid">
+	<div class="flex flex-col items-center gap-4">
 		<div class="flex flex-col items-center gap-1">
 			<div class="text-2xl font-bold">
 				{Temporal.Now.zonedDateTimeISO().toLocaleString('en-US', { timeStyle: 'short' })}
@@ -72,10 +64,10 @@
 			</div>
 		</div>
 
-		<div class="flex flex-wrap justify-center gap-4">
+		<div class="flex flex-wrap justify-start gap-4">
 			{#each times as time}
 				<div
-					class="flex flex-col items-center gap-1 rounded-lg border border-current/10 shadow p-2 text-center"
+					class="bg-base-100 flex flex-col items-center gap-1 rounded-lg p-2 text-center ring shadow ring-current/10"
 				>
 					<div class="text-xl font-medium">
 						{time.timeString}
@@ -93,20 +85,45 @@
 		</div>
 	</div>
 
-	<div class="flex flex-wrap justify-center gap-4">
-		{#each Object.entries(groupedBookmarks) as [category, items]}
-			{#if items.length > 0}
-				<div class="w-fit rounded-lg p-2 ring ring-current/10">
-					<h2 class="mb-2 text-lg font-light">{category}</h2>
-					<div class="flex flex-wrap">
-						{#each items as bookmark}
-							<a href={bookmark.url} class="btn flex items-center rounded-lg p-2">
-								<Icon icon={bookmark.icon} class=" text-primary h-10 w-10 drop-shadow-2xl" />
-							</a>
-						{/each}
+	<div class="bookmarks-section">
+		<div class="flex flex-wrap gap-4">
+			{#each Object.entries(bookmarks) as [category, items]}
+				{#if items.length > 0}
+					<div class="w-fit rounded-lg p-2 ring ring-current/10">
+						<h2 class="mb-2 text-center text-lg font-medium capitalize underline">{category}</h2>
+						<div class="grid grid-cols-2 gap-2">
+							{#each items as bookmark}
+								<a href={bookmark.url} class="btn flex items-center rounded-lg p-2">
+									<Icon icon={bookmark.icon} class="text-primary h-10 w-10 drop-shadow-2xl" />
+								</a>
+							{/each}
+						</div>
 					</div>
-				</div>
-			{/if}
-		{/each}
+				{/if}
+			{/each}
+		</div>
 	</div>
 </div>
+
+<style>
+	.page-grid {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 2rem;
+		padding: 1rem;
+		background-image: radial-gradient(
+			circle at 1rem 1rem,
+			color-mix(in oklch, var(--color-base-content) 100%, transparent) 1px,
+			transparent 0
+		);
+		background-size: 2rem 2rem;
+		background-position: 0 0;
+	}
+
+	.bookmarks {
+		display: grid;
+		gap: 10px;
+		grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+		grid-template-rows: masonry;
+	}
+</style>

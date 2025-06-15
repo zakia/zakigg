@@ -1,6 +1,4 @@
 <script lang="ts">
-	import type { PageData } from './$types';
-
 	const onSubmit = async (event: Event) => {
 		event.preventDefault();
 		const form = event.target as HTMLFormElement;
@@ -13,7 +11,7 @@
 	};
 </script>
 
-<form onsubmit={onSubmit} class="border grid p-4 max-w-sm w-full mx-auto gap-4">
+<form onsubmit={onSubmit} class="mx-auto grid w-full max-w-sm gap-4 border p-4">
 	<input name="email" type="email" placeholder="email" value="azakica@gmail.com" />
 	<input name="password" type="password" placeholder="Password" value="3NFpGZKksuOYKrO" />
 	<button type="submit">Login</button>

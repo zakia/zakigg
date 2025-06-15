@@ -103,53 +103,43 @@
 	}
 }
 
-@layer utilities {
-	.layout {
-		@apply mx-auto grid max-w-2xl px-4 pt-[4vh];
-	}
+@utility layout {
+	@apply mx-auto grid max-w-2xl px-4 pt-[4vh];
+}
+/* Cards */
+@utility card {
+	@apply border-base-300 overflow-hidden rounded-lg border shadow;
+}
 
-	.prose {
-		@apply max-w-prose leading-7;
-	}
+/* Form Elements */
 
-	/* Cards */
-	.card {
-		@apply border-base-300 overflow-hidden rounded-lg border shadow;
-	}
+@utility input {
+	width: clamp(3rem, 20rem, 100%);
+	@apply bg-base-200 focus-within:ring-primary flex shrink items-center gap-2 rounded px-3 py-2 ring ring-transparent disabled:cursor-not-allowed disabled:opacity-50;
 
-	/* Form Elements */
-	.form-group {
-		@apply space-y-1;
+	:where(input) {
+		@apply grow outline-hidden;
 	}
+}
 
-	.form-label {
-		@apply text-base-content block text-sm font-medium;
-	}
+@utility variant-base {
+	@apply bg-base-300 text-base-content;
+}
 
-	.input {
-		@apply bg-base-200 focus:ring-primary w-full rounded-md border px-3 py-2 focus:border-transparent focus:ring-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50;
-	}
+@utility variant-primary {
+	@apply bg-primary text-primary-content;
+}
 
-	/* Button Variants */
-	.variant-base {
-		@apply bg-base-300 text-base-content;
-	}
+@utility variant-ghost {
+	@apply bg-base-200 text-base-content;
+}
 
-	.variant-primary {
-		@apply bg-primary text-primary-content;
-	}
+@utility variant-light {
+	@apply bg-primary/30;
+}
 
-	.variant-ghost {
-		@apply bg-base-200 text-base-content;
-	}
-
-	.variant-light {
-		@apply bg-primary/30;
-	}
-
-	.variant-outline {
-		@apply border-primary text-base-content hover:bg-primary hover:text-primary-content border-2;
-	}
+@utility variant-outline {
+	@apply border-primary text-base-content hover:bg-primary hover:text-primary-content border-2;
 }
 
 :root {
@@ -166,20 +156,20 @@ body:has(dialog[open]) {
 	scrollbar-gutter: stable;
 }
 
-:root *::-webkit-scrollbar {
-	-webkit-appearance: none;
-	width: 8px;
-	height: 8px;
-}
+/* :root *::-webkit-scrollbar { */
+	/* -webkit-appearance: none; */
+	/* width: 8px;
+	height: 8px; */
+/* } */
 
-:root *::-webkit-scrollbar-track {
+/* :root *::-webkit-scrollbar-track {
 	background-color: transparent;
-}
+} */
 
-:root *::-webkit-scrollbar-thumb {
+/* :root *::-webkit-scrollbar-thumb {
 	background-color: var(--color-base-300);
 	border-radius: 1rem;
-}
+} */
 
 body {
 	min-height: 100vh;

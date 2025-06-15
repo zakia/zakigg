@@ -2,7 +2,6 @@
 	// import { onNavigate } from '$app/navigation';
 	import '@fontsource/fira-mono';
 	import '@fontsource-variable/inter';
-	import 'open-props/open-props.min.css';
 	import '../app.css';
 	import '$lib/prism.css';
 	import Header from './Header.svelte';
@@ -26,7 +25,7 @@
 </svelte:head>
 <div class="app">
 	<Header />
-	<main id="main" class="mb-32 print:mb-0">
+	<main id="main" class="pb-32 print:pb-0">
 		<slot />
 	</main>
 	<div class="preview"></div>
@@ -45,6 +44,17 @@
 		flex-direction: column;
 		width: 100%;
 		view-transition-name: main;
+
+		--grid-size: 4rem;
+		flex-wrap: wrap;
+		gap: 2rem;
+		background-image: radial-gradient(
+			circle at calc(1rem - 1px) calc(1rem - 1px),
+			color-mix(in oklch, var(--color-primary) 15%, transparent) 2px,
+			transparent 0
+		);
+		background-size: var(--grid-size) var(--grid-size);
+		background-position: 0 0;
 	}
 
 	@keyframes fade-in {

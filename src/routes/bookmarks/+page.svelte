@@ -2,6 +2,7 @@
 	import Icon from '@iconify/svelte';
 	import { Temporal } from 'temporal-polyfill';
 	import { bookmarks } from './bookmarks';
+	import Tasks from '$lib/components/Tasks.svelte';
 
 	function getFaviconUrl(url: string) {
 		try {
@@ -85,11 +86,13 @@
 		</div>
 	</div>
 
+	<Tasks />
+
 	<div class="bookmarks-section">
-		<div class="flex flex-wrap gap-4">
+		<div class="bg-base-100/50 flex flex-wrap gap-4 rounded-lg p-4 ring-2 shadow ring-current/10">
 			{#each Object.entries(bookmarks) as [category, items]}
 				{#if items.length > 0}
-					<div class="w-fit rounded-lg p-2 ring ring-current/10">
+					<div class="w-fit rounded-lg p-2">
 						<h2 class="mb-2 text-center text-lg font-medium capitalize underline">{category}</h2>
 						<div class="grid grid-cols-2 gap-2">
 							{#each items as bookmark}
@@ -107,17 +110,18 @@
 
 <style>
 	.page-grid {
+		--grid-size: 4rem;
 		display: flex;
 		flex-wrap: wrap;
 		gap: 2rem;
 		padding: 1rem;
-		background-image: radial-gradient(
-			circle at 1rem 1rem,
-			color-mix(in oklch, var(--color-base-content) 100%, transparent) 1px,
+		/* background-image: radial-gradient(
+			circle at calc(1rem - 1px) calc(1rem - 1px),
+			color-mix(in oklch, var(--color-primary) 10%, transparent) 2px,
 			transparent 0
 		);
-		background-size: 2rem 2rem;
-		background-position: 0 0;
+		background-size: var(--grid-size) var(--grid-size);
+		background-position: 0 0; */
 	}
 
 	.bookmarks {

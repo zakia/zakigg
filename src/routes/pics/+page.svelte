@@ -82,8 +82,10 @@
 
 <div class="grid grid-flow-row-dense grid-cols-4">
 	{#each photos as photo}
-		<div class={`${photo.vertical ? '' : 'col-span-2'}`}>
-			<enhanced:img src={photo.default} alt={photo.name} class="h-full object-cover" />
-		</div>
+		<enhanced:img
+			src={photo.default}
+			alt={photo.name}
+			class="h-full object-cover {photo.vertical ? '' : 'col-span-2'}"
+		/>
 	{/each}
 </div>

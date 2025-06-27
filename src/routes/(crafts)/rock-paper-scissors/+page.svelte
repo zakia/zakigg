@@ -1,4 +1,7 @@
 <script module>
+	// Type declaration for brain.js global
+	declare const brain: any;
+	
 	export const metadata = {
 		title: '🗿📄✂️ vs AI',
 		description: 'Play Rock, Paper, Scissors vs AI',
@@ -10,7 +13,6 @@
 
 <script lang="ts">
 	import Layout from '$lib/Layout.svelte';
-
 	import Icon from '@iconify/svelte';
 
 	let cheating = $state(false);

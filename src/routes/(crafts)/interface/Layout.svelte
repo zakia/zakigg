@@ -7,15 +7,9 @@
 <script lang="ts">
 	import type { Metadata } from '../+page';
 
-	const metadata: Metadata = $props();
+	const props: Metadata = $props();
 </script>
 
-<Layout {...metadata}>
-	<slot />
+<Layout title={props.title} description={props.description} date={props.date} draft={props.draft}>
+	{@render props.children()}
 </Layout>
-
-<style>
-	img {
-		border-radius: 10px;
-	}
-</style>

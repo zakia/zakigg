@@ -1,7 +1,6 @@
 import adapter from '@sveltejs/adapter-auto';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 import { mdsvex } from 'mdsvex';
-import remarkFootnote from 'remark-footnotes';
 import remarkGfm from 'remark-gfm';
 import remarkAttr from 'remark-attr';
 
@@ -16,7 +15,7 @@ const config = {
 				_: './src/lib/Layout.svelte',
 				interface: './src/routes/(crafts)/interface/Layout.svelte'
 			},
-			remarkPlugins: [remarkFootnote, remarkGfm, remarkAttr]
+			remarkPlugins: [remarkGfm, remarkAttr]
 		}),
 		vitePreprocess()
 	],

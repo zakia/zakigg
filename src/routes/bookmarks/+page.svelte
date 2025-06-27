@@ -38,9 +38,9 @@
 					});
 				const timeString = temporalObject.toLocaleString('en-US', { timeStyle: 'short' });
 				const dateString = temporalObject.toLocaleString('en-US', { dateStyle: 'short' });
-				const { offset, timeZone } = temporalObject.getISOFields();
+				const { offset, timeZoneId } = temporalObject;
 
-				return { name, timeString, dateString, offset, timeZone, flag, difference };
+				return { name, timeString, dateString, offset, timeZoneId, flag, difference };
 			})
 			.sort((a, b) => {
 				const offsetA = parseInt(a.offset.replace(':', ''));
@@ -124,10 +124,5 @@
 		background-position: 0 0; */
 	}
 
-	.bookmarks {
-		display: grid;
-		gap: 10px;
-		grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-		grid-template-rows: masonry;
-	}
+
 </style>

@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
     import { onMount } from 'svelte';
 
     let tripDetails = {
@@ -6,7 +6,7 @@
         startDate: '',
         endDate: '',
         hasLaundry: false,
-        weather: null
+        weather: null as any
     };
 
     let packingList = {
@@ -22,7 +22,7 @@
             { item: 'Sunscreen', checked: false },
             { item: 'Hand sanitizer', checked: false }
         ],
-        clothing: [],
+        clothing: [] as { item: string; checked: boolean; }[],
         electronics: [
             { item: 'Phone', checked: false },
             { item: 'Phone charger', checked: false },
@@ -62,9 +62,9 @@
     function generateClothingList() {
         const start = new Date(tripDetails.startDate);
         const end = new Date(tripDetails.endDate);
-        const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+        const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
         
-        let clothingItems = [];
+        let clothingItems: { item: string; checked: boolean; }[] = [];
         
         // Calculate number of outfits based on trip duration and laundry access
         const outfitsPerWeek = tripDetails.hasLaundry ? 7 : 14;
@@ -82,7 +82,7 @@
         );
 
         // Add weather-specific items
-        if (tripDetails.weather) {
+        if (tripDetails.weather && tripDetails.weather.main) {
             const temp = tripDetails.weather.main.temp - 273.15; // Convert Kelvin to Celsius
             if (temp < 10) {
                 clothingItems.push(

@@ -5,5 +5,5 @@
 
 <h2 class="flex text-xl gap-1 items-center -mb-2 text-primary">
 	<Icons id={props.id} />
-	<slot />
+	{@render props.children()}
 </h2>

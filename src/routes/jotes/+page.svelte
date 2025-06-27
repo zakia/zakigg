@@ -11,7 +11,7 @@
 		{:then quotes}
 			{#each quotes.results as quote}
 				<div class="rounded-lg border p-4 shadow">
-					<pre class="whitespace-pre text-gray-600">{JSON.stringify(quote.quote, null, 2)}</pre>
+					<pre class="whitespace-pre text-gray-600">{JSON.stringify(quote, null, 2)}</pre>
 				</div>
 			{/each}
 		{/await}

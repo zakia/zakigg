@@ -96,12 +96,6 @@
 		margin: 0 auto;
 	}
 
-	svg {
-		width: 100%;
-		height: auto;
-		border: 1px solid #ccc;
-	}
-
 	.info {
 		text-align: center;
 		margin: 1rem 0;

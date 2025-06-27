@@ -16,13 +16,13 @@ Take a look around you, chances are there’s quite a bit of glass! It’s one o
 
 We expect so much from glass nowadays, it should be <span class="text-base-content">transparent</span>, ~~scratch-resistant~~, <span class="font-extralight">thin</span>, and flexible - all while not breaking. I’m just amazed something like that can exist. It’s no surprise we see everywhere! (or don’t sometimes)
 
-![]({runningIntoGlass}){.w-100}
+![running_into_glass]({runningIntoGlass}){.w-100}
 
 ## Where does glass come from?
 
 Glass has existed in nature for billions of years. It’s formed by meteorite impacts, lightning strikes and volcanic eruptions (basically, wild shit). Obsidian is volcanic glass. It forms when lava cools quickly.
 
-<video src={obsidian} muted autoplay class="w-100" loop  />
+<video src={obsidian} muted autoplay class="w-100" loop></video>
 
 It’s extremely brittle, so when you hit it with another rock, you can chip off parts to make a sharper and sharper edge. There’s evidence of obsidian being used for cutting tools, arrowheads and spear tips, for over a million years.
 

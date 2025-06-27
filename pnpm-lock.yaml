@@ -110,9 +110,6 @@ importers:
       remult:
         specifier: ^3.0.5
         version: 3.0.5
-      svelte-virtual-list:
-        specifier: ^3.0.1
-        version: 3.0.1
       tailwindcss:
         specifier: 4.1.11
         version: 4.1.11
@@ -2195,9 +2192,6 @@ packages:
     resolution: {integrity: sha512-T6mqZrySltPCDwfKXWQ6zehipVLk4GWfH1zCMGgRtLlOIFPuw58ZxVYxVvotMJgJaurKi1i14viB2GIRKXeJTQ==}
     peerDependencies:
       svelte: ^3.0.0 || ^4.0.0 || ^5.0.0-next.1
-
-  svelte-virtual-list@3.0.1:
-    resolution: {integrity: sha512-e7e+jn8VDjmdD8A1oOVBWmUi7jg+uugmiihkK0Cuk35JeeCR8ja40/B6DpCTHJFsQAZg6EVPjetN2ibgr25YCA==}
 
   svelte@5.34.8:
     resolution: {integrity: sha512-TF+8irl7rpj3+fpaLuPRX5BqReTAqckp0Fumxa/mCeK3fo0/MnBb9W/Z2bLwtqj3C3r5Lm6NKIAw7YrgIv1Fwg==}
@@ -4405,8 +4399,6 @@ snapshots:
   svelte-parse-markup@0.1.5(svelte@5.34.8):
     dependencies:
       svelte: 5.34.8
-
-  svelte-virtual-list@3.0.1: {}
 
   svelte@5.34.8:
     dependencies:

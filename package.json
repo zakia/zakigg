@@ -67,7 +67,6 @@
 		"remark-gfm": "^4.0.1",
 		"remark-toc": "^9.0.0",
 		"remult": "^3.0.5",
-		"svelte-virtual-list": "^3.0.1",
 		"tailwindcss": "4.1.11",
 		"temporal-polyfill": "^0.3.0",
 		"yaml": "^2.8.0"

@@ -37,7 +37,7 @@ Another recipe includes adding boron trioxide to the mixture, forming a borosili
 
 The earliest human made glass was likely an accident. People have been working metal for thousands of years before they made glass. So it’s thought that some sand made its way into metal working furnaces, forming small glass beads. But soon glass making became its own art form, to make decorations, ornaments, statues, tableware and containers. Unlike clay, glass is impermeable to water, making it an ideal material for bowls and bottles.
 
-![](https://upload.wikimedia.org/wikipedia/commons/8/80/Ancient_Greece_Roman_Glass_%2828305910700%29.jpg)
+![Ancient_Greece_Roman_Glass](https://upload.wikimedia.org/wikipedia/commons/8/80/Ancient_Greece_Roman_Glass_%2828305910700%29.jpg)
 
 But then glass makers noticed that by adding other elements into the mix, they could change the color of the glass. By adding cobalt oxide, you would get a vivid blue. Adding cuprite makes red.
 

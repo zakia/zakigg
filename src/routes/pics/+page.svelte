@@ -8,10 +8,6 @@
 		date: string;
 	}
 
-	interface PhotoGroup {
-		date: string;
-		photos: Photo[];
-	}
 	type Image = {
 		sources: {
 			avif: string;
@@ -25,20 +21,17 @@
 		};
 	};
 
-	let photoGroups: PhotoGroup[] = [];
 	let photos = $state<Photo[]>([]);
+	let loading = $state(true);
 
 	onMount(async () => {
-		// Import all images from the 2025 directory
+		// Import all images from all 2025 date directories
 		const images = import.meta.glob<Image>('$lib/images/2025/**/*.{jpg,jpeg,png}', {
 			import: 'default',
 			query: {
 				enhanced: true
 			}
 		});
-
-		// Group photos by date
-		const groupedPhotos = new Map<string, Photo[]>();
 
 		// Create an array of promises for all image modules
 		const imagePromises = Object.entries(images).map(async ([path, modulePromise]) => {
@@ -49,10 +42,6 @@
 				const date = dateMatch[1];
 				const fileName = path.split('/').pop() || '';
 
-				if (!groupedPhotos.has(date)) {
-					groupedPhotos.set(date, []);
-				}
-
 				const photo = {
 					name: fileName,
 					default: module,
@@ -60,32 +49,57 @@
 					date: date
 				};
 
-				groupedPhotos.get(date)?.push(photo);
 				return photo;
 			}
 			return null;
 		});
 
-		// Wait for all promises to resolve
+		// Wait for all promises to resolve in parallel (no waterfalling)
 		const loadedPhotos = await Promise.all(imagePromises);
-		photos = loadedPhotos.filter((photo): photo is Photo => photo !== null);
+		photos = loadedPhotos
+			.filter((photo): photo is Photo => photo !== null)
+			.sort((a, b) => {
+				// Sort by date (newest first), then by filename
+				const dateCompare = b.date.localeCompare(a.date);
+				return dateCompare !== 0 ? dateCompare : a.name.localeCompare(b.name);
+			});
 
-		// Convert to array and sort by date
-		photoGroups = Array.from(groupedPhotos.entries())
-			.map(([date, photos]) => ({ date, photos }))
-			.sort((a, b) => b.date.localeCompare(a.date));
+		loading = false;
+	});
+
+	let displayLimit = $state(10);
+
+	onMount(() => {
+		const handleScroll = () => {
+			if (
+				window.innerHeight + document.documentElement.scrollTop ===
+				document.documentElement.offsetHeight
+			) {
+				displayLimit += 10;
+			}
+		};
+
+		window.addEventListener('scroll', handleScroll);
+
+		return () => {
+			window.removeEventListener('scroll', handleScroll);
+		};
 	});
 </script>
 
 <!-- <img src={dng} />
 <img src={raw} /> -->
 
-<div class="grid grid-flow-row-dense grid-cols-4">
-	{#each photos as photo}
-		<enhanced:img
-			src={photo.default}
-			alt={photo.name}
-			class="h-full object-cover {photo.vertical ? '' : 'col-span-2'}"
-		/>
-	{/each}
-</div>
+{#if loading}
+	<div class="flex h-64 items-center justify-center">
+		<div class="text-lg">Loading photos...</div>
+	</div>
+{:else}
+	<div class="grid grid-flow-row-dense grid-cols-4">
+		{#each photos.slice(0, displayLimit) as photo}
+			<div class="relative {photo.vertical ? '' : 'col-span-2'}">
+				<enhanced:img src={photo.default} alt={photo.name} class="h-full object-cover" />
+			</div>
+		{/each}
+	</div>
+{/if}

@@ -20,6 +20,20 @@ const config = {
 		vitePreprocess()
 	],
 
+	// Ignore specific Svelte compiler warnings
+	onwarn: (warning, handler) => {
+		// Ignore self-closing tag warnings for non-void elements
+		if (warning.code === 'element_invalid_self_closing_tag') {
+			return;
+		}
+		// Ignore accessibility warning about media elements needing captions
+		if (warning.code === 'a11y_media_has_caption') {
+			return;
+		}
+		// Handle all other warnings normally
+		handler(warning);
+	},
+
 	kit: {
 		// adapter-auto only supports some environments, see https://kit.svelte.dev/docs/adapter-auto for a list.
 		// If your environment is not supported, or you settled on a specific environment, switch out the adapter.

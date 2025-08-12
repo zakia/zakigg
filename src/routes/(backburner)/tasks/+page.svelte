@@ -30,7 +30,7 @@
 
 <div class="text-column">
 	<div class="grid gap-2">
-		{#each data.items as task (task.id)}
+		<!-- {#each data.items as task (task.id)}
 			<div class="border-2 p-4">
 				<h2>{task.name}</h2>
 				<p>{task.description}</p>
@@ -40,7 +40,7 @@
 				<p>{task.start_date}</p>
 				<p>{task.end_date}</p>
 			</div>
-		{/each}
+		{/each} -->
 	</div>
 	<form class="grid gap-4" method="post" use:enhance>
 		<label>

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { useTheme } from '$lib/theme.svelte';
 	import { clamp } from '$lib/utils';
 	import Icon from '@iconify/svelte';
@@ -65,18 +65,15 @@
 			});
 		});
 	});
-
-	const path = $page.url.pathname;
 </script>
 
 <header
 	class="bg-base-200 dock fixed bottom-0 left-1/2 z-999 flex h-14 w-fit items-end rounded-xl p-2 backdrop-blur-lg print:hidden"
 	style="view-transition-name: header;"
-	class:hidden={path === '/sevarox-demo'}
 	style:translate="-50% {isHidden ? '200%' : '0%'}"
 >
 	{#each links as link}
-		<a href={link.path} class="dock-item" class:text-primary={link.path === $page.url.pathname}>
+		<a href={link.path} class="dock-item" class:text-primary={link.path === page.url.pathname}>
 			<div class="tooltip">
 				{link.label}
 			</div>

@@ -15,7 +15,7 @@
 <div class="layout w-full max-w-2xl gap-4">
 	<h1 class="display-2 mb-2">zaki.gg</h1>
 	<div data-parent>
-		{#each data.posts.filter((post) => !post.draft || page.url.hostname === 'localhost') as post, i}
+		{#each data.posts.filter((post) => !post.draft) as post, i}
 			<div class="bg-base-content/10 h-[1px] w-full"></div>
 			<a
 				href={`/${post.slug}`}

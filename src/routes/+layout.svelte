@@ -4,7 +4,7 @@
 	import '@fontsource-variable/inter';
 	import '../app.css';
 	import '$lib/prism.css';
-	import Header from './Header.svelte';
+	import Header from '../lib/components/Header.svelte';
 	// onNavigate((navigation) => {
 	// 	if (!document.startViewTransition) return;
 	// 	return new Promise((resolve) => {

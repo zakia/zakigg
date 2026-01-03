@@ -15,7 +15,7 @@
 	// import { useTheme } from '$lib/theme.svelte';
 	import Icon from '@iconify/svelte';
 	import MarkdownIt from 'markdown-it';
-
+	import Date from '$lib/ui/Date.svelte';
 	// // export let data: PageData;
 	// let color = $state('#000');
 	// let colorEls = $state<HTMLDivElement[]>([]);
@@ -204,6 +204,7 @@
 			<div class="form-group">
 				<button class="btn variant-primary">Submit</button>
 			</div>
+			<Date />
 		</div>
 	</section>
 

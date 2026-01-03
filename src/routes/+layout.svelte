@@ -1,12 +1,13 @@
 <script lang="ts">
-	// import { onNavigate } from '$app/navigation';
 	import '@fontsource/fira-mono';
 	import '@fontsource-variable/inter';
 	import '../app.css';
 	import '$lib/prism.css';
 	import Header from '../lib/components/Header.svelte';
+
 	// onNavigate((navigation) => {
 	// 	if (!document.startViewTransition) return;
+
 	// 	return new Promise((resolve) => {
 	// 		document.startViewTransition(async () => {
 	// 			resolve();
@@ -71,10 +72,10 @@
 	}
 
 	/* Target only the main content for transitions */
-	::view-transition-old(main) {
-		animation: 0.5s both fade-out;
+	/* ::view-transition-old(main) {
+		animation: 0.1s both fade-out;
 	}
 	::view-transition-new(main) {
-		animation: 0.5s both fade-in;
-	}
+		animation: 0.1s both fade-in;
+	} */
 </style>

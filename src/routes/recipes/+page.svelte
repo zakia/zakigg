@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { parse } from 'yaml';
-	
+
 	type Recipe = {
 		id: string;
 		name: string;

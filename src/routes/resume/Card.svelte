@@ -30,12 +30,12 @@
 	};
 </script>
 
-<div class="grid border-1.5 border-primary gap-2 p-4 rounded-xl shadow bg-base-200">
+<div class="border-1.5 border-primary bg-bg grid gap-2 rounded-xl p-4 shadow">
 	<div class="flex">
-		<div class="flex items-center justify-start gap-2 text-base-content border-b-0 w-fit mr-auto">
-			<img src={props.icon} alt="icon" class="w-8 h-8 shrink-0" />
+		<div class="text-text mr-auto flex w-fit items-center justify-start gap-2 border-b-0">
+			<img src={props.icon} alt="icon" class="h-8 w-8 shrink-0" />
 
-			<h3 class="font-semibold mb-0">
+			<h3 class="mb-0 font-semibold">
 				{props.company}
 			</h3>
 
@@ -45,7 +45,7 @@
 		</div>
 
 		{#if props.positions}
-			<div class="text-end pb-2">
+			<div class="pb-2 text-end">
 				{#each props.positions as position}
 					<div class="grid justify-between text-sm">
 						<span class="text-primary font-semibold">{position.role}</span>
@@ -60,7 +60,7 @@
 	<div>
 		{#each props.description as item}
 			<div class="relative flex gap-1 not-last:mb-2">
-				<Icon icon="fa-solid:dot-circle" class="text-primary w-3 h-3 shrink-0 mt-1.5" />
+				<Icon icon="fa-solid:dot-circle" class="text-primary mt-1.5 h-3 w-3 shrink-0" />
 				<p class="text-base-8">
 					{@html md.renderInline(item)}
 				</p>

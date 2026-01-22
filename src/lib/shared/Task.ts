@@ -6,7 +6,6 @@ import { Entity, Fields, Validators } from 'remult';
 export class Task {
 	@Fields.id()
 	id!: string;
-	
 
 	@Fields.string<Task>({
 		validate: (task) => {

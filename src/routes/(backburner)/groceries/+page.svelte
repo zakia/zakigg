@@ -15,7 +15,7 @@
 				<h2>{value.icon} {key}</h2>
 				<ul>
 					{#each value.items as item}
-						<li class="flex gap-1 items-center"><input type="checkbox" />{item}</li>
+						<li class="flex items-center gap-1"><input type="checkbox" />{item}</li>
 					{/each}
 				</ul>
 			</div>

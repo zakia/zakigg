@@ -37,7 +37,7 @@
 	class="rounded-lg"
 	src="https://www.youtube.com/embed/LY97AihOg0k"
 	title="LY97AihOg0k"
-	frameborder="0"	
+	frameborder="0"
 	allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
 	referrerpolicy="strict-origin-when-cross-origin"
 	allowfullscreen

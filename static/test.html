@@ -1,0 +1,189 @@
+<!doctype html>
+<html>
+	<body style="margin: 0; overflow: hidden; background: #1a1a1a">
+		<canvas id="canvas"></canvas>
+
+		<script>
+			const canvas = document.getElementById('canvas');
+			const ctx = canvas.getContext('2d');
+
+			// Configuration
+			const G = 1; // Gravitational constant
+			const SOFTENING = 100; // Minimum distance for force calculation (prevents singularity)
+			const TRAIL_LENGTH = 500; // Number of trail points per particle
+			const particles = [];
+			const particleCount = 40;
+			const wall_behaviour = 'bounce'; // 'bounce' or 'pass through'
+			let SPEED_MULTIPLIER = 1; // Number of physics calculations per frame (1 = normal, 2 = 2x speed, 0.5 = half speed)
+
+			// Resize canvas to window
+			function resize() {
+				canvas.width = window.innerWidth;
+				canvas.height = window.innerHeight;
+			}
+			window.addEventListener('resize', resize);
+			resize();
+
+			class Particle {
+				constructor(x, y, radius) {
+					this.x = x;
+					this.y = y;
+					this.radius = radius;
+					this.mass = radius; // Mass proportional to size
+					this.vx = (Math.random() - 0.5) * 2;
+					this.vy = (Math.random() - 0.5) * 2;
+					this.hue = Math.random() * 360; // Store hue as property
+					this.trail = []; // Array to store trail positions
+					this.search_radius = 400;
+				}
+
+				update() {
+					// Add current position to trail
+					this.trail.push({ x: this.x, y: this.y });
+					if (this.trail.length > TRAIL_LENGTH) {
+						this.trail.shift(); // Remove oldest trail point
+					}
+
+					// Apply velocity to position
+					this.x += this.vx;
+					this.y += this.vy;
+
+					// Wrap around horizontally
+					if (wall_behaviour === 'bounce') {
+						// Check and handle horizontal walls
+						if (this.x < this.radius) {
+							this.x = this.radius; // Clamp position back inside
+							this.vx *= -1; // Reverse velocity
+						} else if (this.x > canvas.width - this.radius) {
+							this.x = canvas.width - this.radius; // Clamp position back inside
+							this.vx *= -1; // Reverse velocity
+						}
+
+						// Check and handle vertical walls
+						if (this.y < this.radius) {
+							this.y = this.radius; // Clamp position back inside
+							this.vy *= -1; // Reverse velocity
+						} else if (this.y > canvas.height - this.radius) {
+							this.y = canvas.height - this.radius; // Clamp position back inside
+							this.vy *= -1; // Reverse velocity
+						}
+					} else if (wall_behaviour === 'pass') {
+						if (this.x < this.radius) this.x = canvas.width - this.radius;
+						if (this.x > canvas.width - this.radius) this.x = this.radius;
+						if (this.y < this.radius) this.y = canvas.height - this.radius;
+						if (this.y > canvas.height - this.radius) this.y = this.radius;
+					}
+				}
+
+				draw() {
+					// Draw trail
+					if (this.trail.length > 0) {
+						for (let i = 0; i < this.trail.length; i++) {
+							const point = this.trail[i];
+							const alpha = 0.05;
+							const t = i / this.trail.length;
+							// Interpolate from this.radius*1 (t=0) to this.radius*0.3 (t=1)
+							const trailRadius = this.radius * (0.3 + 0.7 * t);
+
+							ctx.beginPath();
+							ctx.arc(point.x, point.y, trailRadius, 0, Math.PI * 2);
+							ctx.fillStyle = `hsla(${this.hue}, 70%, 20%, ${alpha})`; // Use hsla with particle's hue
+							ctx.fill();
+						}
+					}
+
+					// Draw particle
+					ctx.beginPath();
+					ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+					ctx.fillStyle = `hsl(${this.hue}, 70%, 60%)`;
+					ctx.fill();
+				}
+
+				// Calculate gravitational pull toward another particle
+				attract(other) {
+					let dx = other.x - this.x;
+					let dy = other.y - this.y;
+					let distance = Math.sqrt(dx * dx + dy * dy);
+
+					if (distance > 0 && distance < this.search_radius) {
+						// Use softened distance to prevent singularity at close range
+						let softenedDistance = Math.max(distance, SOFTENING);
+						let force = (G * this.mass * other.mass) / (softenedDistance * softenedDistance);
+						let ax = (force * (dx / distance)) / this.mass;
+						let ay = (force * (dy / distance)) / this.mass;
+						this.vx += ax;
+						this.vy += ay;
+					}
+				}
+			}
+
+			// Initialize particles
+			for (let i = 0; i < particleCount; i++) {
+				particles.push(
+					new Particle(
+						Math.random() * canvas.width,
+						Math.random() * canvas.height,
+						Math.random() * 10 + 5
+					)
+				);
+			}
+
+			// Helper function to run one physics step
+			function runPhysicsStep() {
+				for (let i = 0; i < particles.length; i++) {
+					for (let j = 0; j < particles.length; j++) {
+						if (i !== j) {
+							particles[i].attract(particles[j]);
+						}
+					}
+					particles[i].update();
+				}
+			}
+
+			// Speed control - accumulates fractional speeds across frames
+			let speedAccumulator = 0;
+
+			// Keyboard controls for speed
+			window.addEventListener('keydown', (e) => {
+				if (e.key === 'ArrowLeft') {
+					SPEED_MULTIPLIER = Math.max(0.25, SPEED_MULTIPLIER - 0.25);
+				} else if (e.key === 'ArrowRight') {
+					SPEED_MULTIPLIER += 0.25;
+				}
+			});
+
+			function loop() {
+				// 1. Clear Screen
+				ctx.fillStyle = 'oklch(15% 0 0)';
+				ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+				// 2. Run physics calculations based on speed multiplier
+				// Accumulate the speed multiplier each frame
+				speedAccumulator += SPEED_MULTIPLIER;
+
+				// Run physics for each whole iteration
+				while (speedAccumulator >= 1) {
+					runPhysicsStep();
+					speedAccumulator -= 1;
+				}
+
+				// 3. Draw all particles (trails are drawn as part of each particle)
+				for (let i = 0; i < particles.length; i++) {
+					particles[i].draw();
+				}
+
+				// 4. Draw speed display at top of screen
+				ctx.fillStyle = 'white';
+				ctx.font = '20px monospace';
+				ctx.textAlign = 'center';
+				ctx.textBaseline = 'top';
+				const speedText = `Speed: ${SPEED_MULTIPLIER.toFixed(2)}x (← → arrows to adjust)`;
+				ctx.fillText(speedText, canvas.width / 2, 10);
+
+				requestAnimationFrame(loop);
+			}
+
+			loop();
+		</script>
+	</body>
+</html>

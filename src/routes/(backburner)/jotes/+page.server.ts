@@ -17,7 +17,7 @@ const getQuotes = async () => {
 		block_id: '1d7729937a2f4df7a96f168cbe465da7'
 	});
 
-	listQuotesResponse.results[0]
+	listQuotesResponse.results[0];
 	return listQuotesResponse;
 };
 

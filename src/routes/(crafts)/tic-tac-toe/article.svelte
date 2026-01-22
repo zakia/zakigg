@@ -29,7 +29,7 @@
 		Well, let's <b>look ahead</b> a little bit, and see what would happen if you played one of them
 	</p>
 
-	<div class="flex flex-col max-w-md mx-auto my-12 text-center text-balance">
+	<div class="mx-auto my-12 flex max-w-md flex-col text-center text-balance">
 		<p>Let's say you play here. Now your opponent is faced with the same scenario you had.</p>
 		<!-- <RenderTree
       id="example_2"
@@ -45,7 +45,7 @@
 			<div>
 				They could play here and win right away <em> (which is bad for you btw, -10!) </em>
 			</div>
-			<div class="font-bold text-primary uppercase text-xl">or</div>
+			<div class="text-primary text-xl font-bold uppercase">or</div>
 			<div>they could play here and who knows what happens next??</div>
 		</div>
 	</div>
@@ -57,8 +57,8 @@
 		In fact, it's so bad that you have no other choice but to win.
 	</p>
 
-	<div class="flex flex-col max-w-md mx-auto my-12 text-center text-balance relative">
-		<p class="max-w-80 mx-a z-10">
+	<div class="relative mx-auto my-12 flex max-w-md flex-col text-center text-balance">
+		<p class="mx-a z-10 max-w-80">
 			Once our opponent made this move, we were already guaranteed to win.
 			<!-- <br>
           <small>(it's an <a href="https://knowyourmeme.com/memes/you-are-already-dead-omae-wa-mou-shindeiru">Omae Wa
@@ -75,7 +75,7 @@
       :score="-10"
       class="-my-10"
     /> -->
-		<div class="max-w-60 mx-auto">
+		<div class="mx-auto max-w-60">
 			Because there is no other choice to make, we might as well give you the +10 right away.
 		</div>
 
@@ -144,7 +144,7 @@
 		our tree now that we've assigned some scores.
 	</p>
 
-	<div class="flex flex-col max-w-md mx-auto my-12 text-center text-balance">
+	<div class="mx-auto my-12 flex max-w-md flex-col text-center text-balance">
 		<p>Let's say you play here. Now your opponent is faced with the same scenario you had.</p>
 		<!-- <RenderTree
       id="example_4"
@@ -158,7 +158,7 @@
 
 		<div class="grid grid-cols-[4fr_1fr_4fr] items-center justify-center">
 			<div>We already know</div>
-			<div class="font-bold text-primary uppercase text-xl">or</div>
+			<div class="text-primary text-xl font-bold uppercase">or</div>
 			<div>Now that we've propagated</div>
 		</div>
 	</div>

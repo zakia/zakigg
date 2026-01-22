@@ -3,7 +3,7 @@
 		title: 'Tic Tac Toe',
 		description: 'How do computers play games?',
 		date: '2024-07-23',
-    draft: false,
+		draft: false,
 		tags: ['teaching']
 	};
 </script>
@@ -110,14 +110,14 @@
 
 <Layout {...metadata}>
 	<div
-		class="w-full relative text-center grid grid-cols-[100%_100%] overflow-hidden mt-8"
+		class="relative mt-8 grid w-full grid-cols-[100%_100%] overflow-hidden text-center"
 		class:text-primary={!(step % 2)}
 	>
 		<h2 bind:this={status1} class="mt-0">X's Turn</h2>
 		<h2 bind:this={status2} class="mt-0">O's Turn</h2>
 	</div>
 	<div
-		class="select-none grid grid-cols-3 gap-1 mx-auto mb-8 relative w-100 h-100 place-items-center"
+		class="relative mx-auto mb-8 grid h-100 w-100 grid-cols-3 place-items-center gap-1 select-none"
 	>
 		{#each board as cell, i}
 			<button
@@ -138,14 +138,14 @@
 				onclick={() => (is2Player = false)}
 				class:variant-primary={!is2Player}
 			>
-				<Icon icon="mdi:person" class="w-6 h-6" />
+				<Icon icon="mdi:person" class="h-6 w-6" />
 			</button>
 			<button
 				class="btn variant-base mr-4 last:rounded-l-none"
 				onclick={() => (is2Player = true)}
 				class:variant-primary={is2Player}
 			>
-				<Icon icon="mdi:people" class="w-6 h-6" />
+				<Icon icon="mdi:people" class="h-6 w-6" />
 			</button>
 		</div>
 		<button class="btn variant-base justify-self-center" onclick={() => restartGame()}>
@@ -187,7 +187,7 @@
 	}
 
 	.circle {
-		--ring-color: var(--color-base-content);
+		--ring-color: var(--color-text);
 		box-shadow: inset 0 0 0 1px var(--ring-color);
 		filter: drop-shadow(12px 12px 0px oklch(from var(--ring-color) l c h / 0.2));
 		border-radius: 50%;

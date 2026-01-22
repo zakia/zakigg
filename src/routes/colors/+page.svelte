@@ -55,25 +55,28 @@
 	{/each}
 </div>
 
-    <div>
-        {#each lchColors as color}
-            <div class="h-20 w-20 rounded-md" style="background-color: {color.hex}">
-                <div>l: {color?.l?.toFixed(2)}</div>
-                <div>c: {color?.c?.toFixed(2)}</div>
-                <div>h: {color?.h?.toFixed(2)}</div>
-            </div>
-        {/each}
-    </div>
+<div>
+	{#each lchColors as color}
+		<div class="h-20 w-20 rounded-md" style="background-color: {color.hex}">
+			<div>l: {color?.l?.toFixed(2)}</div>
+			<div>c: {color?.c?.toFixed(2)}</div>
+			<div>h: {color?.h?.toFixed(2)}</div>
+		</div>
+	{/each}
+</div>
 
-    <div class="flex">
-        {#each evenColors as color}
-            <div class="h-20 w-20 rounded-md" style="background-color: oklch({color.l} {color.c} {color.h})">
-                <div>l: {color?.l?.toFixed(2)}</div>
-                <div>c: {color?.c?.toFixed(2)}</div>
-                <div>h: {color?.h?.toFixed(2)}</div>
-            </div>
-        {/each}
-    </div>
+<div class="flex">
+	{#each evenColors as color}
+		<div
+			class="h-20 w-20 rounded-md"
+			style="background-color: oklch({color.l} {color.c} {color.h})"
+		>
+			<div>l: {color?.l?.toFixed(2)}</div>
+			<div>c: {color?.c?.toFixed(2)}</div>
+			<div>h: {color?.h?.toFixed(2)}</div>
+		</div>
+	{/each}
+</div>
 
 <style>
 	.clock-container {

@@ -7,7 +7,7 @@
 	widths and gaps.
 </p>
 <h6 class="mt-2">The <code>offsetLeft</code> property</h6>
-<blockquote class="pl-2 border-l-4 border-primary">
+<blockquote class="border-primary border-l-4 pl-2">
 	<p>
 		<em
 			>This property returns the number of pixels that the upper left corner of the current element

@@ -27,10 +27,10 @@
 		<Icon icon="ep:top-left" />Back
 	</a>
 
-	<div class="article grid gap-2 w-full">
+	<div class="article grid w-full gap-2">
 		<hgroup>
 			<h1 class="heading-3">{title}</h1>
-			<time class="text-base-content/50">{printDate(date)}</time>
+			<time class="text-text/50">{printDate(date)}</time>
 		</hgroup>
 
 		{@render children?.()}
@@ -39,15 +39,17 @@
 
 <style>
 	section {
-		--spacing-top: 5rem;
+		--vertical-spacing: 5rem;
 		display: grid;
-		padding-top: var(--spacing-top);
+		padding-top: var(--vertical-spacing);
+		padding-bottom: calc(var(--vertical-spacing) * 2);
 		padding-inline: 1rem;
 		grid-template-columns: 100px 1fr 100px;
 
 		@media (max-width: 768px) {
 			grid-template-columns: 1fr;
-			padding-top: calc(var(--spacing-top) / 2);
+			padding-top: calc(var(--vertical-spacing) / 2);
+			padding-bottom: calc(var(--vertical-spacing) * 2);
 		}
 	}
 </style>

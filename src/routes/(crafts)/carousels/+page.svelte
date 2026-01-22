@@ -1,7 +1,7 @@
 <script module>
 	export const metadata = {
 		title: 'Carousels',
-    description: 'My attempt at tackling this common design pattern.',
+		description: 'My attempt at tackling this common design pattern.',
 		date: '2024-10-04',
 		draft: false,
 		tags: ['teaching']
@@ -38,10 +38,10 @@
 		</h2>
 		<Content />
 	{/each}
-  <h2 class="text-primary flex items-center gap-2">
-    <Icon icon="lucide:clapperboard" class="h-8 w-8" />
-    Bloopers
-  </h2>
+	<h2 class="text-primary flex items-center gap-2">
+		<Icon icon="lucide:clapperboard" class="h-8 w-8" />
+		Bloopers
+	</h2>
 
 	<p>
 		I would have loved to implement a version without JavaScript, using anchor tags as triggers — <code

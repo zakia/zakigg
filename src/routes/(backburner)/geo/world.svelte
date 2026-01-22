@@ -19,7 +19,7 @@
 	version="1.2"
 	viewBox="0 0 2000 857"
 	xmlns="http://www.w3.org/2000/svg"
-    class="border"
+	class="border"
 	{...props}
 >
 	<path
@@ -2403,8 +2403,7 @@
 	<circle cx="673.5" cy="724.1" id="1"> </circle>
 	<circle cx="1798.2" cy="719.3" id="2"> </circle>
 
-    {#if resultMarker}
-
+	{#if resultMarker}
 		<circle
 			cx={resultMarker.x}
 			cy={resultMarker.y}

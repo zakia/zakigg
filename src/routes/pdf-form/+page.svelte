@@ -4,11 +4,11 @@
 	let { form } = $props();
 	let file = $state<File | undefined>();
 
-  console.log(form?.fields);
+	console.log(form?.fields);
 </script>
 
-<section class="layout gap-4 justify-items-center">
-	<div class="mb-10 max-w-lg grid gap-4">
+<section class="layout justify-items-center gap-4">
+	<div class="mb-10 grid max-w-lg gap-4">
 		<h1>Automate PDF Form Filling</h1>
 		<ol class="marker:font-bold">
 			<li>Extract all form fields from your PDF.</li>
@@ -69,10 +69,10 @@
 				myLink.click();
 			}}
 		>
-			<div class="grid gap-4 grid-cols-2">
+			<div class="grid grid-cols-2 gap-4">
 				{#each form.fields as field}
 					<div class="grid">
-						<div class="flex justify-between items-center gap-4">
+						<div class="flex items-center justify-between gap-4">
 							<b>
 								{field?.name}
 							</b>

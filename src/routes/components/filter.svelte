@@ -78,7 +78,7 @@
 				if (popover) popover.showPopover();
 			}
 		}}
-		class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+		class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm transition-colors duration-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
 		style="anchor-name: --filter-anchor"
 	/>
 
@@ -87,7 +87,7 @@
 		popover="auto"
 		role="listbox"
 		aria-label="Options"
-		class="w-full max-h-48 overflow-y-auto border border-gray-200 rounded-md bg-white shadow-lg mt-1"
+		class="mt-1 max-h-48 w-full overflow-y-auto rounded-md border border-gray-200 bg-white shadow-lg"
 		style="position-anchor: --filter-anchor"
 	>
 		{#if filteredOptions.length > 0}
@@ -96,7 +96,10 @@
 					id="option-{index}"
 					role="option"
 					aria-selected={index === selectedIndex}
-					class="w-full px-3 py-2 text-sm text-left text-gray-700 bg-white hover:bg-gray-50 focus:bg-gray-100 focus:outline-none transition-colors duration-150 cursor-pointer first:rounded-t-md last:rounded-b-md {index === selectedIndex ? 'bg-blue-50 text-blue-700' : ''}"
+					class="w-full cursor-pointer bg-white px-3 py-2 text-left text-sm text-gray-700 transition-colors duration-150 first:rounded-t-md last:rounded-b-md hover:bg-gray-50 focus:bg-gray-100 focus:outline-none {index ===
+					selectedIndex
+						? 'bg-blue-50 text-blue-700'
+						: ''}"
 					onclick={() => selectOption(option.value)}
 					onmouseenter={() => (selectedIndex = index)}
 				>
@@ -104,7 +107,7 @@
 				</button>
 			{/each}
 		{:else if searchValue.trim()}
-			<div class="px-3 py-2 text-sm text-gray-500 italic text-center">No options found</div>
+			<div class="px-3 py-2 text-center text-sm text-gray-500 italic">No options found</div>
 		{/if}
 	</div>
 </div>

@@ -64,15 +64,15 @@
 	<h1 class="text-start">Websites I've built</h1>
 	<div class="grid grid-cols-[repeat(auto-fit,minmax(20rem,1fr))] gap-6">
 		{#each projects as project}
-			<div class="border border-primary rounded-xl p-3 flex flex-col">
+			<div class="border-primary flex flex-col rounded-xl border p-3">
 				<a href={project.link} target="_blank" aria-label={project.name} class="btn p-0">
-					<svg use:inlineSvg={project.thumbnail} class="max-w-52 h-16 mb-1" />
+					<svg use:inlineSvg={project.thumbnail} class="mb-1 h-16 max-w-52" />
 				</a>
 				<p>{project.description}</p>
-				<p class="font-bold mt-auto pt-4">Built with:</p>
+				<p class="mt-auto pt-4 font-bold">Built with:</p>
 				<div class="flex gap-3">
 					{#each project.built as logo}
-						<Icon icon={logo} class="w-7 h-7" />
+						<Icon icon={logo} class="h-7 w-7" />
 					{/each}
 				</div>
 			</div>

@@ -83,8 +83,8 @@
 	};
 
 	const colors = {
-		surface: ['base-100', 'base-200', 'base-300'],
-		content: ['base-content'],
+		surface: ['bg-light', 'bg', 'bg-dark'],
+		content: ['text'],
 		primary: ['primary', 'primary-content']
 	};
 
@@ -218,16 +218,16 @@
 		<section class="space-y-4">
 			<h2 class="heading-2">Cards</h2>
 			<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-				<div class="card base-200">
+				<div class="card bg">
 					<div class="p-6">
 						<h3 class="heading-3 mb-2">Surface 1 Card</h3>
-						<p class="text-base-content">Primary content with base-200 background.</p>
+						<p class="text-text">Primary content with bg background.</p>
 					</div>
 				</div>
-				<div class="card base-200">
+				<div class="card bg">
 					<div class="p-6">
 						<h3 class="heading-3 mb-2">Surface 2 Card</h3>
-						<p class="text-base-content">Secondary content with base-300 background.</p>
+						<p class="text-text">Secondary content with bg-dark background.</p>
 					</div>
 				</div>
 			</div>

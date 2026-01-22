@@ -55,63 +55,63 @@ const seed: Task[] = [
 const COOKIE_NAME = 'home:tasks';
 
 function readTasksFromCookies(): Task[] {
-    const { cookies } = getRequestEvent();
-    const raw = cookies.get(COOKIE_NAME);
-    if (!raw) return structuredClone(seed);
-    try {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) return parsed as Task[];
-    } catch {}
-    return structuredClone(seed);
+	const { cookies } = getRequestEvent();
+	const raw = cookies.get(COOKIE_NAME);
+	if (!raw) return structuredClone(seed);
+	try {
+		const parsed = JSON.parse(raw);
+		if (Array.isArray(parsed)) return parsed as Task[];
+	} catch {}
+	return structuredClone(seed);
 }
 
 function writeTasksToCookies(tasks: Task[]): void {
-    const { cookies } = getRequestEvent();
-    cookies.set(COOKIE_NAME, JSON.stringify(tasks), {
-        path: '/',
-        httpOnly: true,
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 365
-    });
+	const { cookies } = getRequestEvent();
+	cookies.set(COOKIE_NAME, JSON.stringify(tasks), {
+		path: '/',
+		httpOnly: true,
+		sameSite: 'lax',
+		maxAge: 60 * 60 * 24 * 365
+	});
 }
 
 export const getTasks = query<Task[]>(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 200));
-    const tasks = readTasksFromCookies();
-    // Ensure cookie is present after first read
-    writeTasksToCookies(tasks);
-    return tasks;
+	await new Promise((resolve) => setTimeout(resolve, 200));
+	const tasks = readTasksFromCookies();
+	// Ensure cookie is present after first read
+	writeTasksToCookies(tasks);
+	return tasks;
 });
 
 // Validate the command input using Valibot
 
 export const toggleTask = command(v.string(), async (id) => {
-    const tasks = readTasksFromCookies();
-    const idx = tasks.findIndex((t) => t.id === id);
-    if (idx === -1) throw new Error('Task not found');
-    const updated: Task = { ...tasks[idx], completed: !tasks[idx].completed };
-    tasks[idx] = updated;
-    writeTasksToCookies(tasks);
-    return updated;
+	const tasks = readTasksFromCookies();
+	const idx = tasks.findIndex((t) => t.id === id);
+	if (idx === -1) throw new Error('Task not found');
+	const updated: Task = { ...tasks[idx], completed: !tasks[idx].completed };
+	tasks[idx] = updated;
+	writeTasksToCookies(tasks);
+	return updated;
 });
 
 // Generic update endpoint returning the full list so the client can replace its data easily
 const UpdateTaskSchema = v.object({
-    id: v.string(),
-    toggle: v.optional(v.boolean())
+	id: v.string(),
+	toggle: v.optional(v.boolean())
 });
 
 export const updateTask = command(UpdateTaskSchema, async ({ id, toggle = true }) => {
-    const tasks = readTasksFromCookies();
-    const idx = tasks.findIndex((t) => t.id === id);
-    if (idx === -1) throw new Error('Task not found');
+	const tasks = readTasksFromCookies();
+	const idx = tasks.findIndex((t) => t.id === id);
+	if (idx === -1) throw new Error('Task not found');
 
-    const current = tasks[idx];
-    const next: Task = {
-        ...current,
-        completed: toggle ? !current.completed : current.completed
-    };
-    tasks[idx] = next;
-    writeTasksToCookies(tasks);
-    return tasks;
+	const current = tasks[idx];
+	const next: Task = {
+		...current,
+		completed: toggle ? !current.completed : current.completed
+	};
+	tasks[idx] = next;
+	writeTasksToCookies(tasks);
+	return tasks;
 });

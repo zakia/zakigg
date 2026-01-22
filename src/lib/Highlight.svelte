@@ -25,10 +25,10 @@
 </script>
 
 <div
-	class="bg-base-200 text-base-content relative overflow-hidden rounded-lg shadow-lg"
+	class="bg-bg text- relative overflow-hidden rounded-lg shadow-lg"
 	data-theme="dark"
 >
-	<div class="bg-base-300 flex items-center justify-between p-3">
+	<div class="bg-bg-dark flex items-center justify-between p-3">
 		{#if header}
 			<div class="text-lg font-bold">{header}</div>
 		{/if}

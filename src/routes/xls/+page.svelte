@@ -225,40 +225,49 @@
 
 	function handlePasteTable() {
 		console.log('🧠 Attempting to paste table from clipboard');
-		navigator.clipboard.readText().then((text) => {
-			try {
-				const rows = text.split('\n').map((row) => row.split('\t'));
-				if (rows.length > 0 && rows[0].length > 0) {
-					columns = rows[0];
-					parsedData = rows.slice(1).map((row) => {
-						const obj: any = {};
-						columns.forEach((col, index) => {
-							obj[col] = row[index];
+		navigator.clipboard
+			.readText()
+			.then((text) => {
+				try {
+					const rows = text.split('\n').map((row) => row.split('\t'));
+					if (rows.length > 0 && rows[0].length > 0) {
+						columns = rows[0];
+						parsedData = rows.slice(1).map((row) => {
+							const obj: any = {};
+							columns.forEach((col, index) => {
+								obj[col] = row[index];
+							});
+							return obj;
 						});
-						return obj;
-					});
-					isValidFile = true;
-					error = null;
-					fileName = 'Clipboard Data';
-					// Add to history
-					const tsv = text;
-					const entry = storage.pasteToHistoryEntry(tsv, columns);
-					storage.addEntry(entry);
-					refreshHistory();
-					selectedHistoryId = entry.id;
-					console.log('✅ Table pasted and added to history. Found', parsedData.length, 'rows and', columns.length, 'columns.');
-				} else {
-					error = 'Clipboard data is not a valid table format.';
-					console.warn('⚠️ Clipboard data is not a valid table format.');
+						isValidFile = true;
+						error = null;
+						fileName = 'Clipboard Data';
+						// Add to history
+						const tsv = text;
+						const entry = storage.pasteToHistoryEntry(tsv, columns);
+						storage.addEntry(entry);
+						refreshHistory();
+						selectedHistoryId = entry.id;
+						console.log(
+							'✅ Table pasted and added to history. Found',
+							parsedData.length,
+							'rows and',
+							columns.length,
+							'columns.'
+						);
+					} else {
+						error = 'Clipboard data is not a valid table format.';
+						console.warn('⚠️ Clipboard data is not a valid table format.');
+					}
+				} catch (err) {
+					console.error('❌ Failed to paste table from clipboard:', err);
+					error = 'Failed to paste table from clipboard. Please try again.';
 				}
-			} catch (err) {
-				console.error('❌ Failed to paste table from clipboard:', err);
-				error = 'Failed to paste table from clipboard. Please try again.';
-			}
-		}).catch((err) => {
-			console.error('❌ Failed to read clipboard data:', err);
-			error = 'Failed to read clipboard data. Please try again.';
-		});
+			})
+			.catch((err) => {
+				console.error('❌ Failed to read clipboard data:', err);
+				error = 'Failed to read clipboard data. Please try again.';
+			});
 	}
 
 	function handleRemoveHistory(id: string) {
@@ -273,7 +282,7 @@
 	}
 
 	function handleRenameHistory(id: string) {
-		const newName = prompt('Rename entry:', history.find(e => e.id === id)?.name || '');
+		const newName = prompt('Rename entry:', history.find((e) => e.id === id)?.name || '');
 		if (newName) {
 			storage.renameEntry(id, newName);
 			refreshHistory();
@@ -291,13 +300,13 @@
 
 		<div class="space-y-6">
 			{#if !fileName && !isValidFile}
-				<div class="flex justify-center mb-4">
+				<div class="mb-4 flex justify-center">
 					<button
 						type="button"
-						class="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600 text-sm font-medium shadow"
+						class="rounded bg-blue-500 px-4 py-2 text-sm font-medium text-white shadow hover:bg-blue-600"
 						onclick={handlePasteTable}
 					>
-						<Icon icon="lucide:clipboard" class="inline-block mr-1 h-4 w-4 align-text-bottom" />
+						<Icon icon="lucide:clipboard" class="mr-1 inline-block h-4 w-4 align-text-bottom" />
 						Paste Table
 					</button>
 				</div>
@@ -389,13 +398,13 @@
 
 			{#if isValidFile && parsedData.length > 0}
 				<!-- Export as JSON Button -->
-				<div class="flex justify-end mb-2">
+				<div class="mb-2 flex justify-end">
 					<button
 						type="button"
-						class="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 text-sm font-medium shadow"
+						class="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow hover:bg-blue-700"
 						onclick={exportAsJSON}
 					>
-						<Icon icon="lucide:download" class="inline-block mr-1 h-4 w-4 align-text-bottom" />
+						<Icon icon="lucide:download" class="mr-1 inline-block h-4 w-4 align-text-bottom" />
 						Export as JSON
 					</button>
 				</div>
@@ -442,7 +451,11 @@
 									<tr>
 										{#each editableColumns as col}
 											{#if !col.removed}
-												<td class="px-4 py-3 text-sm text-gray-900 {isDateTimeColumn(col.original) ? 'whitespace-nowrap' : 'max-w-32 truncate'}">
+												<td
+													class="px-4 py-3 text-sm text-gray-900 {isDateTimeColumn(col.original)
+														? 'whitespace-nowrap'
+														: 'max-w-32 truncate'}"
+												>
 													{row[col.original] || '-'}
 												</td>
 											{/if}
@@ -475,21 +488,33 @@
 
 	<!-- Add history UI above upload section -->
 	{#if history.length > 0}
-		<div class="mx-auto w-full max-w-4xl mb-4">
-			<div class="rounded border bg-white shadow-sm p-3">
-				<div class="font-semibold mb-2">History</div>
+		<div class="mx-auto mb-4 w-full max-w-4xl">
+			<div class="rounded border bg-white p-3 shadow-sm">
+				<div class="mb-2 font-semibold">History</div>
 				<div class="flex flex-wrap gap-2">
 					{#each history as entry}
 						<button
 							type="button"
-							class="px-2 py-1 rounded border text-xs {selectedHistoryId === entry.id ? 'bg-blue-100 border-blue-400' : 'bg-gray-50 border-gray-200'}"
+							class="rounded border px-2 py-1 text-xs {selectedHistoryId === entry.id
+								? 'border-blue-400 bg-blue-100'
+								: 'border-gray-200 bg-gray-50'}"
 							onclick={() => loadHistoryEntry(entry.id)}
 							title={entry.name}
 						>
-							{entry.name} <span class="text-gray-400 ml-1">({entry.type})</span>
+							{entry.name} <span class="ml-1 text-gray-400">({entry.type})</span>
 						</button>
-						<button type="button" class="text-xs text-red-500 ml-1" onclick={() => handleRemoveHistory(entry.id)} title="Remove">✕</button>
-						<button type="button" class="text-xs text-gray-500 ml-1" onclick={() => handleRenameHistory(entry.id)} title="Rename">✎</button>
+						<button
+							type="button"
+							class="ml-1 text-xs text-red-500"
+							onclick={() => handleRemoveHistory(entry.id)}
+							title="Remove">✕</button
+						>
+						<button
+							type="button"
+							class="ml-1 text-xs text-gray-500"
+							onclick={() => handleRenameHistory(entry.id)}
+							title="Rename">✎</button
+						>
 					{/each}
 				</div>
 			</div>

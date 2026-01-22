@@ -1,12 +1,12 @@
 <script module>
 	// Type declaration for brain.js global
 	declare const brain: any;
-	
+
 	export const metadata = {
 		title: '🗿📄✂️ vs AI',
 		description: 'Play Rock, Paper, Scissors vs AI',
 		date: '2024-07-14',
-    draft: false,
+		draft: false,
 		tags: ['teaching']
 	};
 </script>
@@ -152,19 +152,19 @@
 				</div>
 			{/if}
 
-			<div class="text-3xl font-bold text-primary">{game.scoreAI}</div>
-			<Icon icon="tabler:robot" class="w-16 h-16 text-primary mx-auto"></Icon>
+			<div class="text-primary text-3xl font-bold">{game.scoreAI}</div>
+			<Icon icon="tabler:robot" class="text-primary mx-auto h-16 w-16"></Icon>
 		</div>
 
-		<div class="p-4 flex gap-2 max-w-md overflow-x-auto pr-1/4 w-full" bind:this={scores}>
+		<div class="pr-1/4 flex w-full max-w-md gap-2 overflow-x-auto p-4" bind:this={scores}>
 			{#each game.scoreTracker as match, i}
 				<div
-					class="flex flex-col p-2 rounded-lg items-center"
+					class="flex flex-col items-center rounded-lg p-2"
 					class:bg-green-300={match.winner === 'human'}
 					class:bg-blue-300={match.winner === 'draw'}
 					class:bg-red-300={match.winner === 'AI'}
 				>
-					<div class="text-xs text-dark/70">{i + 1}</div>
+					<div class="text-dark/70 text-xs">{i + 1}</div>
 					<div>{stringOf(match.ai)}</div>
 					<div>{stringOf(match.human)}</div>
 				</div>
@@ -178,11 +178,11 @@
 		</div>
 
 		<div class="text-center">
-			<Icon icon="tabler:user" class="w-16 h-16 text-primary"></Icon>
-			<div class="text-3xl text-primary font-bold">{game.scoreHuman}</div>
+			<Icon icon="tabler:user" class="text-primary h-16 w-16"></Icon>
+			<div class="text-primary text-3xl font-bold">{game.scoreHuman}</div>
 		</div>
 
-		<div class="grid grid-cols-3 max-w-sm mx-auto mt-6">
+		<div class="mx-auto mt-6 grid max-w-sm grid-cols-3">
 			<button onclick={() => humanInput(1)} class="btn variant-primary m-2">rock</button>
 			<button onclick={() => humanInput(2)} class="btn variant-primary m-2">paper</button>
 			<button onclick={() => humanInput(3)} class="btn variant-primary m-2">scissors</button>

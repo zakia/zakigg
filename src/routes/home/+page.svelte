@@ -23,10 +23,10 @@
 	</div>
 </div>
 
-<div class="bg-base-200 max-w-3xl rounded-lg p-4">
+<div class="bg-bg max-w-3xl rounded-lg p-4">
 	<svelte:boundary>
 		{#snippet pending()}
-			<div class="text-base-content/70 flex items-center gap-2">
+			<div class="text-text/70 flex items-center gap-2">
 				<Icon icon="mdi:clock" />
 				<span>Loading tasks…</span>
 			</div>
@@ -34,11 +34,11 @@
 		<div class="flex flex-col gap-2">
 			{#each await tasks as task}
 				<div
-					class="border-base-300 bg-base-100 flex items-start gap-3 rounded-lg border p-3 md:p-4"
+					class="border-bg-dark bg-bg-light flex items-start gap-3 rounded-lg border p-3 md:p-4"
 				>
 					<button
 						type="button"
-						class="border-base-300 bg-base-100 grid h-5 w-5 place-items-center rounded border"
+						class="border-bg-dark bg-bg-light grid h-5 w-5 place-items-center rounded border"
 						onclick={() => updateTask({ id: task.id, toggle: true })}
 						aria-pressed={task.completed}
 						title={task.completed ? 'Mark as incomplete' : 'Mark as complete'}
@@ -50,7 +50,7 @@
 					<div class="min-w-0 flex-1">
 						<h3 class="truncate text-base font-medium md:text-lg">{task.name}</h3>
 						{#if task.details}
-							<p class="text-base-content/70 mt-0.5 text-sm">{task.details}</p>
+							<p class="text-text/70 mt-0.5 text-sm">{task.details}</p>
 						{/if}
 					</div>
 				</div>

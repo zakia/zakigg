@@ -35,18 +35,18 @@
 	};
 </script>
 
-<div class="py-4 rounded-lg mb-4 max-w-md mx-auto">
+<div class="mx-auto mb-4 max-w-md rounded-lg py-4">
 	<!-- <div class="flex items-center gap-1 mb-4">
 		<code class="mr-4">scroll-behavior:</code>
 		<code class:saturate-25={isSmooth}>auto</code>
 		<Toggle bind:checked={isSmooth}></Toggle>
 		<code class:saturate-25={!isSmooth}>smooth</code>
 	</div> -->
-	<div class="flex mb-4 gap-2 justify-center">
+	<div class="mb-4 flex justify-center gap-2">
 		{#each data as title, i}
 			<a
 				href="#{title}"
-				class="btn rounded-full variant-base"
+				class="btn variant-base rounded-full"
 				style="transition: 0.3s;"
 				class:variant-light={activeIndex === i}
 			>
@@ -56,13 +56,13 @@
 	</div>
 
 	<div
-		class="overflow-auto flex h-40 gap-4 pb-4"
+		class="flex h-40 gap-4 overflow-auto pb-4"
 		bind:this={container}
 		style:scroll-behavior="smooth"
 	>
 		{#each data as title}
 			<div
-				class="w-full flex-shrink-0 overflow-auto grid place-content-center border-2 border-base-content rounded-lg"
+				class="border-text grid w-full flex-shrink-0 place-content-center overflow-auto rounded-lg border-2"
 				id={title}
 			>
 				<h3>{title.replace('_', ' ')}</h3>

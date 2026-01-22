@@ -68,7 +68,7 @@
 		<div class="flex flex-wrap justify-start gap-4">
 			{#each times as time}
 				<div
-					class="bg-base-100 flex flex-col items-center gap-1 rounded-lg p-2 text-center ring shadow ring-current/10"
+					class="bg-bg-light flex flex-col items-center gap-1 rounded-lg p-2 text-center shadow ring ring-current/10"
 				>
 					<div class="text-xl font-medium">
 						{time.timeString}
@@ -89,7 +89,7 @@
 	<Tasks />
 
 	<div class="bookmarks-section">
-		<div class="bg-base-100/50 flex flex-wrap gap-4 rounded-lg p-4 ring-2 shadow ring-current/10">
+		<div class="bg-bg-light/50 flex flex-wrap gap-4 rounded-lg p-4 shadow ring-2 ring-current/10">
 			{#each Object.entries(bookmarks) as [category, items]}
 				{#if items.length > 0}
 					<div class="w-fit rounded-lg p-2">
@@ -123,6 +123,4 @@
 		background-size: var(--grid-size) var(--grid-size);
 		background-position: 0 0; */
 	}
-
-
 </style>

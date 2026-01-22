@@ -19,7 +19,8 @@ export const load: PageServerLoad = async () => {
 			{
 				id: '1',
 				name: 'Review quarterly budget report',
-				details: 'Analyze Q3 spending patterns and prepare recommendations for Q4 budget adjustments. Focus on marketing spend efficiency.',
+				details:
+					'Analyze Q3 spending patterns and prepare recommendations for Q4 budget adjustments. Focus on marketing spend efficiency.',
 				completed: false
 			},
 			{
@@ -31,19 +32,22 @@ export const load: PageServerLoad = async () => {
 			{
 				id: '3',
 				name: 'Fix leaky kitchen faucet',
-				details: 'Replace O-ring in kitchen faucet handle. Need to pick up replacement parts from hardware store first.',
+				details:
+					'Replace O-ring in kitchen faucet handle. Need to pick up replacement parts from hardware store first.',
 				completed: false
 			},
 			{
 				id: '4',
 				name: 'Prepare presentation for client meeting',
-				details: 'Create slides for Tuesday\'s 2pm meeting with Acme Corp. Include project timeline, deliverables, and cost breakdown.',
+				details:
+					"Create slides for Tuesday's 2pm meeting with Acme Corp. Include project timeline, deliverables, and cost breakdown.",
 				completed: false
 			},
 			{
 				id: '5',
 				name: 'Research vacation destinations',
-				details: 'Look into 2-week trip options for next summer. Consider: budget $3000, prefer beach destinations, need pet-friendly accommodations.',
+				details:
+					'Look into 2-week trip options for next summer. Consider: budget $3000, prefer beach destinations, need pet-friendly accommodations.',
 				completed: false
 			}
 		];

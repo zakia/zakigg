@@ -107,9 +107,6 @@ importers:
       remark-attr:
         specifier: ^0.11.1
         version: 0.11.1
-      remark-footnotes:
-        specifier: ^5.0.0
-        version: 5.0.0
       remark-gfm:
         specifier: ^4.0.1
         version: 4.0.1
@@ -128,6 +125,9 @@ importers:
       uuid:
         specifier: ^13.0.0
         version: 13.0.0
+      valibot:
+        specifier: ^1.2.0
+        version: 1.2.0(typescript@5.9.3)
       xlsx:
         specifier: ^0.18.5
         version: 0.18.5
@@ -2478,10 +2478,6 @@ packages:
   remark-footnotes@1.0.0:
     resolution: {integrity: sha512-X9Ncj4cj3/CIvLI2Z9IobHtVi8FVdUrdJkCNaL9kdX8ohfsi18DXHsCVd/A7ssARBdccdDb5ODnt62WuEWaM/g==}
 
-  remark-footnotes@5.0.0:
-    resolution: {integrity: sha512-bmRA8Xel4YZA5PphUOdamG3Cf3BshoGZQlwVqF+bv0Ei1/b9ETOSyoKtpVAk8zIRJ2dAwio2HFnbC9wjLmy02A==}
-    deprecated: 'Deprecated: use `remark-gfm`'
-
   remark-gfm@4.0.1:
     resolution: {integrity: sha512-1quofZ2RQ9EWdeN34S79+KExV1764+wCUGop5CPL1WGdD0ocPpu91lzPGbwWMECpEpd42kJGQwzRfyov9j4yNg==}
 
@@ -2720,6 +2716,14 @@ packages:
   uuid@13.0.0:
     resolution: {integrity: sha512-XQegIaBTVUjSHliKqcnFqYypAd4S+WCYt5NIeRs6w/UAry7z8Y9j5ZwRRL4kzq9U3sD6v+85er9FvkEaBpji2w==}
     hasBin: true
+
+  valibot@1.2.0:
+    resolution: {integrity: sha512-mm1rxUsmOxzrwnX5arGS+U4T25RdvpPjPN4yR0u9pUBov9+zGVtO84tif1eY4r6zWxVxu3KzIyknJy3rxfRZZg==}
+    peerDependencies:
+      typescript: '>=5'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
 
   vfile-message@2.0.4:
     resolution: {integrity: sha512-DjssxRGkMvifUOJre00juHoP9DPWuzjxKuMDrhNbk2TdaYYBNMStsNhEOt3idrtI12VQYM/1+iM0KOzXi4pxwQ==}
@@ -5472,8 +5476,6 @@ snapshots:
 
   remark-footnotes@1.0.0: {}
 
-  remark-footnotes@5.0.0: {}
-
   remark-gfm@4.0.1:
     dependencies:
       '@types/mdast': 4.0.4
@@ -5823,6 +5825,10 @@ snapshots:
   util-deprecate@1.0.2: {}
 
   uuid@13.0.0: {}
+
+  valibot@1.2.0(typescript@5.9.3):
+    optionalDependencies:
+      typescript: 5.9.3
 
   vfile-message@2.0.4:
     dependencies:

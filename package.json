@@ -66,13 +66,13 @@
 		"prismjs": "^1.30.0",
 		"radash": "^12.1.1",
 		"remark-attr": "^0.11.1",
-		"remark-footnotes": "^5.0.0",
 		"remark-gfm": "^4.0.1",
 		"remark-toc": "^9.0.0",
 		"remult": "^3.3.5",
 		"tailwindcss": "4.1.18",
 		"temporal-polyfill": "^0.3.0",
 		"uuid": "^13.0.0",
+		"valibot": "^1.2.0",
 		"xlsx": "^0.18.5",
 		"yaml": "^2.8.2"
 	}

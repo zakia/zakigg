@@ -1,6 +1,7 @@
 {
 	"name": "sexycta",
 	"version": "0.0.1",
+	"packageManager": "pnpm@10.12.1",
 	"scripts": {
 		"dev": "vite dev --open",
 		"build": "vite build",

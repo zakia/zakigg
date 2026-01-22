@@ -3,6 +3,10 @@ import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 import { mdsvex } from 'mdsvex';
 import remarkGfm from 'remark-gfm';
 import remarkAttr from 'remark-attr';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
@@ -12,8 +16,8 @@ const config = {
 	preprocess: [
 		mdsvex({
 			layout: {
-				_: './src/lib/Layout.svelte',
-				interface: './src/routes/(crafts)/interface/Layout.svelte'
+				_: join(__dirname, 'src/lib/Layout.svelte'),
+				interface: join(__dirname, 'src/routes/(crafts)/interface/Layout.svelte')
 			},
 			remarkPlugins: [remarkGfm, remarkAttr]
 		}),

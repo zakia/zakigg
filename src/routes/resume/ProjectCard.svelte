@@ -9,8 +9,8 @@
 	let props: (typeof projects)[0] = $props();
 </script>
 
-<div class="border-primary grid gap-1 rounded-xl">
-	<div class="flex items-center justify-between gap-2">
+<div class="card p-s-1 grid gap-s-4 bg-base-1">
+	<div class="flex items-center justify-between gap-s-2">
 		<a href={props.website} target="_blank" class="slide-link">
 			<h5 class="font-semibold">
 				{props.company}
@@ -20,15 +20,15 @@
 		<a
 			href={props.code}
 			target="_blank"
-			class="text-primary btn flex items-center rounded-full p-1"
+			class="text-brand btn flex items-center rounded-full p-s-4"
 		>
 			<Icon icon="mdi:github" class="h-7 w-7" />
 		</a>
 	</div>
 	<p>{@html md.renderInline(props.description)}</p>
 	<!-- {#each props.points as item}
-			<div class="relative flex gap-1 text-base-8">
-        <Icon icon="fa-solid:dot-circle" class="w-3 h-3 text-primary flex-shrink-0 mt-1.5" />
+			<div class="relative flex gap-s-4 text-content">
+        <Icon icon="fa-solid:dot-circle" class="w-3 h-3 text-brand flex-shrink-0 mt-1.5" />
 				<p>
 					{@html md.renderInline(item)}
 				</p>

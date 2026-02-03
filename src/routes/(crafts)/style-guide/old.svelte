@@ -218,16 +218,16 @@
 		<section class="space-y-4">
 			<h2 class="heading-2">Cards</h2>
 			<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-				<div class="card bg">
-					<div class="p-6">
-						<h3 class="heading-3 mb-2">Surface 1 Card</h3>
-						<p class="text-text">Primary content with bg background.</p>
+				<div class="card bg-base">
+					<div class="p-s1">
+						<h3 class="heading-3">Surface 1 Card</h3>
+						<p class="text-content">Primary content with base background.</p>
 					</div>
 				</div>
-				<div class="card bg">
-					<div class="p-6">
-						<h3 class="heading-3 mb-2">Surface 2 Card</h3>
-						<p class="text-text">Secondary content with bg-dark background.</p>
+				<div class="card bg-base-1">
+					<div class="p-s1">
+						<h3 class="heading-3">Surface 2 Card</h3>
+						<p class="text-content">Secondary content with base-1 background.</p>
 					</div>
 				</div>
 			</div>

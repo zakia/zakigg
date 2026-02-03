@@ -50,7 +50,7 @@
 		</form>
 
 		{#each tasks as task}
-			<div class="rounded border border-gray-300 p-2">
+			<div class="rounded-md border border-edge p-s-2">
 				<input
 					type="checkbox"
 					checked={task.completed}

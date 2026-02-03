@@ -110,14 +110,14 @@
 
 <Layout {...metadata}>
 	<div
-		class="relative mt-8 grid w-full grid-cols-[100%_100%] overflow-hidden text-center"
-		class:text-primary={!(step % 2)}
+		class="relative grid w-full grid-cols-[100%_100%] overflow-hidden text-center"
+		class:text-brand={!(step % 2)}
 	>
-		<h2 bind:this={status1} class="mt-0">X's Turn</h2>
-		<h2 bind:this={status2} class="mt-0">O's Turn</h2>
+		<h2 bind:this={status1}>X's Turn</h2>
+		<h2 bind:this={status2}>O's Turn</h2>
 	</div>
 	<div
-		class="relative mx-auto mb-8 grid h-100 w-100 grid-cols-3 place-items-center gap-1 select-none"
+		class="relative mx-auto grid h-100 w-100 grid-cols-3 place-items-center gap-s-4 select-none"
 	>
 		{#each board as cell, i}
 			<button
@@ -131,7 +131,7 @@
 			></button>
 		{/each}
 	</div>
-	<div class="flex justify-center gap-4">
+	<div class="flex justify-center gap-s0">
 		<div class="btn-group flex">
 			<button
 				class="btn variant-base first:rounded-r-none"
@@ -141,7 +141,7 @@
 				<Icon icon="mdi:person" class="h-6 w-6" />
 			</button>
 			<button
-				class="btn variant-base mr-4 last:rounded-l-none"
+				class="btn variant-base mr-s0 last:rounded-l-none"
 				onclick={() => (is2Player = true)}
 				class:variant-primary={is2Player}
 			>
@@ -156,7 +156,6 @@
 
 <style>
 	.box {
-		margin: 12.5px;
 		width: 75px;
 		height: 75px;
 		background: transparent;
@@ -172,7 +171,7 @@
 	}
 
 	.square {
-		--ring-color: var(--color-primary);
+		--ring-color: var(--brand);
 		filter: drop-shadow(12px 12px 0px oklch(from var(--ring-color) l c h / 0.2));
 		border-radius: 10%;
 		box-shadow: inset 0 0 0 2px var(--ring-color);
@@ -187,7 +186,7 @@
 	}
 
 	.circle {
-		--ring-color: var(--color-text);
+		--ring-color: var(--content);
 		box-shadow: inset 0 0 0 1px var(--ring-color);
 		filter: drop-shadow(12px 12px 0px oklch(from var(--ring-color) l c h / 0.2));
 		border-radius: 50%;

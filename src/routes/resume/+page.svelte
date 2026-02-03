@@ -17,11 +17,11 @@
 </script>
 
 <div
-	class="layout mx-a max-w-5xl items-start gap-8 md:grid-cols-[3fr_4fr] print:mt-0 print:max-w-none print:py-4"
+	class="layout mx-auto max-w-5xl items-start gap-s3 md:grid-cols-[3fr_4fr] print:mt-0 print:max-w-none print:py-4"
 >
 	<!-- <div class="col-span-full flex justify-between gap-2"></div> -->
 
-	<section class="grid gap-4">
+	<section class="grid gap-s1">
 		<h1>
 			<span class="font-extralight">Adham</span>
 			<span class="font-semibold">Zaki</span>
@@ -54,9 +54,9 @@
 			with <b>user-centric design</b>.
 		</p>
 
-		<div class="flex gap-3">
+		<div class="flex gap-s-1">
 			{#each contactLinks as link}
-				<a href={link.href} class="slide-link flex w-fit items-center gap-1" target="_blank">
+				<a href={link.href} class="slide-link flex w-fit items-center gap-s-2" target="_blank">
 					<Icon icon={link.icon} class="h-6 w-6" />
 					{#if link.text}
 						{link.text}
@@ -66,24 +66,24 @@
 		</div>
 	</section>
 
-	<section class="grid gap-2">
+	<section class="grid gap-s-2">
 		<h2>Projects</h2>
-		<div class="grid gap-2">
+		<div class="grid gap-s-2">
 			{#each projects as project}
 				<ProjectCard {...project} />
 			{/each}
 		</div>
 	</section>
 
-	<section class="grid gap-4">
-		<h2 class="col-span-full -mb-2">Skills</h2>
+	<section class="grid gap-s0">
+		<h2 class="col-span-full">Skills</h2>
 		{#each Object.entries(skills) as [key, items]}
 			<div>
-				<h4 class="mb-2">{title(key)}</h4>
-				<div class="flex flex-wrap gap-2">
+				<h4 class="mb-s-2">{title(key)}</h4>
+				<div class="flex flex-wrap gap-s-2">
 					{#each items as item}
 						<div
-							class="bg-bg flex items-center gap-1 rounded-full px-2 py-1 font-medium shadow"
+							class="bg-base-1 flex items-center gap-s-2 rounded-full px-s-2 py-s-4 font-medium shadow"
 						>
 							<Icon icon={item.icon} class="h-4 w-4 shrink-0" />
 							{item.label}
@@ -94,7 +94,7 @@
 		{/each}
 	</section>
 
-	<section class="row-span-4 grid gap-6 md:col-start-2 md:row-start-1">
+	<section class="row-span-4 grid gap-s0 md:col-start-2 md:row-start-1">
 		<h2>Experience</h2>
 
 		{#each experiences as experience}

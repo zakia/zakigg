@@ -7,16 +7,16 @@
 	widths and gaps.
 </p>
 <h6 class="mt-2">The <code>offsetLeft</code> property</h6>
-<blockquote class="border-primary border-l-4 pl-2">
+<blockquote class="border-brand border-l-4 pl-s-2">
 	<p>
 		<em
 			>This property returns the number of pixels that the upper left corner of the current element
-			is offset to the left within it&#39;s parent.<sup class="text-primary">*</sup></em
+			is offset to the left within it&#39;s parent.<sup class="text-brand">*</sup></em
 		>
 	</p>
 </blockquote>
-<p class="-mt-2">
-	<span class="text-primary">*</span>
+<p>
+	<span class="text-brand">*</span>
 	<small>
 		This is only true if we have <code>position:relative</code> on the parent. Otherwise,
 		<code>offsetLeft</code> returns the distance to the edge of the screen</small

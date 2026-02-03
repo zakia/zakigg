@@ -32,13 +32,13 @@
 	</p>
 	<ScrollingTabs />
 	{#each data as { title, icon, Content }}
-		<h2 class="text-primary flex items-center gap-2">
+		<h2 class="text-brand flex items-center gap-s-2">
 			<Icon {icon} class="h-8 w-8" />
 			{title}
 		</h2>
 		<Content />
 	{/each}
-	<h2 class="text-primary flex items-center gap-2">
+	<h2 class="text-brand flex items-center gap-s-2">
 		<Icon icon="lucide:clapperboard" class="h-8 w-8" />
 		Bloopers
 	</h2>
@@ -50,7 +50,7 @@
 	</p>
 
 	<p><strong>However, it's a bit limited:</strong></p>
-	<ul class="list-disc-outside p-s-5 mb-4">
+	<ul class="list-disc-outside pl-s1">
 		<li>
 			Most browsers first scroll the entire page to the anchor, then to the correct slide. In some
 			cases, this behavior might be desired, but it's not ideal for a carousel.

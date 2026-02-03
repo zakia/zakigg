@@ -102,50 +102,48 @@
 </script>
 
 <Layout {...metadata}>
-	<section class="space-y-4">
-		<div class="grid gap-8 md:grid-cols-3">
-			<div class="space-y-4">
+	<section class="gap-s0 grid">
+		<div class="gap-s2 grid md:grid-cols-3">
+			<div class="gap-s0 grid">
 				<h3 class="heading-3">Surface Colors</h3>
-				<div class="grid gap-2">
+				<div class="gap-s-2 grid">
 					{#each colors.surface as color}
-						<div class="flex items-center space-x-2">
+						<div class="gap-s-2 flex items-center">
 							<div
 								class="h-8 w-8 rounded-full shadow"
 								style="background-color: var(--color-{color})"
 							></div>
-							<div class="font-mono text-sm">{color}</div>
+							<div class="text-s-1 font-mono">{color}</div>
 						</div>
 					{/each}
 				</div>
 			</div>
 
-			<div class="space-y-4">
+			<div class="gap-s0 grid">
 				<h3 class="heading-3">Content Colors</h3>
-				<div class="grid gap-2">
+				<div class="gap-s-2 grid">
 					{#each colors.content as color}
-						<div class="flex items-center space-x-2">
+						<div class="gap-s-2 flex items-center">
 							<div
 								class="h-8 w-8 rounded-full shadow"
 								style="background-color: var(--color-{color})"
 							></div>
-							<div class="font-mono text-sm">{color}</div>
+							<div class="text-s-1 font-mono">{color}</div>
 						</div>
 					{/each}
 				</div>
 			</div>
 
-			<!-- Theme Colors -->
-
-			<div class="space-y-4">
+			<div class="gap-s0 grid">
 				<h3 class="heading-3">Theme Colors</h3>
-				<div class="grid gap-2">
+				<div class="gap-s-2 grid">
 					{#each colors.primary as color}
-						<div class="flex items-center space-x-2">
+						<div class="gap-s-2 flex items-center">
 							<div
 								class="h-8 w-8 rounded-full shadow"
 								style="background-color: var(--color-{color})"
 							></div>
-							<div class="font-mono text-sm">{color}</div>
+							<div class="text-s-1 font-mono">{color}</div>
 						</div>
 					{/each}
 				</div>
@@ -153,9 +151,9 @@
 		</div>
 	</section>
 
-	<section class="space-y-4">
+	<section class="gap-s0 grid">
 		<h2 class="heading-2">Buttons</h2>
-		<div class="flex flex-wrap gap-4">
+		<div class="gap-s0 flex flex-wrap">
 			{#each buttonVariants as variant}
 				<button class="btn {variant.class}">
 					{variant.label}
@@ -168,27 +166,27 @@
 		</div>
 	</section>
 
-	<section class="space-y-4">
+	<section class="gap-s0 grid">
 		<h2 class="heading-2">Cards</h2>
-		<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-			<div class="card bg">
-				<div class="p-6">
-					<h3 class="heading-3 mb-2">Surface 1 Card</h3>
-					<p class="text-text">Primary content with bg background.</p>
+		<div class="gap-s0 grid grid-cols-1 md:grid-cols-2">
+			<div class="card bg-base">
+				<div class="p-s1">
+					<h3 class="heading-3">Surface 1 Card</h3>
+					<p class="text-content">Primary content with base background.</p>
 				</div>
 			</div>
-			<div class="card bg">
-				<div class="p-6">
-					<h3 class="heading-3 mb-2">Surface 2 Card</h3>
-					<p class="text-text">Secondary content with bg-dark background.</p>
+			<div class="card bg-base-1">
+				<div class="p-s1">
+					<h3 class="heading-3">Surface 2 Card</h3>
+					<p class="text-content">Secondary content with base-1 background.</p>
 				</div>
 			</div>
 		</div>
 	</section>
 
-	<section class="space-y-4">
+	<section class="gap-s0 grid">
 		<h2 class="heading-2">Form Elements</h2>
-		<div class="grid max-w-md gap-4">
+		<div class="gap-s0 grid max-w-md">
 			<div class="form-group">
 				<label for="text" class="form-label">Text Input</label>
 				<input type="text" id="text" class="input" placeholder="Enter text..." />
@@ -208,9 +206,5 @@
 		</div>
 	</section>
 
-	<section
-		class="bg-bg-light relative flex min-h-screen max-w-3xl flex-col justify-center gap-4 overflow-hidden"
-	>
-		{@html md.render(typographyMD)}
-	</section>
+	{@html md.render(typographyMD)}
 </Layout>

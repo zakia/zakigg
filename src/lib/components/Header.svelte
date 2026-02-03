@@ -68,19 +68,19 @@
 </script>
 
 <header
-	class="bg-bg dock fixed bottom-0 left-1/2 z-999 flex h-14 w-fit items-end rounded-xl p-2 backdrop-blur-lg print:hidden"
+	class="bg-base-1 dock p-s-2 fixed bottom-0 left-1/2 z-999 flex h-14 w-fit items-end rounded-lg backdrop-blur-lg print:hidden"
 	style="view-transition-name: header;"
 	style:translate="-50% {isHidden ? '200%' : '0%'}"
 >
 	{#each links as link}
-		<a href={link.path} class="dock-item" class:text-primary={link.path === page.url.pathname}>
+		<a href={link.path} class="dock-item" class:text-brand={link.path === page.url.pathname}>
 			<div class="tooltip">
 				{link.label}
 			</div>
 			<Icon icon={link.icon} class="h-full w-full"></Icon>
 		</a>
 	{/each}
-	<div class="bg-bg-dark my-a h-3/4 w-px"></div>
+	<div class="bg-edge-1 my-auto h-3/4 w-px"></div>
 	{#each socials as social}
 		<a href={social.path} class="dock-item" target="_blank">
 			<div class="tooltip">
@@ -89,17 +89,21 @@
 			<Icon icon={social.icon} class="h-full w-full"></Icon>
 		</a>
 	{/each}
-	<div class="bg-bg-dark my-auto h-3/4 w-px"></div>
+	<div class="bg-edge-1 my-auto h-3/4 w-px"></div>
 
 	<button class="dock-item" onclick={theme.toggle}>
-		<div class="tooltip">Toggle Theme</div>
-		<Icon icon={theme.theme === 'light' ? 'line-md:moon' : 'line-md:sunny'} class="h-full w-full" />
+		{#if theme.theme === 'light'}
+			<div class="tooltip">Dark Mode</div>
+			<Icon icon={'line-md:moon'} class="h-full w-full" />
+		{:else}
+			<div class="tooltip">Light Mode</div>
+			<Icon icon={'line-md:sunny'} class="h-full w-full" />
+		{/if}
 	</button>
 
 	<button class="dock-item" onclick={theme.toggleHue}>
 		<div class="tooltip">Toggle Color</div>
-		<!-- <div class="aspect-square h-full rounded-full"></div> -->
-		<Icon icon="line-md:paint-drop-filled" class="text-primary h-full w-full"></Icon>
+		<Icon icon="line-md:paint-drop-filled" class="text-brand h-full w-full"></Icon>
 	</button>
 
 	<button class="dock-item" onclick={() => (isHidden = true)}>
@@ -108,17 +112,20 @@
 	</button>
 </header>
 <div
-	class="transition-property-[translate] fixed right-4 bottom-4 z-999 duration-[0.3s] print:hidden"
+	class="transition-property-[translate] right-s0 bottom-s0 fixed z-999 duration-[0.3s] print:hidden"
 	style:translate="0% {isHidden ? '0%' : '200%'}"
 >
-	<button class="btn variant-primary rounded-full p-2 shadow-lg" onclick={() => (isHidden = false)}>
+	<button
+		class="btn variant-primary p-s-2 rounded-full shadow-lg"
+		onclick={() => (isHidden = false)}
+	>
 		<Icon icon="pepicons-print:menu" class="h-6 w-6"></Icon>
 	</button>
 </div>
 
 <style>
 	.dock {
-		box-shadow: var(--shadow-2);
+		box-shadow: 0 4px 12px rgb(0 0 0 / 0.1);
 		transition: translate 0.3s;
 		transform-origin: bottom;
 	}
@@ -142,11 +149,11 @@
 		bottom: 115%;
 		left: 50%;
 		transform: translateX(-50%);
-		padding: 0.25rem 0.5rem;
-		border-radius: 0.25rem;
-		font-size: 0.75rem;
+		padding: var(--s-4) var(--s-2);
+		border-radius: var(--radius);
+		font-size: var(--s-1);
 		white-space: nowrap;
-		background-color: var(--color-bg);
+		background-color: var(--base);
 		transition: opacity 0.2s;
 		box-shadow:
 			0 4px 6px -1px rgb(0 0 0 / 0.1),

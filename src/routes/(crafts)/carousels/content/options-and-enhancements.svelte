@@ -8,7 +8,7 @@
 <p>
 	We can snap slides into place using the <a
 		target="_blank"
-		class="text-text border-b-current"
+		class="text-content border-b-current"
 		href="https://developer.mozilla.org/docs/Web/CSS/CSS_scroll_snap"
 		><code>scroll-snap-type</code></a
 	> property.

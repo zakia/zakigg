@@ -22,7 +22,7 @@ export const useTheme = () => {
 	});
 
 	$effect(() => {
-		hue = document.documentElement.style.getPropertyValue('--color-hue') || '145';
+		hue = document.documentElement.style.getPropertyValue('--hue') || '145';
 	});
 
 	const setTheme = (newTheme: string) => {
@@ -34,7 +34,7 @@ export const useTheme = () => {
 
 	const setHue = (newHue: string) => {
 		document.cookie = `hue=${newHue}; path=/; max-age=31536000`;
-		document.documentElement.style.setProperty('--color-hue', newHue);
+		document.documentElement.style.setProperty('--hue', newHue);
 		hue = newHue;
 	};
 

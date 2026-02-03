@@ -60,17 +60,17 @@
 	];
 </script>
 
-<section class="layout max-w-6xl gap-4">
+<section class="layout gap-s0 max-w-6xl">
 	<h1 class="text-start">Websites I've built</h1>
-	<div class="grid grid-cols-[repeat(auto-fit,minmax(20rem,1fr))] gap-6">
+	<div class="gap-s1 grid grid-cols-[repeat(auto-fit,minmax(20rem,1fr))]">
 		{#each projects as project}
-			<div class="border-primary flex flex-col rounded-xl border p-3">
+			<div class="p-s-1 flex flex-col rounded-lg border border-edge bg-base-1">
 				<a href={project.link} target="_blank" aria-label={project.name} class="btn p-0">
-					<svg use:inlineSvg={project.thumbnail} class="mb-1 h-16 max-w-52" />
+					<svg use:inlineSvg={project.thumbnail} class="h-16 max-w-52" />
 				</a>
 				<p>{project.description}</p>
-				<p class="mt-auto pt-4 font-bold">Built with:</p>
-				<div class="flex gap-3">
+				<p class="mt-auto font-bold">Built with:</p>
+				<div class="gap-s-1 flex">
 					{#each project.built as logo}
 						<Icon icon={logo} class="h-7 w-7" />
 					{/each}

@@ -1,8 +1,5 @@
-<article class="layout max-w-2xl gap-2">
-	<div class="flex w-full items-center justify-between">
-		<h1 class="font-hand">Adham Zaki</h1>
-		<!-- <Logo class="h-16 w-16 hithere shrink-0" /> -->
-	</div>
+<article>
+	<h1 class="font-hand">Adham Zaki</h1>
 	<p>
 		<em>Crafting interfaces.</em> Building polished software and web experiences. Experimenting with
 		magical details in user interfaces. Founder of

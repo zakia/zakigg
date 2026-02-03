@@ -1,4 +1,4 @@
-<article class="my-24 max-w-2xl">
+<article class="max-w-2xl">
 	<h1 class="text-center">How do Computers play games?</h1>
 	<p>
 		Think about how you would play a game of tic-tac-toe against a friend. Intuitively, it might go
@@ -45,7 +45,7 @@
 			<div>
 				They could play here and win right away <em> (which is bad for you btw, -10!) </em>
 			</div>
-			<div class="text-primary text-xl font-bold uppercase">or</div>
+			<div class="text-brand text-s1 font-bold uppercase">or</div>
 			<div>they could play here and who knows what happens next??</div>
 		</div>
 	</div>
@@ -158,7 +158,7 @@
 
 		<div class="grid grid-cols-[4fr_1fr_4fr] items-center justify-center">
 			<div>We already know</div>
-			<div class="text-primary text-xl font-bold uppercase">or</div>
+			<div class="text-brand text-s1 font-bold uppercase">or</div>
 			<div>Now that we've propagated</div>
 		</div>
 	</div>

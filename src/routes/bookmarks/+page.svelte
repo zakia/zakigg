@@ -51,9 +51,9 @@
 </script>
 
 <div class="page-grid">
-	<div class="flex flex-col items-center gap-4">
-		<div class="flex flex-col items-center gap-1">
-			<div class="text-2xl font-bold">
+	<div class="flex flex-col items-center gap-s0">
+		<div class="flex flex-col items-center gap-s-4">
+			<div class="text-s2 font-bold">
 				{Temporal.Now.zonedDateTimeISO().toLocaleString('en-US', { timeStyle: 'short' })}
 			</div>
 			<div>
@@ -65,19 +65,19 @@
 			</div>
 		</div>
 
-		<div class="flex flex-wrap justify-start gap-4">
+		<div class="flex flex-wrap justify-start gap-s0">
 			{#each times as time}
 				<div
-					class="bg-bg-light flex flex-col items-center gap-1 rounded-lg p-2 text-center shadow ring ring-current/10"
+					class="bg-base-1 flex flex-col items-center gap-s-4 rounded-md p-s-2 text-center shadow ring ring-current/10"
 				>
-					<div class="text-xl font-medium">
+					<div class="text-s1 font-medium">
 						{time.timeString}
 					</div>
 					<div>
 						<div>
 							{time.name}
 						</div>
-						<div class="text-sm font-light">
+						<div class="text-s-1 font-light">
 							{time.difference > 0 ? `+${time.difference} hr` : `${time.difference} hr`}
 						</div>
 					</div>
@@ -89,15 +89,15 @@
 	<Tasks />
 
 	<div class="bookmarks-section">
-		<div class="bg-bg-light/50 flex flex-wrap gap-4 rounded-lg p-4 shadow ring-2 ring-current/10">
+		<div class="bg-base-1/50 flex flex-wrap gap-s0 rounded-md p-s0 shadow ring-2 ring-current/10">
 			{#each Object.entries(bookmarks) as [category, items]}
 				{#if items.length > 0}
-					<div class="w-fit rounded-lg p-2">
-						<h2 class="mb-2 text-center text-lg font-medium capitalize underline">{category}</h2>
-						<div class="grid grid-cols-2 gap-2">
+					<div class="w-fit rounded-md p-s-2">
+						<h2 class="text-center text-s0 font-medium capitalize underline">{category}</h2>
+						<div class="grid grid-cols-2 gap-s-2">
 							{#each items as bookmark}
-								<a href={bookmark.url} class="btn flex items-center rounded-lg p-2">
-									<Icon icon={bookmark.icon} class="text-primary h-10 w-10 drop-shadow-2xl" />
+								<a href={bookmark.url} class="btn flex items-center rounded-md p-s-2">
+									<Icon icon={bookmark.icon} class="text-brand h-10 w-10 drop-shadow-2xl" />
 								</a>
 							{/each}
 						</div>
@@ -110,17 +110,10 @@
 
 <style>
 	.page-grid {
-		--grid-size: 4rem;
+		--grid-size: var(--s2);
 		display: flex;
 		flex-wrap: wrap;
-		gap: 2rem;
-		padding: 1rem;
-		/* background-image: radial-gradient(
-			circle at calc(1rem - 1px) calc(1rem - 1px),
-			color-mix(in oklch, var(--color-primary) 10%, transparent) 2px,
-			transparent 0
-		);
-		background-size: var(--grid-size) var(--grid-size);
-		background-position: 0 0; */
+		gap: var(--s2);
+		padding: var(--s0);
 	}
 </style>

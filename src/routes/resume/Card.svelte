@@ -30,9 +30,9 @@
 	};
 </script>
 
-<div class="border-1.5 border-primary bg-bg grid gap-2 rounded-xl p-4 shadow">
+<div class="card bg-base-1 grid gap-s-2 p-s0">
 	<div class="flex">
-		<div class="text-text mr-auto flex w-fit items-center justify-start gap-2 border-b-0">
+		<div class="text-content mr-auto flex w-fit items-center justify-start gap-s-2 border-b-0">
 			<img src={props.icon} alt="icon" class="h-8 w-8 shrink-0" />
 
 			<h3 class="mb-0 font-semibold">
@@ -45,11 +45,11 @@
 		</div>
 
 		{#if props.positions}
-			<div class="pb-2 text-end">
+			<div class="pb-s-2 text-end">
 				{#each props.positions as position}
 					<div class="grid justify-between text-sm">
-						<span class="text-primary font-semibold">{position.role}</span>
-						<span class="text-base-6">
+						<span class="text-brand font-semibold">{position.role}</span>
+						<span class="text-content-1">
 							{formatDate(position.startDate)} - {formatDate(position.endDate)}
 						</span>
 					</div>
@@ -59,9 +59,9 @@
 	</div>
 	<div>
 		{#each props.description as item}
-			<div class="relative flex gap-1 not-last:mb-2">
-				<Icon icon="fa-solid:dot-circle" class="text-primary mt-1.5 h-3 w-3 shrink-0" />
-				<p class="text-base-8">
+			<div class="relative flex gap-s-1 not-last:mb-s-2">
+				<Icon icon="fa-solid:dot-circle" class="text-brand mt-1.5 h-3 w-3 shrink-0" />
+				<p class="text-content">
 					{@html md.renderInline(item)}
 				</p>
 			</div>

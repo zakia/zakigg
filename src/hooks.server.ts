@@ -26,7 +26,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 			let currentHue = event.cookies.get('hue');
 
 			if (!currentTheme) {
-				currentTheme = 'default';
+				currentTheme = 'light';
 				event.cookies.set('theme', currentTheme, { path: '/', maxAge: 31536000, httpOnly: false });
 			}
 
@@ -34,7 +34,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 				currentHue = '270';
 				event.cookies.set('hue', currentHue, { path: '/', maxAge: 31536000, httpOnly: false });
 			}
-			const newHtml = html.replace(`--color-hue: fff`, `--color-hue: ${currentHue}`);
+			const newHtml = html.replace(`--hue: fff`, `--hue: ${currentHue}`);
 			return newHtml.replace(`data-theme=""`, `data-theme="${currentTheme}"`);
 		}
 	});

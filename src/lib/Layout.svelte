@@ -22,28 +22,29 @@
 	<meta property="og:description" content={description} />
 </svelte:head>
 
-<section class="mx-auto grid w-full max-w-4xl items-start gap-4">
-	<a href="/" class="btn text-primary top-[var(--spacing-top)] w-fit p-0 md:sticky">
+<section class="gap-s0 mx-auto grid w-full items-start">
+	<a href="/" class="btn text-brand top-(--vertical-spacing) w-fit p-0 md:sticky">
 		<Icon icon="ep:top-left" />Back
 	</a>
 
-	<div class="article grid w-full gap-2">
+	<article>
 		<hgroup>
-			<h1 class="heading-3">{title}</h1>
-			<time class="text-text/50">{printDate(date)}</time>
+			<h1 class="text-s1">{title}</h1>
+			<time class="text-content-1">{printDate(date)}</time>
 		</hgroup>
 
 		{@render children?.()}
-	</div>
+	</article>
 </section>
 
 <style>
 	section {
-		--vertical-spacing: 5rem;
+		--vertical-spacing: var(--s3);
+		max-width: 880px;
 		display: grid;
 		padding-top: var(--vertical-spacing);
-		padding-bottom: calc(var(--vertical-spacing) * 2);
-		padding-inline: 1rem;
+		padding-bottom: calc(var(--vertical-spacing) * 3);
+		padding-inline: var(--s0);
 		grid-template-columns: 100px 1fr 100px;
 
 		@media (max-width: 768px) {

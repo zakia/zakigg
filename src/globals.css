@@ -1,0 +1,232 @@
+@import 'tailwindcss';
+
+/* --- 1. THE LOGIC ENGINE --- */
+:root {
+	/* CONFIGURATION */
+	--r-mobile: 1.2; /* Ratio: Minor Third (Safe for phone) */
+	--r-desktop: 1.414; /* Ratio: Augmented Fourth (Epic for desktop) */
+
+	--w-mobile: 375px;
+	--w-desktop: 1280px;
+
+	/* FLUIDITY: Calculates a value between 0.0 and 1.0 based on screen width */
+	--t: clamp(0, calc((100vw - var(--w-mobile)) / (var(--w-desktop) - var(--w-mobile))), 1);
+}
+
+/* --- 2. THE DESIGN TOKENS --- */
+:root {
+	color-scheme: light;
+
+	/* --- MODULAR SCALE GENERATOR --- */
+
+	/* BASE (Static 16px) */
+	--s0: 1rem;
+
+	/* MICRO (Static) 
+     We use the Desktop Ratio (1.414) even on mobile to ensure 
+     clean halves/quarters (8px, 4px) for the UI grid.
+  */
+	--s-1: calc(1rem * pow(var(--r-desktop), -1)); /* ~11.3px */
+	--s-2: calc(1rem * pow(var(--r-desktop), -2)); /* ~8px */
+	--s-3: calc(1rem * pow(var(--r-desktop), -3)); /* ~5.6px */
+	--s-4: calc(1rem * pow(var(--r-desktop), -4)); /* ~4px */
+	--s-5: calc(1rem * pow(var(--r-desktop), -5)); /* ~2.8px */
+
+	/* MACRO (Fluid) 
+     Scales smoothly from Mobile Ratio -> Desktop Ratio 
+     Formula: Min + (Max - Min) * FluidProgress
+  */
+
+	/* s1 (Text/Pad) */
+	--s1-min: calc(1rem * pow(var(--r-mobile), 1));
+	--s1-max: calc(1rem * pow(var(--r-desktop), 1));
+	--s1: calc(var(--s1-min) + (var(--s1-max) - var(--s1-min)) * var(--t));
+
+	/* s2 (Heading/Card Pad) */
+	--s2-min: calc(1rem * pow(var(--r-mobile), 2));
+	--s2-max: calc(1rem * pow(var(--r-desktop), 2));
+	--s2: calc(var(--s2-min) + (var(--s2-max) - var(--s2-min)) * var(--t));
+
+	/* s3 (Section Gap) */
+	--s3-min: calc(1rem * pow(var(--r-mobile), 3));
+	--s3-max: calc(1rem * pow(var(--r-desktop), 3));
+	--s3: calc(var(--s3-min) + (var(--s3-max) - var(--s3-min)) * var(--t));
+
+	/* s4 (Hero) */
+	--s4-min: calc(1rem * pow(var(--r-mobile), 4));
+	--s4-max: calc(1rem * pow(var(--r-desktop), 4));
+	--s4: calc(var(--s4-min) + (var(--s4-max) - var(--s4-min)) * var(--t));
+
+	/* s5 (Display) */
+	--s5-min: calc(1rem * pow(var(--r-mobile), 5));
+	--s5-max: calc(1rem * pow(var(--r-desktop), 5));
+	--s5: calc(var(--s5-min) + (var(--s5-max) - var(--s5-min)) * var(--t));
+
+	/* --- COLORS (Light Mode) --- */
+	/* LAYERS */
+	--base: oklch(98% 0.005 var(--hue)); /* App Background */
+	--base-1: oklch(100% 0 var(--hue)); /* Card / Surface */
+	--base-2: oklch(97% 0.01 var(--hue)); /* Input / Well */
+
+	/* CONTENT */
+	--content: oklch(40% 0.03 var(--hue)); /* Primary Text */
+	--content-1: oklch(55% 0.04 var(--hue)); /* Secondary Text */
+
+	/* EDGES */
+	--edge: oklch(92% 0.01 var(--hue)); /* Subtle */
+	--edge-1: oklch(88% 0.02 var(--hue)); /* Strong */
+
+	/* BRAND */
+	--brand: oklch(65% 0.2 var(--hue));
+	--brand-content: oklch(100% 0 0);
+
+	/* STATUS */
+	--error: oklch(65% 0.25 25);
+	--error-content: oklch(100% 0 0);
+
+	--success: oklch(65% 0.2 145);
+	--success-content: oklch(100% 0 0);
+
+	--info: oklch(75% 0.18 260);
+	--info-content: oklch(20% 0.05 260);
+
+	--warning: oklch(85% 0.18 85);
+	--warning-content: oklch(20% 0.05 85);
+
+	/* UTILS */
+	--radius: var(--s-2);
+	--focus-ring: 0 0 0 3px oklch(65% 0.2 var(--hue) / 20%);
+}
+
+/* --- 3. DARK MODE OVERRIDES --- */
+[data-theme='dark'] {
+	color-scheme: dark;
+
+	/* Layers stack upwards (Lightness increases) */
+	--base: oklch(12% 0.0025 var(--hue));
+	--base-1: oklch(18% 0.025 var(--hue));
+	--base-2: oklch(24% 0.0025 var(--hue));
+
+	--content: oklch(95% 0.01 var(--hue));
+	--content-1: oklch(70% 0.02 var(--hue));
+
+	--edge: oklch(25% 0.02 var(--hue));
+	--edge-1: oklch(35% 0.02 var(--hue));
+}
+
+/* --- 4. TAILWIND CONFIGURATION --- */
+@theme {
+	/* Spacing Scale */
+	--spacing-s-5: var(--s-5);
+	--spacing-s-4: var(--s-4);
+	--spacing-s-3: var(--s-3);
+	--spacing-s-2: var(--s-2);
+	--spacing-s-1: var(--s-1);
+	--spacing-s0: var(--s0);
+	--spacing-s1: var(--s1);
+	--spacing-s2: var(--s2);
+	--spacing-s3: var(--s3);
+	--spacing-s4: var(--s4);
+	--spacing-s5: var(--s5);
+
+	/* Colors */
+	--color-base: var(--base);
+	--color-base-1: var(--base-1);
+	--color-base-2: var(--base-2);
+
+	--color-content: var(--content);
+	--color-content-1: var(--content-1);
+
+	--color-edge: var(--edge);
+	--color-edge-1: var(--edge-1);
+
+	--color-brand: var(--brand);
+	--color-brand-content: var(--brand-content);
+
+	--color-error: var(--error);
+	--color-error-content: var(--error-content);
+	--color-success: var(--success);
+	--color-success-content: var(--success-content);
+	--color-info: var(--info);
+	--color-info-content: var(--info-content);
+	--color-warning: var(--warning);
+	--color-warning-content: var(--warning-content);
+
+	/* Typography */
+	--text-s-2: var(--s-2);
+	--text-s-1: var(--s-1);
+	--text-s0: var(--s0);
+	--text-s1: var(--s1);
+	--text-s2: var(--s2);
+	--text-s3: var(--s3);
+	--text-s4: var(--s4);
+	--text-s5: var(--s5);
+
+	/* Radius */
+	--radius-sm: var(--s-4);
+	--radius-md: var(--s-2);
+	--radius-lg: var(--s-1);
+}
+
+/* --- 5. BASE STYLES & RESETS --- */
+@layer base {
+	/* Accessible line height */
+	* {
+		line-height: calc(1em + 0.5rem);
+	}
+
+	/* Enable keyword animations */
+	@media (prefers-reduced-motion: no-preference) {
+		html {
+			interpolate-size: allow-keywords;
+		}
+	}
+
+	/* Improve media defaults */
+	img,
+	picture,
+	video,
+	canvas,
+	svg {
+		display: block;
+		max-width: 100%;
+	}
+
+	/* Inherit fonts for form controls */
+	input,
+	button,
+	textarea,
+	select {
+		font: inherit;
+	}
+
+	/* Avoid text overflows */
+	p,
+	h1,
+	h2,
+	h3,
+	h4,
+	h5,
+	h6 {
+		overflow-wrap: break-word;
+	}
+
+	/* Improve line wrapping */
+	p {
+		text-wrap: pretty;
+	}
+	h1,
+	h2,
+	h3,
+	h4,
+	h5,
+	h6 {
+		text-wrap: balance;
+	}
+
+	button,
+	a,
+	[role='button'] {
+		cursor: pointer;
+	}
+}

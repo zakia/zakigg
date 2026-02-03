@@ -11,9 +11,9 @@
 	<input {name} type="checkbox" class="hidden" bind:checked />
 	<div
 		aria-checked={checked}
-		class="bg-bg-surface aria-checked:bg-primary toggle flex h-7 w-12 items-center rounded-full p-1"
+		class="bg-base-2 aria-checked:bg-brand toggle flex h-7 w-12 items-center rounded-full p-s-4"
 	>
-		<span class="bg-bg block h-full w-1/2 rounded-full"></span>
+		<span class="bg-base-1 block h-full w-1/2 rounded-full"></span>
 	</div>
 </label>
 

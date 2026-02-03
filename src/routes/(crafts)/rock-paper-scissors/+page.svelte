@@ -137,12 +137,7 @@
 </svelte:head>
 
 <Layout {...metadata}>
-	<!-- <hgroup class="text-center">
-		<h1 class="mb-2">Rock, Paper, Scissors</h1>
-		<p class="mb-0 text-base-6">with Artificial Intelligence</p>
-	</hgroup> -->
-
-	<div class="my-10 grid justify-items-center">
+	<div class="grid justify-items-center">
 		<div class="text-center">
 			{#if cheating}
 				<div>
@@ -152,25 +147,25 @@
 				</div>
 			{/if}
 
-			<div class="text-primary text-3xl font-bold">{game.scoreAI}</div>
-			<Icon icon="tabler:robot" class="text-primary mx-auto h-16 w-16"></Icon>
+			<div class="text-brand text-s3 font-bold">{game.scoreAI}</div>
+			<Icon icon="tabler:robot" class="text-brand mx-auto h-16 w-16"></Icon>
 		</div>
 
-		<div class="pr-1/4 flex w-full max-w-md gap-2 overflow-x-auto p-4" bind:this={scores}>
+		<div class="pr-1/4 flex w-full max-w-md gap-s-2 overflow-x-auto p-s0" bind:this={scores}>
 			{#each game.scoreTracker as match, i}
 				<div
-					class="flex flex-col items-center rounded-lg p-2"
-					class:bg-green-300={match.winner === 'human'}
-					class:bg-blue-300={match.winner === 'draw'}
-					class:bg-red-300={match.winner === 'AI'}
+					class="flex flex-col items-center rounded-md p-s-2"
+					class:bg-success={match.winner === 'human'}
+					class:bg-info={match.winner === 'draw'}
+					class:bg-error={match.winner === 'AI'}
 				>
-					<div class="text-dark/70 text-xs">{i + 1}</div>
+					<div class="text-s-2 opacity-70">{i + 1}</div>
 					<div>{stringOf(match.ai)}</div>
 					<div>{stringOf(match.human)}</div>
 				</div>
 			{:else}
-				<div class="flex flex-col p-2 rounded-lg items-center invisible">
-					<div class="text-xs opacity-50">{1}</div>
+				<div class="flex flex-col p-s-2 rounded-md items-center invisible">
+					<div class="text-s-2 opacity-50">{1}</div>
 					<div>{stringOf(1)}</div>
 					<div>{stringOf(1)}</div>
 				</div>
@@ -178,20 +173,20 @@
 		</div>
 
 		<div class="text-center">
-			<Icon icon="tabler:user" class="text-primary h-16 w-16"></Icon>
-			<div class="text-primary text-3xl font-bold">{game.scoreHuman}</div>
+			<Icon icon="tabler:user" class="text-brand h-16 w-16"></Icon>
+			<div class="text-brand text-s3 font-bold">{game.scoreHuman}</div>
 		</div>
 
-		<div class="mx-auto mt-6 grid max-w-sm grid-cols-3">
-			<button onclick={() => humanInput(1)} class="btn variant-primary m-2">rock</button>
-			<button onclick={() => humanInput(2)} class="btn variant-primary m-2">paper</button>
-			<button onclick={() => humanInput(3)} class="btn variant-primary m-2">scissors</button>
+		<div class="mx-auto grid max-w-sm grid-cols-3 gap-s-2">
+			<button onclick={() => humanInput(1)} class="btn variant-primary">rock</button>
+			<button onclick={() => humanInput(2)} class="btn variant-primary">paper</button>
+			<button onclick={() => humanInput(3)} class="btn variant-primary">scissors</button>
 		</div>
 
 		{#if game.scoreTracker.length}
-			<div class="grid grid-cols-2">
-				<button class="btn variant-base m-2" onclick={resetScore}>reset</button>
-				<button class="btn variant-base m-2" onclick={() => (cheating = !cheating)}>
+			<div class="grid grid-cols-2 gap-s-2">
+				<button class="btn variant-base" onclick={resetScore}>reset</button>
+				<button class="btn variant-base" onclick={() => (cheating = !cheating)}>
 					{cheating ? 'stop cheating' : 'cheat'}
 				</button>
 			</div>

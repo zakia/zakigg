@@ -25,12 +25,12 @@
 </script>
 
 <div
-	class="bg-bg text- relative overflow-hidden rounded-lg shadow-lg"
+	class="bg-base relative overflow-hidden rounded-md shadow-lg"
 	data-theme="dark"
 >
-	<div class="bg-bg-dark flex items-center justify-between p-3">
+	<div class="bg-base-2 flex items-center justify-between p-s-1">
 		{#if header}
-			<div class="text-lg font-bold">{header}</div>
+			<div class="text-s0 font-bold">{header}</div>
 		{/if}
 		<button class="btn" onclick={copyToClipboard} disabled={isCopied}>
 			{#if isCopied}
@@ -40,5 +40,5 @@
 			{/if}
 		</button>
 	</div>
-	<pre class="p-3"><code class="language-{language}">{@html codeHTML}</code></pre>
+	<pre class="p-s-1"><code class="language-{language}">{@html codeHTML}</code></pre>
 </div>

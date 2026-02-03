@@ -31,14 +31,14 @@
 
 <Layout {...metadata}>
 	{#key quoteIndex}
-		<div class="flex min-h-80 items-center justify-center gap-2" in:fade={{ duration: 500 }}>
-			<div class="text-text text-center text-lg font-medium text-balance">
+		<div class="flex min-h-80 items-center justify-center gap-s-2" in:fade={{ duration: 500 }}>
+			<div class="text-content text-center text-s1 font-medium text-balance">
 				{shuffledQuotes[quoteIndex]}
 			</div>
 		</div>
 	{/key}
 	<button
-		class="btn flex-col justify-self-center"
+		class="btn flex-col text-center"
 		onclick={() => (quoteIndex = (quoteIndex + 1) % shuffledQuotes.length)}
 	>
 		<Icon icon="mdi:refresh" class="h-8 w-8" />

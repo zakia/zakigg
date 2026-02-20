@@ -1,147 +1,115 @@
-import Konrad from './assets/konrad.svg';
-import Procter from './assets/procter.svg';
-import Siteful from './assets/siteful.svg';
-import uoft from './assets/uoft.svg';
-
 export const projects = [
 	{
 		company: 'TurboMenu',
 		description:
-			'Built a scalable platform for restaurants to **create QR code menus**, handling [10,000+ monthly visitors](https://winken.io/turbo.menu){target=_blank}, and delivering fast, interactive menus **optimized for mobile**.',
+			'Built a scalable platform for restaurants to **create QR code menus**, handling 10,000+ monthly visitors and delivering high-performance, interactive menus **optimized for mobile**.',
 		website: 'https://turbo.menu',
-		code: 'https://github.com/azakiio/turbomenu'
-	},
-	{
-		company: 'Quickset',
-		description:
-			'Developed a **real-time multiplayer** card game using **WebSockets** and **PostgreSQL**, with a scalable backend deployed on **AWS** to ensure smooth, low-latency gameplay.',
-		website: 'https://www.quickset.online/',
-		code: 'https://github.com/azakiio/quickset'
+		code: 'https://github.com/zakia/turbomenu'
 	},
 	{
 		company: 'Nice Buttons',
 		description:
-			'Created an **open-source CSS generator** for beautiful, customizable gradient hover effects, featuring a **live preview**, **one-click copy**, and an intuitive interface for easy use.',
+			'Created an **open-source CSS generator** for customizable gradient hover effects, featuring a **live preview**, **one-click copy**, and an intuitive interface.',
 		website: 'https://www.nicebuttons.com/',
-		code: 'https://github.com/azakiio/nice-buttons'
+		code: 'https://github.com/zakia/nice-buttons'
 	}
 ];
 
 export const education = {
 	company: 'University of Toronto',
-	positions: [
-		{
-			role: 'Industrial Engineering',
-			startDate: '2015-09-01',
-			endDate: '2020-06-01'
-		}
-	],
-	description: ['Graduated with Honours', 'Minor in AI Engineering'],
-	icon: uoft
+	position:
+	{
+		role: 'B.A.Sc. Industrial Engineering (Honours)',
+		startDate: '2015-09-01',
+		endDate: '2020-06-01'
+	},
+	description: ['Minor in Artificial Intelligence Engineering'],
 };
 
 export const experiences = [
 	{
-		company: 'Siteful.io',
-		link: 'https://siteful.io',
-		positions: [
-			{
-				role: 'Founder & Operator',
-				startDate: '2024-01-02',
-				endDate: undefined
-			}
-		],
+		company: 'Vizzylabs',
+		link: 'https://vizzylabs.ai',
+		position:
+		{
+			role: 'Founding Engineer',
+			startDate: '2024-10-01',
+			endDate: undefined
+		},
+		subtitle: 'Joined as Employee #5 (3rd Engineer); architected the AI video analytics SaaS and led its strategic evolution into a $1M ARR UGC platform.',
 		description: [
-			'Spearhead a dynamic web development start-up, **delivering polished, high-performance** web applications across diverse [platforms](/projects){target=_blank}.',
-			'Oversee the complete project lifecycle, from **design to deployment**, ensuring robust, secure, and optimized solutions with **Lighthouse scores over 90**.',
-			'Collaborate closely with clients to **define project scope** and **align technical strategies** with **stakeholder expectations**.',
-			'Navigate the balance between technical feasibility and long-term objectives, adhering to engineering best practices.'
+			'Architected a scalable data pipeline and **model-agnostic AI layer** to extract and index structured insights from **10M+ videos** using LLMs.',
+			'Led migration from legacy Django to FastAPI, utilizing asynchronous concurrency to eliminate blocking I/O for AI tasks; reduced cloud costs by 40% while significantly increasing system throughput.',
+			'Built the **Video Discovery Dashboard** and **Campaign Management Platform** featuring AI-assisted review workflows and version history.',
+			'Directed daily engineering operations and mentored new hires; defined code standards as the team grew 5x.'
+		]
+	},
+	{
+		company: 'Engineering Consultancy',
+		link: 'https://siteful.io',
+		position:
+		{
+			role: 'Founder & Lead Engineer',
+			startDate: '2023-06-01',
+			endDate: '2024-10-01'
+		},
+		description: [
+			'Established a boutique consultancy specializing in **digital transformation** and automation for the **DACH (Germany)** market.',
+			'Architected automated document processing pipelines for **Bayer**, replacing manual paper systems with custom engines for secure data syncing.',
+			'Built the **MDPronto** telemedicine platform frontend, engineering an **API-driven interface** to manage complex healthcare data flows.',
+			'Modernized legacy analog operations for German SMEs by building custom **CMS and internal ERP tools** ensuring strict **GDPR compliance**.'
 		],
-		icon: Siteful
 	},
 	{
 		company: 'Konrad Group',
 		link: 'https://www.konrad.com/',
-		positions: [
-			{
-				role: 'Full Stack Developer',
-				startDate: '2020-06-02',
-				endDate: '2023-06-02'
-			}
-		],
+		position:
+		{
+			role: 'Senior Fullstack Developer (Promoted from Junior)',
+			startDate: '2020-06-01',
+			endDate: '2023-06-01'
+		},
 		description: [
-			'Consistently shipped **production-level** websites built on **Next.js**, integrating various APIs and services for **engaging, interactive experiences.**',
-			'Integrated **headless CMS** solutions, empowering non-technical clients to **manage content independently** while avoiding **vendor lock-in**.',
-			'Built a **custom e-commerce platform** for [Equinox+](https://shop.equinoxplus.com/){target=_blank} using **Shopify** and **Stripe**, simplifying **product and transaction** management for clients.',
-			'Automated laborious database migration tasks, **saving** roughly **8 hours weekly.**'
+			'Architected mission-critical web applications for global brands like **Equinox+**, supporting high-traffic e-commerce and interactive experiences.',
+			'Integrated **headless CMS** solutions and custom design systems, bridging the gap between high-fidelity UX and scalable production code.',
+			'Optimized application performance and accessibility, consistently meeting strict **Lighthouse benchmarks** prior to deployment.',
+			'Mentored junior developers through code reviews and technical **"Power Hours"** to maintain engineering excellence.'
 		],
-		icon: Konrad
 	},
 	{
 		company: 'Procter & Gamble',
 		link: 'https://www.pg.com/',
-		positions: [
-			{
-				role: 'Data Science Intern',
-				startDate: '2018-05-02',
-				endDate: '2019-05-02'
-			}
-		],
+		position:
+		{
+			role: 'Data Science Intern',
+			startDate: '2018-05-01',
+			endDate: '2019-05-01'
+		},
 		description: [
-			'Developed data pipelines in **Python** to **analyze web traffic** and **optimize for high ROI channels**, achieving a **15% increase in conversions** with the **same budget**.',
-			'Created **interactive dashboards** to visualize marketing metrics, enabling **real-time performance** tracking and **data-driven decisions**.',
-			'Automated web-page performance audits using **JavaScript**, **collaborating with brand teams** to implement enhancements, resulting in a **3-5 second reduction in load times**.'
+			'Developed data pipelines in **Python** to analyze web traffic, achieving a **15% increase in conversions** with the same budget.',
+			'Engineered **real-time telemetry dashboards** to visualize marketing metrics and enable data-driven performance tracking.',
+			'Automated web performance audits in **JavaScript**, resulting in a **3-5 second reduction in page load times** across brand sites.'
 		],
-		icon: Procter
 	}
 ];
 
 export const skills = {
-	frontendDevelopment: [
-		{ label: 'Javascript', icon: 'logos:javascript' },
-		{ label: 'Typescript', icon: 'logos:typescript-icon' },
-		{ label: 'HTML', icon: 'devicon:html5' },
-		{ label: 'React', icon: 'logos:react' },
-		{ label: 'Next.js', icon: 'logos:nextjs-icon' },
-		{ label: 'Remix', icon: 'logos:remix-icon' },
-		// { label: "Gatsby", icon: "logos:gatsby" },
-		{ label: 'Vue', icon: 'logos:vue' },
-		{ label: 'Svelte', icon: 'logos:svelte-icon' },
-		{ label: 'Astro', icon: 'logos:astro-icon' },
-		{ label: 'Phoenix', icon: 'logos:phoenix' },
-		{ label: 'CSS', icon: 'devicon:css3' }
-		// { label: "Tailwind", icon: "logos:tailwindcss-icon" },
-	],
-	backendDevelopment: [
-		{ label: 'Node.js', icon: 'logos:nodejs-icon' },
-		{ label: 'Elixir', icon: 'devicon:elixir' },
-		{ label: 'SQL', icon: 'logos:postgresql' },
-		{ label: 'Firebase', icon: 'logos:firebase' },
-		{ label: 'MongoDB', icon: 'logos:mongodb-icon' },
-		{ label: 'AWS', icon: 'logos:aws' },
-		{ label: 'Google Cloud', icon: 'logos:google-cloud' },
-		{ label: 'GraphQL', icon: 'logos:graphql' },
-		// { label: "Contentful", icon: "logos:contentful" },
-		{ label: 'Stripe', icon: 'logos:stripe' }
-	],
-	machineLearning: [
+	languagesAndFrameworks: [
+		{ label: 'TypeScript', icon: 'logos:typescript-icon' },
 		{ label: 'Python', icon: 'logos:python' },
-		{ label: 'Pytorch', icon: 'logos:pytorch-icon' },
-		{ label: 'TensorFlow', icon: 'logos:tensorflow' },
-		{ label: 'Numpy', icon: 'logos:numpy' },
-		{ label: 'Pandas', icon: 'logos:pandas-icon' }
+		{ label: 'SQL', icon: 'logos:postgresql' },
+		{ label: 'React', icon: 'logos:react' },
+		{ label: 'SvelteKit', icon: 'logos:svelte-icon' },
+		{ label: 'FastAPI', icon: 'logos:fastapi-icon' },
+		{ label: 'Next.js', icon: 'logos:nextjs-icon' },
+		{ label: 'Node.js', icon: 'logos:nodejs-icon' }
+	],
+	infrastructureAndAI: [
+		{ label: 'PostgreSQL', icon: 'logos:postgresql' },
+		{ label: 'Redis', icon: 'logos:redis' },
+		{ label: 'AWS', icon: 'logos:aws' },
+		{ label: 'Docker', icon: 'logos:docker-icon' },
+		{ label: 'LLM Integration', icon: 'mdi:robot-assistant' },
+		{ label: 'Vector Databases', icon: 'mdi:database-search' }
 	]
 };
-
-export const hobbies = [
-	{ label: 'guitar', icon: 'fa-solid:guitar' },
-	{ label: 'chess', icon: 'fa-solid:chess' },
-	{ label: 'gaming', icon: 'mdi:controller' },
-	{ label: 'swimming', icon: 'fa-solid:swimmer' },
-	{ label: 'coding', icon: 'fa-solid:code' },
-	{
-		label: 'cat',
-		icon: 'fa-solid:cat',
-		link: 'https://www.instagram.com/wally.wallberg/'
-	}
-];

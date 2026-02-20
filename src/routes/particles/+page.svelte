@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Particle, type ParticleConfig } from './particles';
+	import { Particle, type ParticleConfig } from '$lib/particles';
 
 	let canvas = $state<HTMLCanvasElement>();
 	let config: ParticleConfig = $state({

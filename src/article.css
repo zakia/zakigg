@@ -4,6 +4,7 @@
 		--base-spacing: var(--s0);
 		max-width: 680px; /* Optimal reading length */
 		margin-inline: auto;
+		width: 100%;
 		
 
 		/* 2. Vertical Rhythm (The Flow) */

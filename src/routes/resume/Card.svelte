@@ -6,11 +6,12 @@
 	type CardProps = {
 		icon?: string;
 		company: string;
-		positions?: {
+		subtitle?: string;
+		position?: {
 			role: string;
 			startDate: string;
 			endDate?: string;
-		}[];
+		};
 		description: string[];
 		link?: string;
 		compact?: boolean;
@@ -25,46 +26,32 @@
 
 		return new Date(date).toLocaleString(undefined, {
 			month: 'short',
-			year: 'numeric'
+			year: 'numeric',
+			timeZone: 'UTC'
 		});
 	};
 </script>
 
-<div class="card bg-base-1 grid gap-s-2 p-s0">
+<div class="grid">
 	<div class="flex">
-		<div class="text-content mr-auto flex w-fit items-center justify-start gap-s-2 border-b-0">
-			<img src={props.icon} alt="icon" class="h-8 w-8 shrink-0" />
-
-			<h3 class="mb-0 font-semibold">
-				{props.company}
-			</h3>
-
-			<!-- {#if props.link}
-				<Icon icon="mdi:external-link" class="w-4 h-4 self-start" />
-			{/if} -->
+		<h3 class="mr-auto font-semibold">
+			{props.company},
+			<span class="text-brand font-normal">{props.position?.role}</span>
+		</h3>
+		<div class="text-content-1">
+			{formatDate(props.position?.startDate)} - {formatDate(props.position?.endDate)}
 		</div>
-
-		{#if props.positions}
-			<div class="pb-s-2 text-end">
-				{#each props.positions as position}
-					<div class="grid justify-between text-sm">
-						<span class="text-brand font-semibold">{position.role}</span>
-						<span class="text-content-1">
-							{formatDate(position.startDate)} - {formatDate(position.endDate)}
-						</span>
-					</div>
-				{/each}
-			</div>
-		{/if}
 	</div>
-	<div>
+	{#if props.subtitle}
+		<p class="text-content-1 italic">
+			{props.subtitle}
+		</p>
+	{/if}
+	<ul>
 		{#each props.description as item}
-			<div class="relative flex gap-s-1 not-last:mb-s-2">
-				<Icon icon="fa-solid:dot-circle" class="text-brand mt-1.5 h-3 w-3 shrink-0" />
-				<p class="text-content">
-					{@html md.renderInline(item)}
-				</p>
-			</div>
+			<li>
+				{@html md.renderInline(item)}
+			</li>
 		{/each}
-	</div>
+	</ul>
 </div>

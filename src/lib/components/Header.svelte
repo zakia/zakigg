@@ -12,12 +12,6 @@
 	];
 	const socials = [
 		{ label: 'GitHub', path: 'https://github.com/azakiio', icon: 'line-md:github' },
-		{
-			label: 'LinkedIn',
-			path: 'https://linkedin.com/in/adhamzaki/',
-			icon: 'line-md:link'
-		},
-		{ label: 'Mail', path: 'mailto:a@zaki.gg', icon: 'line-md:email' }
 	];
 
 	let isHidden = $state(false);

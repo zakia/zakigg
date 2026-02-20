@@ -1,11 +1,10 @@
 <script lang="ts">
-	import '@fontsource/fira-mono';
-	import '@fontsource-variable/inter';
-	import '../app.css';
-	import '$lib/prism.css';
-	import Header from '../lib/components/Header.svelte';
-	import { onNavigate } from '$app/navigation';
 	import { browser } from '$app/environment';
+	import '$lib/prism.css';
+	import '@fontsource-variable/inter';
+	import '@fontsource/fira-mono';
+	import '../app.css';
+	import Header from '../lib/components/Header.svelte';
 
 	// onNavigate((navigation) => {
 	// 	if (!document.startViewTransition) return;

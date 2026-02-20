@@ -2,7 +2,7 @@
 @import './article.css';
 
 @utility btn {
-	@apply inline-flex items-center justify-center gap-s-2 rounded-md px-s0 py-s-2 font-medium transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50;
+	@apply gap-s-2 px-s0 py-s-2 inline-flex items-center justify-center rounded-md font-medium transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50;
 
 	&:hover:not(:disabled) {
 		transform: translateY(-2px);
@@ -10,7 +10,7 @@
 }
 
 @utility layout {
-	@apply mx-auto grid max-w-2xl px-s0 pt-[4vh];
+	@apply px-s0 mx-auto grid max-w-2xl pt-[4vh];
 }
 /* Cards */
 @utility card {
@@ -19,11 +19,11 @@
 
 /* Form Elements */
 @utility label {
-	@apply flex flex-col gap-s-4;
+	@apply gap-s-4 flex flex-col;
 }
 @utility input {
 	width: clamp(3rem, 20rem, 100%);
-	@apply bg-base-2 focus-within:ring-brand flex shrink items-center gap-s-2 rounded-md px-s-1 py-s-2 ring ring-transparent disabled:cursor-not-allowed disabled:opacity-50;
+	@apply bg-base-2 focus-within:ring-brand gap-s-2 px-s-1 py-s-2 flex shrink items-center rounded-md ring ring-transparent disabled:cursor-not-allowed disabled:opacity-50;
 
 	:where(input) {
 		@apply grow outline-hidden;
@@ -43,7 +43,7 @@
 }
 
 @utility variant-light {
-	@apply bg-brand/30;
+	@apply bg-brand/30 text-content;
 }
 
 @utility variant-outline {
@@ -71,7 +71,7 @@ body {
 }
 
 code {
-	@apply bg-base-2 rounded-md px-s-3 whitespace-nowrap;
+	@apply bg-base-2 px-s-3 rounded-md whitespace-nowrap;
 }
 
 .text-column {
@@ -116,7 +116,7 @@ li::marker {
 /* Custom css */
 p a:not(:has(code)),
 .slide-link {
-	@apply text-brand to-brand bg-gradient-to-b from-transparent from-50% to-50%;
+	@apply text-brand to-brand bg-linear-to-b from-transparent from-50% to-50%;
 	background-size: auto 185%;
 	transition:
 		background 0.3s,

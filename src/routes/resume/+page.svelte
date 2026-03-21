@@ -12,7 +12,7 @@
 	];
 </script>
 
-<div class="gap-s0 mx-auto flex max-w-3xl flex-col px-6 py-16 text-sm print:p-0">
+<div class="gap-s0 mx-auto flex not-print:max-w-3xl flex-col px-6 py-16 text-sm print:p-0">
 	<section class="flex flex-col items-center">
 		<h1 class="text-s3">
 			<span class="font-extralight">Adham</span>

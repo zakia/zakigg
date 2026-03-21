@@ -70,9 +70,6 @@ body {
 	color: var(--content);
 }
 
-code {
-	@apply bg-base-2 px-s-3 rounded-md whitespace-nowrap;
-}
 
 .text-column {
 	display: flex;

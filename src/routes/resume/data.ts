@@ -44,22 +44,22 @@ export const experiences = [
 			'Directed daily engineering operations and mentored new hires; defined code standards as the team grew 5x.'
 		]
 	},
-	{
-		company: 'Engineering Consultancy',
-		link: 'https://siteful.io',
-		position:
-		{
-			role: 'Founder & Lead Engineer',
-			startDate: '2023-06-01',
-			endDate: '2024-10-01'
-		},
-		description: [
-			'Established a boutique consultancy specializing in **digital transformation** and automation for the **DACH (Germany)** market.',
-			'Architected automated document processing pipelines for **Bayer**, replacing manual paper systems with custom engines for secure data syncing.',
-			'Built the **MDPronto** telemedicine platform frontend, engineering an **API-driven interface** to manage complex healthcare data flows.',
-			'Modernized legacy analog operations for German SMEs by building custom **CMS and internal ERP tools** ensuring strict **GDPR compliance**.'
-		],
-	},
+	// {
+	// 	company: 'Engineering Consultancy',
+	// 	link: 'https://siteful.io',
+	// 	position:
+	// 	{
+	// 		role: 'Founder & Lead Engineer',
+	// 		startDate: '2023-06-01',
+	// 		endDate: '2024-10-01'
+	// 	},
+	// 	description: [
+	// 		'Established a boutique consultancy specializing in **digital transformation** and automation for the **DACH (Germany)** market.',
+	// 		'Architected automated document processing pipelines for **Bayer**, replacing manual paper systems with custom engines for secure data syncing.',
+	// 		'Built the **MDPronto** telemedicine platform frontend, engineering an **API-driven interface** to manage complex healthcare data flows.',
+	// 		'Modernized legacy analog operations for German SMEs by building custom **CMS and internal ERP tools** ensuring strict **GDPR compliance**.'
+	// 	],
+	// },
 	{
 		company: 'Konrad Group',
 		link: 'https://www.konrad.com/',
@@ -67,7 +67,7 @@ export const experiences = [
 		{
 			role: 'Senior Fullstack Developer (Promoted from Junior)',
 			startDate: '2020-06-01',
-			endDate: '2023-06-01'
+			endDate: '2024-06-01'
 		},
 		description: [
 			'Architected mission-critical web applications for global brands like **Equinox+**, supporting high-traffic e-commerce and interactive experiences.',

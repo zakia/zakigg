@@ -1,5 +1,4 @@
-<script module>
-	// Type declaration for brain.js global
+<script module lang="ts">
 	declare const brain: any;
 
 	export const metadata = {
@@ -151,10 +150,10 @@
 			<Icon icon="tabler:robot" class="text-brand mx-auto h-16 w-16"></Icon>
 		</div>
 
-		<div class="pr-1/4 flex w-full max-w-md gap-s-2 overflow-x-auto p-s0" bind:this={scores}>
+		<div class="pr-1/4 gap-s-2 p-s0 flex w-full max-w-md overflow-x-auto" bind:this={scores}>
 			{#each game.scoreTracker as match, i}
 				<div
-					class="flex flex-col items-center rounded-md p-s-2"
+					class="p-s-2 flex flex-col items-center rounded-md"
 					class:bg-success={match.winner === 'human'}
 					class:bg-info={match.winner === 'draw'}
 					class:bg-error={match.winner === 'AI'}
@@ -177,14 +176,14 @@
 			<div class="text-brand text-s3 font-bold">{game.scoreHuman}</div>
 		</div>
 
-		<div class="mx-auto grid max-w-sm grid-cols-3 gap-s-2">
+		<div class="gap-s-2 mx-auto grid max-w-sm grid-cols-3">
 			<button onclick={() => humanInput(1)} class="btn variant-primary">rock</button>
 			<button onclick={() => humanInput(2)} class="btn variant-primary">paper</button>
 			<button onclick={() => humanInput(3)} class="btn variant-primary">scissors</button>
 		</div>
 
 		{#if game.scoreTracker.length}
-			<div class="grid grid-cols-2 gap-s-2">
+			<div class="gap-s-2 grid grid-cols-2">
 				<button class="btn variant-base" onclick={resetScore}>reset</button>
 				<button class="btn variant-base" onclick={() => (cheating = !cheating)}>
 					{cheating ? 'stop cheating' : 'cheat'}

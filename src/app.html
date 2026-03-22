@@ -1,16 +1,23 @@
 <!doctype html>
-<html lang="en" data-theme="" style="--hue: fff">
+<html lang="en">
 	<head>
 		<meta charset="utf-8" />
 		<link
 			rel="icon"
 			href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎯</text></svg>"
 		/>
-		<!-- <link rel="icon" href="%sveltekit.assets%/favicon.svg" /> -->
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">
+		<script>
+			try {
+				const t = localStorage.getItem('theme');
+				const h = localStorage.getItem('hue');
+				if (t) document.documentElement.setAttribute('data-theme', t);
+				if (h) document.documentElement.style.setProperty('--hue', h);
+			} catch (e) {}
+		</script>
 		<div style="display: contents">%sveltekit.body%</div>
 	</body>
 </html>

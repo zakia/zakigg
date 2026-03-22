@@ -168,7 +168,26 @@
 	--radius-lg: var(--s-1);
 }
 
-/* --- 5. BASE STYLES & RESETS --- */
+/* --- 5. VIEW TRANSITIONS --- */
+::view-transition-old(root) {
+	animation: none;
+	z-index: -1;
+}
+
+::view-transition-new(root) {
+	animation: circle-in 0.5s ease;
+}
+
+@keyframes circle-in {
+	from {
+		clip-path: circle(0 at var(--transition-x, 50%) var(--transition-y, 0));
+	}
+	to {
+		clip-path: circle(100% at var(--transition-x, 50%) var(--transition-y, 0));
+	}
+}
+
+/* --- 6. BASE STYLES & RESETS --- */
 @layer base {
 	/* Accessible line height */
 	* {

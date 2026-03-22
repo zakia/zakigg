@@ -5,8 +5,6 @@ const hues = [
 	{ label: 'violet', value: 290 },
 	{ label: 'indigo', value: 270 },
 	{ label: 'blue', value: 240 },
-	// { label: 'cyan', value: 210, },
-	// { label: 'teal', value: 185, },
 	{ label: 'green', value: 145 },
 	{ label: 'lime', value: 125 },
 	{ label: 'yellow', value: 100 },
@@ -26,39 +24,33 @@ export const useTheme = () => {
 	});
 
 	const setTheme = (newTheme: string) => {
-		document.cookie = `theme=${newTheme}; path=/; max-age=31536000;`;
-		console.log(document.cookie);
+		localStorage.setItem('theme', newTheme);
 		document.documentElement.dataset.theme = newTheme;
 		theme = newTheme;
 	};
 
 	const setHue = (newHue: string) => {
-		document.cookie = `hue=${newHue}; path=/; max-age=31536000`;
+		localStorage.setItem('hue', newHue);
 		document.documentElement.style.setProperty('--hue', newHue);
 		hue = newHue;
 	};
 
-	const toggle = () => {
-		const css = document.createElement('style');
-		css.appendChild(
-			document.createTextNode(
-				`* {
-          -webkit-transition: none !important;
-          -moz-transition: none !important;
-          -o-transition: none !important;
-          -ms-transition: none !important;
-          transition: none !important;
-        }`
-			)
-		);
-		document.head.appendChild(css);
+	const toggle = (e?: MouseEvent) => {
+		const newTheme = theme === 'light' ? 'dark' : 'light';
 
-		setTheme(theme === 'light' ? 'dark' : 'light');
+		const x = e?.clientX ?? window.innerWidth / 2;
+		const y = e?.clientY ?? 0;
+		document.documentElement.style.setProperty('--transition-x', `${x}px`);
+		document.documentElement.style.setProperty('--transition-y', `${y}px`);
 
-		// Force repaint
-		// eslint-disable-next-line @typescript-eslint/no-unused-vars
-		const _ = window.getComputedStyle(css).opacity;
-		document.head.removeChild(css);
+		if (!document.startViewTransition) {
+			setTheme(newTheme);
+			return;
+		}
+
+		document.startViewTransition(() => {
+			setTheme(newTheme);
+		});
 	};
 
 	const toggleHue = () => {

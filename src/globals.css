@@ -170,8 +170,7 @@
 
 /* --- 5. VIEW TRANSITIONS --- */
 ::view-transition-old(root) {
-	animation: none;
-	z-index: -1;
+	animation-delay: 0.5s;
 }
 
 ::view-transition-new(root) {
@@ -183,7 +182,7 @@
 		clip-path: circle(0 at var(--transition-x, 50%) var(--transition-y, 0));
 	}
 	to {
-		clip-path: circle(100% at var(--transition-x, 50%) var(--transition-y, 0));
+		clip-path: circle(125% at var(--transition-x, 50%) var(--transition-y, 0));
 	}
 }
 

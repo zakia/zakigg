@@ -63,7 +63,6 @@
 
 <header
 	class="bg-base-1 dock p-s-2 fixed bottom-0 left-1/2 z-999 flex h-14 w-fit items-end rounded-lg backdrop-blur-lg print:hidden"
-	style="view-transition-name: header;"
 	style:translate="-50% {isHidden ? '200%' : '0%'}"
 >
 	{#each links as link}

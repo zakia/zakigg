@@ -56,7 +56,6 @@
 		flex-direction: column;
 		width: 100%;
 		flex: 1;
-		view-transition-name: main;
 
 		--grid-size: var(--s4);
 		background-image: radial-gradient(

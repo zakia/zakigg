@@ -70,7 +70,6 @@ body {
 	color: var(--content);
 }
 
-
 .text-column {
 	display: flex;
 	max-width: 48rem;
@@ -142,6 +141,10 @@ a:has(code) {
 	mask-image: linear-gradient(to top, #000, transparent);
 	background-image: linear-gradient(to top, var(--base-1) 25%, transparent);
 	bottom: 0;
+
+	@media print {
+		display: none;
+	}
 }
 
 .brand-gradient {
@@ -163,4 +166,8 @@ a:has(code) {
 		translate: 0 -0.25rem;
 		background-position: 100% 100%;
 	}
+}
+
+.trim {
+	text-box: trim-both text alphabetic;
 }

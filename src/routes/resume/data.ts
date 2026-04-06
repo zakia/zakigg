@@ -1,19 +1,27 @@
 export const projects = [
 	{
+		company: 'Wedding Strings International',
+		description:
+			'Built an automated gig-management platform for a **wedding music agency** replacing manual spreadsheet workflows with a **Postgres Database** and automated emails, scaling operations to **$200k+ in yearly revenue**.',
+		website: 'https://bookings.weddingstrings.com/',
+		// code: 'https://github.com/zakia/turbomenu'
+	},
+	{
 		company: 'TurboMenu',
 		description:
-			'Built a scalable platform for restaurants to **create QR code menus**, handling 10,000+ monthly visitors and delivering high-performance, interactive menus **optimized for mobile**.',
+			'Built a **free and open-source** platform for restaurants to **create QR code menus**, handling [20,000+ monthly visits](https://zaki.click/share/vhnsFA6rqdAmlSjw/turbo.menu) and delivering high-performance, interactive menus **optimized for mobile**.',
 		website: 'https://turbo.menu',
 		code: 'https://github.com/zakia/turbomenu'
 	},
-	{
-		company: 'Nice Buttons',
-		description:
-			'Created an **open-source CSS generator** for customizable gradient hover effects, featuring a **live preview**, **one-click copy**, and an intuitive interface.',
-		website: 'https://www.nicebuttons.com/',
-		code: 'https://github.com/zakia/nice-buttons'
-	}
+	// {
+	// 	company: 'Nice Buttons',
+	// 	description:
+	// 		'Created an **open-source CSS generator** for customizable gradient hover effects, featuring a **live preview**, **one-click copy**, and an intuitive interface.',
+	// 	website: 'https://www.nicebuttons.com/',
+	// 	code: 'https://github.com/zakia/nice-buttons'
+	// }
 ];
+
 
 export const education = {
 	company: 'University of Toronto',
@@ -36,44 +44,28 @@ export const experiences = [
 			startDate: '2024-10-01',
 			endDate: undefined
 		},
-		subtitle: 'Joined as Employee #5 (3rd Engineer); architected the AI video analytics SaaS and led its strategic evolution into a $1M ARR UGC platform.',
 		description: [
-			'Architected a scalable data pipeline and **model-agnostic AI layer** to extract and index structured insights from **10M+ videos** using LLMs.',
-			'Led migration from legacy Django to FastAPI, utilizing asynchronous concurrency to eliminate blocking I/O for AI tasks; reduced cloud costs by 40% while significantly increasing system throughput.',
-			'Built the **Video Discovery Dashboard** and **Campaign Management Platform** featuring AI-assisted review workflows and version history.',
-			'Directed daily engineering operations and mentored new hires; defined code standards as the team grew 5x.'
+			'Architected the core data pipeline to scrape and process trending social media content at scale; engineered a **model-agnostic AI layer** to extract and index structured insights (hooks, transcripts, viral patterns) from **10 million+ videos**.',
+			'Migrated the legacy **Django** backend to **FastAPI**, utilizing **asynchronous concurrency** to eliminate blocking I/O during long-running AI tasks; reducing cloud infrastructure costs by **~40%** while significantly increasing system throughput.',
+			'Engineered the primary client-facing dashboard and custom UGC analytics tool using **React** and **Next.js**, enabling brands to monitor sponsored creator performance; delivered the core product offering that directly scaled the company from pre-revenue to **$1M+ ARR**.',
+			'Streamlined internal operations by deploying **autonomous AI agents** (OpenClaw/Nanobot), enabling non-technical team members to execute code changes and repository updates via **Slack**.',
+			'Joined as the **3rd Engineer**; directed daily engineering operations (standup, sprint planning, retros) and mentored new hires; defined code standards as the team grew **5x**.',
 		]
 	},
-	// {
-	// 	company: 'Engineering Consultancy',
-	// 	link: 'https://siteful.io',
-	// 	position:
-	// 	{
-	// 		role: 'Founder & Lead Engineer',
-	// 		startDate: '2023-06-01',
-	// 		endDate: '2024-10-01'
-	// 	},
-	// 	description: [
-	// 		'Established a boutique consultancy specializing in **digital transformation** and automation for the **DACH (Germany)** market.',
-	// 		'Architected automated document processing pipelines for **Bayer**, replacing manual paper systems with custom engines for secure data syncing.',
-	// 		'Built the **MDPronto** telemedicine platform frontend, engineering an **API-driven interface** to manage complex healthcare data flows.',
-	// 		'Modernized legacy analog operations for German SMEs by building custom **CMS and internal ERP tools** ensuring strict **GDPR compliance**.'
-	// 	],
-	// },
 	{
 		company: 'Konrad Group',
 		link: 'https://www.konrad.com/',
 		position:
 		{
-			role: 'Senior Fullstack Developer (Promoted from Junior)',
+			role: 'Senior Fullstack Developer (promoted from Junior)',
 			startDate: '2020-06-01',
 			endDate: '2024-06-01'
 		},
 		description: [
-			'Architected mission-critical web applications for global brands like **Equinox+**, supporting high-traffic e-commerce and interactive experiences.',
-			'Integrated **headless CMS** solutions and custom design systems, bridging the gap between high-fidelity UX and scalable production code.',
-			'Optimized application performance and accessibility, consistently meeting strict **Lighthouse benchmarks** prior to deployment.',
-			'Mentored junior developers through code reviews and technical **"Power Hours"** to maintain engineering excellence.'
+			'Built and deployed [Equinox+](https://equinoxplus.com) using **Next.js** and **Contentful** (headless CMS) to decouple the architecture and empowering marketing teams to autonomously deploy content with instant feedback.',
+			'Architected a **headless e-commerce engine** for Equinox Shop, leveraging **Shopify** and **Stripe APIs** to enable a seamless, on-domain checkout that reduced funnel friction and maintained **real-time inventory synchronization**.',
+			'Led the rebuild of the [Kia Canada](https://kia.ca) platform (**1M+ monthly visitors**), designing the **React** state machine and backend logic  for the ["Build and Price"](https://www.kia.ca/en/shopping-tools/build-and-price) tool to manage vehicle configurations.',
+			'Drove technical delivery in an **Agile** environment, translating complex client requests from ambiguity to production; ran weekly technical "Power Hours" and mentored a team of **4 engineers** on system design and code quality.',
 		],
 	},
 	{
@@ -86,30 +78,25 @@ export const experiences = [
 			endDate: '2019-05-01'
 		},
 		description: [
-			'Developed data pipelines in **Python** to analyze web traffic, achieving a **15% increase in conversions** with the same budget.',
-			'Engineered **real-time telemetry dashboards** to visualize marketing metrics and enable data-driven performance tracking.',
-			'Automated web performance audits in **JavaScript**, resulting in a **3-5 second reduction in page load times** across brand sites.'
+			'Developed data pipelines in **Python** to analyze web search traffic and optimize ad spend, achieving a **15% increase in average conversions** by redistributing the same budget.',
+			'Engineered **real-time telemetry dashboards** to visualize marketing metrics and enable data-driven decision-making.',
+			'Automated web performance audits in **Javascript**, resulting in a **3-5 second reduction in page load times** across brand sites.'
 		],
 	}
 ];
 
-export const skills = {
-	languagesAndFrameworks: [
-		{ label: 'TypeScript', icon: 'logos:typescript-icon' },
-		{ label: 'Python', icon: 'logos:python' },
-		{ label: 'SQL', icon: 'logos:postgresql' },
-		{ label: 'React', icon: 'logos:react' },
-		{ label: 'SvelteKit', icon: 'logos:svelte-icon' },
-		{ label: 'FastAPI', icon: 'logos:fastapi-icon' },
-		{ label: 'Next.js', icon: 'logos:nextjs-icon' },
-		{ label: 'Node.js', icon: 'logos:nodejs-icon' }
-	],
-	infrastructureAndAI: [
-		{ label: 'PostgreSQL', icon: 'logos:postgresql' },
-		{ label: 'Redis', icon: 'logos:redis' },
-		{ label: 'AWS', icon: 'logos:aws' },
-		{ label: 'Docker', icon: 'logos:docker-icon' },
-		{ label: 'LLM Integration', icon: 'mdi:robot-assistant' },
-		{ label: 'Vector Databases', icon: 'mdi:database-search' }
-	]
-};
+export const skills = [
+	{ label: 'TypeScript', icon: 'logos:typescript-icon' },
+	{ label: 'Python', icon: 'logos:python' },
+	{ label: 'SQL', icon: 'logos:postgresql' },
+	{ label: 'React', icon: 'logos:react' },
+	{ label: 'SvelteKit', icon: 'logos:svelte-icon' },
+	{ label: 'FastAPI', icon: 'logos:fastapi-icon' },
+	{ label: 'Next.js', icon: 'logos:nextjs-icon' },
+	{ label: 'Node.js', icon: 'logos:nodejs-icon' },
+	{ label: 'Redis', icon: 'logos:redis' },
+	{ label: 'AWS', icon: 'logos:aws' },
+	{ label: 'GCP', icon: 'logos:google-cloud' },
+	{ label: 'Docker', icon: 'logos:docker-icon' },
+	{ label: 'Vector Databases', icon: 'mdi:database-search' }
+];

@@ -11,7 +11,7 @@
 
 <div>
 	<div class="gap-s-2 flex items-center justify-between">
-		<a href={props.website} target="_blank" class="link">
+		<a href={props.website} target="_blank" class="text-brand">
 			{props.company}
 		</a>
 
@@ -19,6 +19,7 @@
 			href={props.code}
 			target="_blank"
 			class="text-brand btn p-s-4 flex items-center rounded-full"
+			class:invisible={!props.code}
 		>
 			<Icon icon="mdi:github" class="size-5" />
 		</a>

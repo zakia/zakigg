@@ -1,9 +1,9 @@
-<article>
+<article class="layout">
 	<h1 class="font-hand">Adham Zaki</h1>
 	<p>
 		<em>Crafting interfaces.</em> Building polished software and web experiences. Experimenting with
-		magical details in user interfaces. Founder of
-		<a href="https://siteful.io" target="_blank">siteful.io.</a>
+	magical details in user interfaces. Founding Engineer at
+		<a href="https://vizzylabs.ai" target="_blank">vizzylabs.ai</a>
 	</p>
 
 	<h3>Now</h3>

@@ -27,7 +27,7 @@ export const quotes = [
 
 	`A man who suffers before it is necessary, suffers more than necessary.`,
 
-	`Absence diminishes small loves and increases great ones, as the wind blows out the candle but fans the bonfire.`,
+	`Absence diminishes small loves and increases great ones, as the wind blows out the candle and fans the bonfire.`,
 
 	`Once men turned their thinking over to machines in the hope that this would set them free. But that only permitted other men with machines to enslave them.`,
 

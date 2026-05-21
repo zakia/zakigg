@@ -16,7 +16,10 @@ export interface MouseState {
 	radius: number;
 }
 
-export function trackMouse(canvas: HTMLCanvasElement, radius = 150): MouseState & { destroy(): void } {
+export function trackMouse(
+	canvas: HTMLCanvasElement,
+	radius = 150
+): MouseState & { destroy(): void } {
 	const state: MouseState & { destroy(): void } = {
 		x: undefined,
 		y: undefined,
@@ -49,6 +52,14 @@ export interface ParticleSystemCallbacks {
 	setup(ctx: CanvasRenderingContext2D, width: number, height: number): void;
 	/** Called every animation frame. Update + draw here. */
 	frame(ctx: CanvasRenderingContext2D, width: number, height: number, time: number): void;
+	/** Called on resize with new and old dimensions. Adapt particles without recreating. */
+	resize?(
+		ctx: CanvasRenderingContext2D,
+		width: number,
+		height: number,
+		oldWidth: number,
+		oldHeight: number
+	): void;
 	/**
 	 * How to clear the canvas each frame:
 	 * - `undefined` → ctx.clearRect (transparent)
@@ -56,6 +67,8 @@ export interface ParticleSystemCallbacks {
 	 * - `false` → don't clear (caller handles it)
 	 */
 	clear?: false | string;
+	/** Override DPR. Set to 1 to disable hi-res scaling. */
+	dpr?: number;
 }
 
 /**
@@ -65,51 +78,59 @@ export interface ParticleSystemCallbacks {
 export function createParticleSystem(
 	canvas: HTMLCanvasElement,
 	callbacks: ParticleSystemCallbacks
-): () => void {
+): { destroy(): void; triggerResize(): void } {
 	const ctx = canvas.getContext('2d')!;
 	let animationId: number;
+	let w = 0;
+	let h = 0;
 
 	function resize() {
 		const parent = canvas.parentElement;
-		canvas.width = parent?.clientWidth ?? window.innerWidth;
-		canvas.height = parent?.clientHeight ?? window.innerHeight;
-	}
-
-	function init() {
-		resize();
-		callbacks.setup(ctx, canvas.width, canvas.height);
+		const dpr = callbacks.dpr ?? window.devicePixelRatio ?? 1;
+		w = parent?.clientWidth ?? window.innerWidth;
+		h = parent?.clientHeight ?? window.innerHeight;
+		canvas.width = w * dpr;
+		canvas.height = h * dpr;
+		canvas.style.width = `${w}px`;
+		canvas.style.height = `${h}px`;
+		ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 	}
 
 	function loop() {
-		const { width, height } = canvas;
-
 		if (callbacks.clear === false) {
 			// no-op
 		} else if (typeof callbacks.clear === 'string') {
 			ctx.fillStyle = callbacks.clear;
-			ctx.fillRect(0, 0, width, height);
+			ctx.fillRect(0, 0, w, h);
 		} else {
-			ctx.clearRect(0, 0, width, height);
+			ctx.clearRect(0, 0, w, h);
 		}
 
-		callbacks.frame(ctx, width, height, performance.now());
+		callbacks.frame(ctx, w, h, performance.now());
 		animationId = requestAnimationFrame(loop);
 	}
 
 	function onResize() {
-		cancelAnimationFrame(animationId);
-		init();
-		loop();
+		const oldW = w;
+		const oldH = h;
+		resize();
+		callbacks.resize?.(ctx, w, h, oldW, oldH);
 	}
 
-	init();
+	resize();
+	callbacks.setup(ctx, w, h);
 	loop();
 
 	window.addEventListener('resize', onResize);
 
-	return () => {
-		cancelAnimationFrame(animationId);
-		window.removeEventListener('resize', onResize);
+	return {
+		destroy() {
+			cancelAnimationFrame(animationId);
+			window.removeEventListener('resize', onResize);
+		},
+		triggerResize() {
+			onResize();
+		}
 	};
 }
 

@@ -28,7 +28,7 @@
 
 <div class="app">
 	<Header />
-	<main id="main">
+	<main id="main" class="grid-bg">
 		<slot />
 	</main>
 	<div class="preview"></div>
@@ -56,7 +56,9 @@
 		flex-direction: column;
 		width: 100%;
 		flex: 1;
+	}
 
+	.grid-bg {
 		--grid-size: var(--s4);
 		background-image: radial-gradient(
 			circle at calc(var(--grid-size) * 0.5) calc(var(--grid-size) * 0.5),

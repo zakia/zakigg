@@ -16,8 +16,7 @@ const config = {
 	preprocess: [
 		mdsvex({
 			layout: {
-				_: join(__dirname, 'src/lib/Layout.svelte'),
-				interface: join(__dirname, 'src/routes/(crafts)/interface/Layout.svelte')
+				interface: join(__dirname, 'src/lib/crafts/interface/Layout.svelte')
 			},
 			remarkPlugins: [remarkGfm, remarkAttr]
 		}),

@@ -24,11 +24,8 @@
 	};
 </script>
 
-<div
-	class="bg-base relative overflow-hidden rounded-md shadow-lg"
-	data-theme="dark"
->
-	<div class="bg-base-2 flex items-center justify-between p-s-1">
+<div class="bg-base relative overflow-hidden rounded-md shadow-lg" data-theme="dark">
+	<div class="bg-base-2 p-s-1 flex items-center justify-between">
 		{#if header}
 			<div class="text-s0 font-bold">{header}</div>
 		{/if}

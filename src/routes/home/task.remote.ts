@@ -14,7 +14,6 @@ export type Task = {
 	completed?: boolean;
 };
 
-// Default seed used if no cookie exists
 const seed: Task[] = [
 	{
 		id: '1',
@@ -57,12 +56,12 @@ const COOKIE_NAME = 'home:tasks';
 function readTasksFromCookies(): Task[] {
 	const { cookies } = getRequestEvent();
 	const raw = cookies.get(COOKIE_NAME);
-	if (!raw) return structuredClone(seed);
+	if (!raw) return [];
 	try {
 		const parsed = JSON.parse(raw);
 		if (Array.isArray(parsed)) return parsed as Task[];
 	} catch {}
-	return structuredClone(seed);
+	return [];
 }
 
 function writeTasksToCookies(tasks: Task[]): void {
@@ -76,26 +75,32 @@ function writeTasksToCookies(tasks: Task[]): void {
 }
 
 export const getTasks = query<Task[]>(async () => {
-	await new Promise((resolve) => setTimeout(resolve, 200));
-	const tasks = readTasksFromCookies();
-	// Ensure cookie is present after first read
+	return readTasksFromCookies();
+});
+
+export const seedTasks = command(async () => {
+	const tasks = structuredClone(seed);
 	writeTasksToCookies(tasks);
+	await getTasks().set(tasks);
 	return tasks;
 });
 
-// Validate the command input using Valibot
+export const clearTasks = command(async () => {
+	writeTasksToCookies([]);
+	await getTasks().set([]);
+	return [];
+});
 
 export const toggleTask = command(v.string(), async (id) => {
 	const tasks = readTasksFromCookies();
 	const idx = tasks.findIndex((t) => t.id === id);
 	if (idx === -1) throw new Error('Task not found');
-	const updated: Task = { ...tasks[idx], completed: !tasks[idx].completed };
-	tasks[idx] = updated;
+	tasks[idx] = { ...tasks[idx], completed: !tasks[idx].completed };
 	writeTasksToCookies(tasks);
-	return updated;
+	await getTasks().set(tasks);
+	return tasks[idx];
 });
 
-// Generic update endpoint returning the full list so the client can replace its data easily
 const UpdateTaskSchema = v.object({
 	id: v.string(),
 	toggle: v.optional(v.boolean())
@@ -107,11 +112,11 @@ export const updateTask = command(UpdateTaskSchema, async ({ id, toggle = true }
 	if (idx === -1) throw new Error('Task not found');
 
 	const current = tasks[idx];
-	const next: Task = {
+	tasks[idx] = {
 		...current,
 		completed: toggle ? !current.completed : current.completed
 	};
-	tasks[idx] = next;
 	writeTasksToCookies(tasks);
+	await getTasks().set(tasks);
 	return tasks;
 });

@@ -8,11 +8,9 @@
 	const links = [
 		{ label: 'Home', path: '/', icon: 'line-md:home' },
 		{ label: 'About', path: '/about', icon: 'line-md:file-document' },
-		{ label: 'Projects', path: '/projects', icon: 'line-md:lightbulb' }
+		{ label: 'Crafts', path: '/crafts', icon: 'line-md:pencil' }
 	];
-	const socials = [
-		{ label: 'GitHub', path: 'https://github.com/azakiio', icon: 'line-md:github' },
-	];
+	const socials = [{ label: 'GitHub', path: 'https://github.com/zakia', icon: 'line-md:github' }];
 
 	let isHidden = $state(false);
 
@@ -87,10 +85,10 @@
 	<button class="dock-item" onclick={theme.toggle}>
 		{#if theme.theme === 'light'}
 			<div class="tooltip">Dark Mode</div>
-			<Icon icon={'line-md:moon'} class="h-full w-full" />
+			<Icon icon="line-md:moon" class="h-full w-full" />
 		{:else}
 			<div class="tooltip">Light Mode</div>
-			<Icon icon={'line-md:sunny'} class="h-full w-full" />
+			<Icon icon="line-md:sunny" class="h-full w-full" />
 		{/if}
 	</button>
 
@@ -139,9 +137,7 @@
 		opacity: 0;
 		pointer-events: none;
 		position: absolute;
-		bottom: 115%;
-		left: 50%;
-		transform: translateX(-50%);
+		bottom: 110%;
 		padding: var(--s-4) var(--s-2);
 		border-radius: var(--radius);
 		font-size: var(--s-1);

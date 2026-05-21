@@ -10,7 +10,10 @@
 }
 
 @utility layout {
-	@apply px-s0 mx-auto grid max-w-2xl pt-[4vh];
+	--vertical-spacing: 5vh;
+	@apply px-s0 mx-auto grid max-w-2xl;
+	padding-top: var(--vertical-spacing);
+	padding-bottom: calc(var(--vertical-spacing) * 2);
 }
 /* Cards */
 @utility card {

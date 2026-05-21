@@ -2,7 +2,7 @@
 	<h1 class="font-hand">Adham Zaki</h1>
 	<p>
 		<em>Crafting interfaces.</em> Building polished software and web experiences. Experimenting with
-	magical details in user interfaces. Founding Engineer at
+		magical details in user interfaces. Founding Engineer at
 		<a href="https://vizzylabs.ai" target="_blank">vizzylabs.ai</a>
 	</p>
 

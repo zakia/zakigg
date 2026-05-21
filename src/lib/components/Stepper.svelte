@@ -53,9 +53,7 @@
 	</div>
 
 	<nav class="stepper-nav">
-		<button class="btn variant-ghost" disabled={current === 0} onclick={prev}>
-			← Prev
-		</button>
+		<button class="btn variant-ghost" disabled={current === 0} onclick={prev}> ← Prev </button>
 		<span class="stepper-counter">
 			{current + 1} / {total}
 		</span>

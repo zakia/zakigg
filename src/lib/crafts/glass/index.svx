@@ -1,0 +1,80 @@
+<script>
+
+import obsidian from './obsidian.mp4'
+import runningIntoGlass from './running-into-glass.webp'
+
+</script>
+
+Take a look around you, chances are there’s quite a bit of glass! It’s one of the most incredible materials we’ve ever made and a lot of people take for granted. It has transformed the way we live and shaped our understanding of the universe.
+
+We expect so much from glass nowadays, it should be <span class="text-content">transparent</span>, ~~scratch-resistant~~, <span class="font-extralight">thin</span>, and flexible - all while not breaking. I’m just amazed something like that can exist. It’s no surprise we see everywhere! (or don’t sometimes)
+
+![running_into_glass]({runningIntoGlass}){.w-100}
+
+## Where does glass come from?
+
+Glass has existed in nature for billions of years. It’s formed by meteorite impacts, lightning strikes and volcanic eruptions (basically, wild shit). Obsidian is volcanic glass. It forms when lava cools quickly.
+
+<video src={obsidian} muted autoplay class="w-100" loop></video>
+
+It’s extremely brittle, so when you hit it with another rock, you can chip off parts to make a sharper and sharper edge. There’s evidence of obsidian being used for cutting tools, arrowheads and spear tips, for over a million years.
+
+<!-- <something> -->
+
+Compared to the million plus years we’ve been using glass, we only started making it very recently, around 5,600 years ago. Most common glass is composed mainly of oxygen and silicon. The two most abundant elements in Earth’s crust (think sand). So if you take some sand, heat it up to about 1700 degrees Celsius until it melts, and then rapidly cool it, it forms glass.
+
+
+While the basic recipe for glass involves silicon dioxide (sand), glass makers have been adding other ingredients to change its properties for thousands of years. Adding sodium carbonate, also known as soda, and calcium oxide, also known as lime, lowers the temperature at which it becomes liquid from 1700 °C to around a 1000 °C. And that’s why soda lime glass accounts for around **90% of all glass manufactured today.**
+
+Another recipe includes adding boron trioxide to the mixture, forming a borosilicate glass. Glass is usually quite sensitive to changes in temperature. If you throw boiling water on your car’s windshield, it’ll likely shatter due to the glass rapidly expanding. But borosilicate glass has a really low coefficient of thermal expansion. It doesn’t grow or shrink very much, even with drastic temperature changes. So it’s often used for laboratory glass, like beakers.
+
+The earliest human made glass was likely an accident. People have been working metal for thousands of years before they made glass. So it’s thought that some sand made its way into metal working furnaces, forming small glass beads. But soon glass making became its own art form, to make decorations, ornaments, statues, tableware and containers. Unlike clay, glass is impermeable to water, making it an ideal material for bowls and bottles.
+
+![Ancient_Greece_Roman_Glass](https://upload.wikimedia.org/wikipedia/commons/8/80/Ancient_Greece_Roman_Glass_%2828305910700%29.jpg)
+
+But then glass makers noticed that by adding other elements into the mix, they could change the color of the glass. By adding cobalt oxide, you would get a vivid blue. Adding cuprite makes red.
+
+<div class="grid grid-cols-2 place-items-center gap-4">
+
+![<https://en.wikipedia.org/wiki/Cobalt_glass#/media/File:Roman_,_Finger_Ring_(FindID_584794).jpg>](https://upload.wikimedia.org/wikipedia/commons/thumb/e/e8/Roman_%2C_Finger_Ring_%28FindID_584794%29.jpg/1280px-Roman_%2C_Finger_Ring_%28FindID_584794%29.jpg){.w-100}
+
+![bowl](https://upload.wikimedia.org/wikipedia/commons/a/a3/British_Museum_Roman_Empire_18022019_Dish_of_mosaic_glass_with_a_blue_red_and_white_chequerboard_design_5911.jpg)
+
+</div>
+
+<!-- <show pictures> -->
+
+But all of the historical glasses we’ve been talking about have been opaque. Which is not really what we think of as glass today. After glass making was invented, thousands of years passed before we invented transparent glass. That’s because making it is actually pretty difficult.
+The first step came around a hundred AD, when glass makers in Alexandria added manganese dioxide into the mixture, which led to a semi opaque glass. It definitely wasn’t transparent, but it did let some light through. This is when glass began being used for windows.
+
+<!-- Photo of semi opaque glass windows -->
+
+And glass windows were a HUGE deal. I mean, they provide a physical barrier that keeps the warm air in and the wind and critters out, while still allowing light to shine into your home.
+
+But the first truly transparent glass was made many centuries later, around the Italian city of Venice. The art of glass making was thriving and bringing a lot of money into the city. There was just one problem. To make and manipulate glass you need very hot furnaces. And at the time, Venice was a city built almost entirely out of wood. So yeah, glass makers were bringing a lot of money into the city, but they also kept accidentally burning it down.
+
+So in 1291, the government of Venice had had enough, so they moved all the glass makers to the island of Murano. The island became known as the Isle of Glass, celebrated for making the most beautiful and intricate glassware anywhere on earth. This is also where the glass maker, Angelo Barovier, invented clear glass. He took some seaweed rich in potassium oxide and manganese and burned it to create ash. Then he added this ash into his glass. And when it cooled, he found that the glass was transparent.
+
+### But how does transparency work?
+
+Most materials are opaque because when photons hit them, the photons are absorbed. The photon excites an electron, pushing it up to a higher energy level. But this only happens when the photons energy matches the energy of an allowed electron transition. And different materials have different energy levels.
+
+In transparent glass, the energy required to move an electron from a lower state to a higher state is higher than the amount of energy that a photon of visible light has. So the photon just passes right through.
+Now, while glass is transparent to visible light, it does interact with other parts of the electromagnetic spectrum. It absorbs much of the ultraviolet spectrum, because UV photons have more energy. Hence, they can push the electron to the higher energy level and be absorbed. That makes it opaque to UV.
+This is also how colored glass is made. You add impurities into the glass, which affects the electron energy levels, which then changes the color of the glass. If you look at a pane of glass side on, you might notice that it looks slightly green, which is because the most common glass used for windows, soda lime, has impurities of iron oxides, which give the glass a green tinge. The glass absorbs more of the other colors than it does green. So that’s why we see it.
+
+Truly transparent glass was a massive deal for three reasons. Sometime in the early 1300s, in northern Italy, this clear glass was ground, shaped and polished into small discs that were thicker in the center than at the edges. Due to their resemblance to lentil beans, they became known as lenses.
+
+Glasses to correct farsightedness didn’t seem all that important at the time, because literacy rates were so low, they were almost exclusively used by monks. But after the invention of the printing press, circa 1440, glasses became a vital tool. The printing press led to a big drop in the cost of producing books, which led to a rapid increase in literacy rates. Now a large number of people became aware that they were farsighted. Thankfully, there was a technology available to solve the problem.
+
+150 years later, a father and son, Hans and Zacharias Janssen, put two lenses in front of each other, rather than side by side. And this was likely the world’s first microscope. It made objects appear about 20 times their original size.
+
+In the 1660s, Antony Van Leeuwenhoek made significant improvements on the microscope, by grinding the lenses himself. He could magnify things 200 times, allowing him to see human cells. A few years later, Robert Hook published “Micrographia,” a book full of beautiful sketches of the microscopic world. And all of this was possible because of transparent glass.
+
+And in 1608, Hans Lippershey, an eyeglass maker, applied for a patent for a spy glass. His idea was for it to be used in warfare to spy on your enemy on the battlefield. The next year, Galileo Galilei heard about his idea and realized that he could point this device toward the sky to study the stars and planets.
+
+Galileo’s telescope magnified objects in the night sky by about 30 times. In 1610, he was able to see the craters of the moon in detail, the phases of Venus, and four of Jupiter’s largest moons. These observations were the final nail in the coffin for the geocentric model of the universe. He saw moons that were clearly revolving around Jupiter and not the earth. And how else could you explain the phases of Venus, other than to say that the planet must go around the sun? None of this would’ve been discovered without the invention of transparent glass.
+
+Four centuries later, we can now make glass that is orders of magnitude more transparent than water. Glass that is so transparent, that if you were able to make a column as deep as the Mariana trench, you’ll be able to see all the way to the bottom. This is the glass inside optical fibres.
+
+Further reading: Micrographia: turning the pages of Robert Hooke's masterpiece | The Royal Society

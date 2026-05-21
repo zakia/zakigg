@@ -67,7 +67,7 @@
 		<div class="gap-s-2 mt-2 flex flex-wrap">
 			{#each skills as skill}
 				<div
-					class="bg-base-1 gap-s-2 px-s-1 py-s-4 border-base-2 flex items-center rounded-lg border text-sm font-medium shadow-sm pdf"
+					class="bg-base-1 gap-s-2 px-s-1 py-s-4 border-base-2 pdf flex items-center rounded-lg border text-sm font-medium shadow-sm"
 				>
 					<Icon icon={skill.icon} class="h-4 w-4 shrink-0" />
 					{skill.label}

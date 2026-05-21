@@ -23,8 +23,19 @@
 	let width = $state<number | undefined>(undefined);
 
 	const VOID_ELEMENTS = new Set([
-		'area', 'base', 'br', 'col', 'embed', 'hr',
-		'img', 'input', 'link', 'meta', 'source', 'track', 'wbr'
+		'area',
+		'base',
+		'br',
+		'col',
+		'embed',
+		'hr',
+		'img',
+		'input',
+		'link',
+		'meta',
+		'source',
+		'track',
+		'wbr'
 	]);
 
 	const MIN_WIDTH = 200;
@@ -102,7 +113,11 @@
 
 		if (children.length === 0) return `${pad}<${tag}${attrs}></${tag}>`;
 
-		if (children.length === 1 && el.childNodes.length === 1 && el.childNodes[0].nodeType === Node.TEXT_NODE) {
+		if (
+			children.length === 1 &&
+			el.childNodes.length === 1 &&
+			el.childNodes[0].nodeType === Node.TEXT_NODE
+		) {
 			return `${pad}<${tag}${attrs}>${el.textContent?.trim()}</${tag}>`;
 		}
 

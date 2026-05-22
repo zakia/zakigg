@@ -17,8 +17,12 @@
 	let fps = $state(0);
 	let dpr = $state(0);
 	let canvas = $state<HTMLCanvasElement>();
+	let particleCount = $state(0);
+	let defaultCount = $state(0);
 	let frameCount = 0;
 	let lastFpsUpdate = 0;
+
+	const isModified = $derived(particleCount !== defaultCount);
 
 	function measureFps(time: number) {
 		frameCount++;
@@ -42,11 +46,15 @@
 
 		offCtx.fillStyle = 'white';
 		offCtx.textAlign = 'center';
-		offCtx.textBaseline = 'middle';
+		offCtx.textBaseline = 'alphabetic';
 
 		const fontSize = Math.min(width * 0.09, height * 0.15);
 		offCtx.font = `900 ${fontSize}px 'Inter Variable', sans-serif`;
-		offCtx.fillText('ZAKI.GG', width / 2, height / 2);
+		const metrics = offCtx.measureText('ZAKI.GG');
+		const ascent = metrics.actualBoundingBoxAscent;
+		const descent = metrics.actualBoundingBoxDescent;
+		const y = height / 2 + (ascent - descent) / 2;
+		offCtx.fillText('ZAKI.GG', width / 2, y);
 
 		return offCtx.getImageData(0, 0, width, height);
 	}
@@ -65,6 +73,7 @@
 		x: number;
 		y: number;
 		radius: number;
+		opacity = 0;
 		vector: { x: number; y: number };
 
 		constructor(width: number, height: number, collisionMap: ImageData) {
@@ -82,10 +91,10 @@
 		}
 
 		update(mouse: MouseState, collisionMap: ImageData) {
-			if (this.x > this.width || this.x < 0) this.vector.x *= -1;
-			if (this.y > this.height || this.y < 0) this.vector.y *= -1;
-			this.x = Math.max(0, Math.min(this.width, this.x));
-			this.y = Math.max(0, Math.min(this.height, this.y));
+			if (this.x > this.width - this.radius || this.x < this.radius) this.vector.x *= -1;
+			if (this.y > this.height - this.radius || this.y < this.radius) this.vector.y *= -1;
+			this.x = Math.max(this.radius, Math.min(this.width - this.radius, this.x));
+			this.y = Math.max(this.radius, Math.min(this.height - this.radius, this.y));
 
 			if (mouse.x != null && mouse.y != null) {
 				const dist = distance(mouse.x, mouse.y, this.x, this.y);
@@ -99,9 +108,12 @@
 			const nextX = this.x + this.vector.x;
 			const nextY = this.y + this.vector.y;
 
-			if (isInText(collisionMap, nextX, nextY)) {
-				const inX = isInText(collisionMap, nextX, this.y);
-				const inY = isInText(collisionMap, this.x, nextY);
+			const leadX = nextX + Math.sign(this.vector.x) * this.radius;
+			const leadY = nextY + Math.sign(this.vector.y) * this.radius;
+
+			if (isInText(collisionMap, leadX, leadY)) {
+				const inX = isInText(collisionMap, leadX, this.y);
+				const inY = isInText(collisionMap, this.x, leadY);
 
 				if (inX && inY) {
 					this.vector.x *= -1;
@@ -125,25 +137,54 @@
 		return document.documentElement.style.getPropertyValue('--hue') || '145';
 	}
 
+	let addParticles: (n: number) => void = () => {};
+	let removeParticles: (n: number) => void = () => {};
+	let resetParticles: () => void = () => {};
+
 	onMount(() => {
 		if (!canvas) return;
 
 		let particles: LinkedParticle[] = [];
 		let collisionMap: ImageData;
+		let currentWidth = 0;
+		let currentHeight = 0;
 		const mouse = trackMouse(canvas);
+
+		function adjustCount(delta: number) {
+			const target = Math.max(0, particles.length + delta);
+			while (particles.length < target) {
+				particles.push(new LinkedParticle(currentWidth, currentHeight, collisionMap));
+			}
+			while (particles.length > target) {
+				particles.pop();
+			}
+			particleCount = particles.length;
+		}
+
+		addParticles = (n: number) => adjustCount(n);
+		removeParticles = (n: number) => adjustCount(-n);
+		resetParticles = () => {
+			adjustCount(defaultCount - particles.length);
+		};
 
 		document.fonts.ready.then(() => {
 			const callbacks: ParticleSystemCallbacks = {
 				setup(ctx, width, height) {
+					currentWidth = width;
+					currentHeight = height;
 					collisionMap = getTextCollisionMap(ctx, width, height);
 					particles = [];
 					const count = Math.floor((width * height) / 12000);
 					for (let i = 0; i < count; i++) {
 						particles.push(new LinkedParticle(width, height, collisionMap));
 					}
+					defaultCount = count;
+					particleCount = particles.length;
 				},
 
 				resize(ctx, width, height, oldW, oldH) {
+					currentWidth = width;
+					currentHeight = height;
 					collisionMap = getTextCollisionMap(ctx, width, height);
 					for (const p of particles) {
 						p.x = (p.x / oldW) * width;
@@ -151,13 +192,15 @@
 						p.width = width;
 						p.height = height;
 					}
-					const targetCount = Math.floor((width * height) / 12000);
+					defaultCount = Math.floor((width * height) / 12000);
+					const targetCount = defaultCount;
 					while (particles.length < targetCount) {
 						particles.push(new LinkedParticle(width, height, collisionMap));
 					}
 					while (particles.length > targetCount) {
 						particles.pop();
 					}
+					particleCount = particles.length;
 				},
 
 				frame(ctx, width, height) {
@@ -165,11 +208,14 @@
 					const hue = getHue();
 
 					for (const p of particles) {
+						p.opacity += (1 - p.opacity) * 0.02;
+
 						for (const other of particles) {
 							if (p === other) continue;
 							const dist = distance(p.x, p.y, other.x, other.y);
 							if (dist < LINK_RADIUS) {
-								ctx.strokeStyle = `oklch(75% 0.18 ${hue} / ${0.6 * (1 - dist / LINK_RADIUS)})`;
+								const linkAlpha = 0.6 * (1 - dist / LINK_RADIUS) * Math.min(p.opacity, other.opacity);
+								ctx.strokeStyle = `oklch(75% 0.18 ${hue} / ${linkAlpha})`;
 								ctx.lineWidth = 1.5;
 								ctx.beginPath();
 								ctx.moveTo(p.x, p.y);
@@ -183,16 +229,20 @@
 						p.update(mouse, collisionMap);
 						ctx.beginPath();
 						ctx.ellipse(p.x, p.y, p.radius, p.radius, 0, 0, Math.PI * 2);
-						ctx.fillStyle = `oklch(75% 0.18 ${hue})`;
+						ctx.fillStyle = `oklch(75% 0.18 ${hue} / ${p.opacity})`;
 						ctx.fill();
 					}
 
 					const fontSize = Math.min(width * 0.09, height * 0.15);
 					ctx.font = `900 ${fontSize}px 'Inter Variable', sans-serif`;
 					ctx.textAlign = 'center';
-					ctx.textBaseline = 'middle';
+					ctx.textBaseline = 'alphabetic';
 					ctx.fillStyle = `oklch(75% 0.18 ${hue})`;
-					ctx.fillText('ZAKI.GG', width / 2, height / 2);
+					const metrics = ctx.measureText('ZAKI.GG');
+					const ascent = metrics.actualBoundingBoxAscent;
+					const descent = metrics.actualBoundingBoxDescent;
+					const y = height / 2 + (ascent - descent) / 2;
+					ctx.fillText('ZAKI.GG', width / 2, y);
 				}
 			};
 			system = createParticleSystem(canvas!, callbacks);
@@ -207,6 +257,17 @@
 
 <div class="homepage">
 	<canvas bind:this={canvas}></canvas>
+	<h1>ZAKI.GG</h1>
+	<div class="controls">
+		<button onclick={() => removeParticles(10)}>«</button>
+		<button onclick={() => removeParticles(1)}>‹</button>
+		<button class="count" class:modified={isModified} onclick={() => resetParticles()}>
+			{#if isModified}<span class="dot"></span>{/if}
+			{particleCount}
+		</button>
+		<button onclick={() => addParticles(1)}>›</button>
+		<button onclick={() => addParticles(10)}>»</button>
+	</div>
 	<div class="debug-panel">
 		<span>{fps} FPS</span>
 		<span>{dpr}x DPR</span>
@@ -221,12 +282,30 @@
 		height: 100%;
 		overflow: hidden;
 		background: var(--base);
+		animation: fade-in 1.2s;
+	}
+
+	@keyframes fade-in {
+		from { opacity: 0; }
 	}
 
 	canvas {
 		display: block;
 		width: 100%;
 		height: 100%;
+	}
+
+	h1 {
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		margin: 0;
+		font-weight: 900;
+		font-size: min(9vw, 15vh);
+		font-family: 'Inter Variable', sans-serif;
+		color: oklch(75% 0.18 var(--hue));
+		pointer-events: none;
 	}
 
 	.debug-panel {
@@ -245,6 +324,64 @@
 			background: var(--base-1);
 			color: var(--content);
 			border: 1px solid var(--edge);
+		}
+	}
+
+	.controls {
+		position: absolute;
+		top: 1rem;
+		left: 50%;
+		transform: translateX(-50%);
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+		font-family: var(--font-mono);
+		font-size: 0.85rem;
+
+		button {
+			padding: 0.3rem 0.6rem;
+			border-radius: 4px;
+			border: 1px solid var(--edge);
+			background: var(--base-1);
+			color: var(--content);
+			cursor: pointer;
+			font-size: 1rem;
+			line-height: 1;
+			transition: background 0.1s;
+
+			&:hover {
+				background: var(--base-2);
+			}
+		}
+
+		.count {
+			position: relative;
+			min-width: 3ch;
+			text-align: center;
+			font-size: 0.85rem;
+			cursor: default;
+			background: none;
+			border: none;
+			padding: 0.3rem 0.6rem;
+
+			&:hover {
+				background: none;
+			}
+
+			&.modified {
+				cursor: pointer;
+			}
+		}
+
+		.dot {
+			position: absolute;
+			top: -2px;
+			left: 50%;
+			transform: translateX(-50%);
+			width: 5px;
+			height: 5px;
+			border-radius: 50%;
+			background: oklch(65% 0.2 var(--hue));
 		}
 	}
 </style>

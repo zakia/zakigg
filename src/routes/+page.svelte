@@ -231,16 +231,14 @@
 						p.height = height;
 					}
 					defaultCount = Math.floor((width * height) / 12000);
-					if (!isModified) {
-						const targetCount = defaultCount;
-						while (particles.length < targetCount) {
-							particles.push(new LinkedParticle(width, height, collisionMap));
-						}
-						while (particles.length > targetCount) {
-							particles.pop();
-						}
-						particleCount = particles.length;
+					const targetCount = defaultCount;
+					while (particles.length < targetCount) {
+						particles.push(new LinkedParticle(width, height, collisionMap));
 					}
+					while (particles.length > targetCount) {
+						particles.pop();
+					}
+					particleCount = particles.length;
 				},
 
 				frame(ctx, width, height) {

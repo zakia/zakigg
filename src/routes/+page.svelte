@@ -141,6 +141,44 @@
 	let removeParticles: (n: number) => void = () => {};
 	let resetParticles: () => void = () => {};
 
+	let scrubbing = $state(false);
+	let didScrub = false;
+
+	function startScrub(e: PointerEvent) {
+		const target = e.currentTarget as HTMLElement;
+		target.setPointerCapture(e.pointerId);
+		scrubbing = true;
+		didScrub = false;
+		const startX = e.clientX;
+		const startCount = particleCount;
+
+		function onMove(ev: PointerEvent) {
+			const dx = ev.clientX - startX;
+			if (Math.abs(dx) > 3) didScrub = true;
+			const sign = Math.sign(dx);
+			const abs = Math.abs(dx);
+			const delta = sign * Math.round(Math.pow(abs / 8, 1.4));
+			const target = Math.max(0, startCount + delta);
+			const diff = target - particleCount;
+			if (diff > 0) addParticles(diff);
+			else if (diff < 0) removeParticles(-diff);
+		}
+
+		function cleanup() {
+			scrubbing = false;
+			target.removeEventListener('pointermove', onMove);
+			target.removeEventListener('lostpointercapture', cleanup);
+		}
+
+		target.addEventListener('pointermove', onMove);
+		target.addEventListener('lostpointercapture', cleanup);
+	}
+
+	function handleCountClick() {
+		if (didScrub) return;
+		if (isModified) resetParticles();
+	}
+
 	onMount(() => {
 		if (!canvas) return;
 
@@ -193,14 +231,16 @@
 						p.height = height;
 					}
 					defaultCount = Math.floor((width * height) / 12000);
-					const targetCount = defaultCount;
-					while (particles.length < targetCount) {
-						particles.push(new LinkedParticle(width, height, collisionMap));
+					if (!isModified) {
+						const targetCount = defaultCount;
+						while (particles.length < targetCount) {
+							particles.push(new LinkedParticle(width, height, collisionMap));
+						}
+						while (particles.length > targetCount) {
+							particles.pop();
+						}
+						particleCount = particles.length;
 					}
-					while (particles.length > targetCount) {
-						particles.pop();
-					}
-					particleCount = particles.length;
 				},
 
 				frame(ctx, width, height) {
@@ -261,7 +301,13 @@
 	<div class="controls">
 		<button onclick={() => removeParticles(10)}>«</button>
 		<button onclick={() => removeParticles(1)}>‹</button>
-		<button class="count" class:modified={isModified} onclick={() => resetParticles()}>
+		<button
+			class="count"
+			class:modified={isModified}
+			class:scrubbing
+			onclick={handleCountClick}
+			onpointerdown={startScrub}
+		>
 			{#if isModified}<span class="dot"></span>{/if}
 			{particleCount}
 		</button>
@@ -359,7 +405,7 @@
 			min-width: 3ch;
 			text-align: center;
 			font-size: 0.85rem;
-			cursor: default;
+			cursor: ew-resize;
 			background: none;
 			border: none;
 			padding: 0.3rem 0.6rem;
@@ -369,7 +415,11 @@
 			}
 
 			&.modified {
-				cursor: pointer;
+				cursor: ew-resize;
+			}
+
+			&.scrubbing {
+				cursor: ew-resize;
 			}
 		}
 

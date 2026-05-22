@@ -12,6 +12,9 @@
 	const RADIUS = 4;
 	const RADIUS_DELTA = 3;
 	const LINK_RADIUS = 130;
+	const WALL_BOUNCE_FACTOR = 0.01;
+	const DRAG = 0;
+	const RESTITUTION = 0.3;
 
 	let system: { destroy(): void; triggerResize(): void } | undefined;
 	let fps = $state(0);
@@ -19,6 +22,7 @@
 	let canvas = $state<HTMLCanvasElement>();
 	let particleCount = $state(0);
 	let defaultCount = $state(0);
+	let autoResize = $state(true);
 	let frameCount = 0;
 	let lastFpsUpdate = 0;
 
@@ -91,8 +95,16 @@
 		}
 
 		update(mouse: MouseState, collisionMap: ImageData) {
-			if (this.x > this.width - this.radius || this.x < this.radius) this.vector.x *= -1;
-			if (this.y > this.height - this.radius || this.y < this.radius) this.vector.y *= -1;
+			if (DRAG > 0) {
+				const speed = Math.sqrt(this.vector.x ** 2 + this.vector.y ** 2);
+				if (speed > SPEED * 2) {
+					this.vector.x *= 1 - DRAG;
+					this.vector.y *= 1 - DRAG;
+				}
+			}
+
+			if (this.x > this.width - this.radius || this.x < this.radius) this.vector.x *= -RESTITUTION;
+			if (this.y > this.height - this.radius || this.y < this.radius) this.vector.y *= -RESTITUTION;
 			this.x = Math.max(this.radius, Math.min(this.width - this.radius, this.x));
 			this.y = Math.max(this.radius, Math.min(this.height - this.radius, this.y));
 
@@ -116,15 +128,15 @@
 				const inY = isInText(collisionMap, this.x, leadY);
 
 				if (inX && inY) {
-					this.vector.x *= -1;
-					this.vector.y *= -1;
+					this.vector.x *= -RESTITUTION;
+					this.vector.y *= -RESTITUTION;
 				} else if (inX) {
-					this.vector.x *= -1;
+					this.vector.x *= -RESTITUTION;
 				} else if (inY) {
-					this.vector.y *= -1;
+					this.vector.y *= -RESTITUTION;
 				} else {
-					this.vector.x *= -1;
-					this.vector.y *= -1;
+					this.vector.x *= -RESTITUTION;
+					this.vector.y *= -RESTITUTION;
 				}
 			} else {
 				this.x = nextX;
@@ -186,6 +198,8 @@
 		let collisionMap: ImageData;
 		let currentWidth = 0;
 		let currentHeight = 0;
+		let prevFrameWidth = 0;
+		let prevFrameHeight = 0;
 		const mouse = trackMouse(canvas);
 
 		function adjustCount(delta: number) {
@@ -210,6 +224,8 @@
 				setup(ctx, width, height) {
 					currentWidth = width;
 					currentHeight = height;
+					prevFrameWidth = width;
+					prevFrameHeight = height;
 					collisionMap = getTextCollisionMap(ctx, width, height);
 					particles = [];
 					const count = Math.floor((width * height) / 12000);
@@ -220,30 +236,50 @@
 					particleCount = particles.length;
 				},
 
-				resize(ctx, width, height, oldW, oldH) {
+				resize(ctx, width, height) {
 					currentWidth = width;
 					currentHeight = height;
 					collisionMap = getTextCollisionMap(ctx, width, height);
+
 					for (const p of particles) {
-						p.x = (p.x / oldW) * width;
-						p.y = (p.y / oldH) * height;
 						p.width = width;
 						p.height = height;
+						p.x = Math.min(p.x, width - p.radius);
+						p.y = Math.min(p.y, height - p.radius);
 					}
+
 					defaultCount = Math.floor((width * height) / 12000);
-					const targetCount = defaultCount;
-					while (particles.length < targetCount) {
-						particles.push(new LinkedParticle(width, height, collisionMap));
+					if (autoResize) {
+						const targetCount = defaultCount;
+						while (particles.length < targetCount) {
+							particles.push(new LinkedParticle(width, height, collisionMap));
+						}
+						while (particles.length > targetCount) {
+							particles.pop();
+						}
+						particleCount = particles.length;
 					}
-					while (particles.length > targetCount) {
-						particles.pop();
-					}
-					particleCount = particles.length;
 				},
 
 				frame(ctx, width, height) {
 					measureFps(performance.now());
 					const hue = getHue();
+
+					const dxWall = prevFrameWidth - width;
+					const dyWall = prevFrameHeight - height;
+					prevFrameWidth = width;
+					prevFrameHeight = height;
+
+					if (dxWall !== 0 || dyWall !== 0) {
+						for (const p of particles) {
+							if (dxWall > 0 && p.x >= width - p.radius - 1) {
+								p.vector.x -= dxWall * WALL_BOUNCE_FACTOR;
+							}
+							if (dyWall > 0 && p.y >= height - p.radius - 1) {
+								p.vector.y -= dyWall * WALL_BOUNCE_FACTOR;
+							}
+						}
+					}
 
 					for (const p of particles) {
 						p.opacity += (1 - p.opacity) * 0.02;
@@ -315,6 +351,9 @@
 	<div class="debug-panel">
 		<span>{fps} FPS</span>
 		<span>{dpr}x DPR</span>
+		<button class="toggle" class:active={autoResize} onclick={() => (autoResize = !autoResize)}>
+			Auto
+		</button>
 	</div>
 </div>
 
@@ -357,6 +396,7 @@
 		top: 1rem;
 		right: 1rem;
 		display: flex;
+		align-items: center;
 		gap: 0.5rem;
 		font-size: 0.75rem;
 		font-family: var(--font-mono);
@@ -368,6 +408,20 @@
 			background: var(--base-1);
 			color: var(--content);
 			border: 1px solid var(--edge);
+		}
+
+		.toggle {
+			padding: 0.3rem 0.6rem;
+			border-radius: 4px;
+			background: var(--base-1);
+			color: var(--content);
+			border: 1px solid var(--edge);
+			cursor: pointer;
+			opacity: 0.5;
+
+			&.active {
+				opacity: 1;
+			}
 		}
 	}
 

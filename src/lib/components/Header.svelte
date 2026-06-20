@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { useTheme } from '$lib/theme.svelte';
 	import { clamp } from '$lib/utils';
@@ -8,9 +9,9 @@
 	const links = [
 		{ label: 'Home', path: '/', icon: 'line-md:home' },
 		{ label: 'About', path: '/about', icon: 'line-md:file-document' },
-		{ label: 'Crafts', path: '/crafts', icon: 'line-md:pencil' }
-	];
-	const socials = [{ label: 'GitHub', path: 'https://github.com/zakia', icon: 'line-md:github' }];
+		{ label: 'Crafts', path: '/crafts', icon: 'line-md:pencil' },
+		{ label: 'Notes', path: '/notes', icon: 'mdi:notebook-edit-outline' }
+	] as const;
 
 	let isHidden = $state(false);
 
@@ -63,8 +64,12 @@
 	class="bg-base-1 dock p-s-2 fixed bottom-0 left-1/2 z-999 flex h-14 w-fit items-end rounded-lg backdrop-blur-lg print:hidden"
 	style:translate="-50% {isHidden ? '200%' : '0%'}"
 >
-	{#each links as link}
-		<a href={link.path} class="dock-item" class:text-brand={link.path === page.url.pathname}>
+	{#each links as link (link.path)}
+		<a
+			href={resolve(link.path)}
+			class="dock-item"
+			class:text-brand={link.path === page.url.pathname}
+		>
 			<div class="tooltip">
 				{link.label}
 			</div>
@@ -72,14 +77,10 @@
 		</a>
 	{/each}
 	<div class="bg-edge-1 my-auto h-3/4 w-px"></div>
-	{#each socials as social}
-		<a href={social.path} class="dock-item" target="_blank">
-			<div class="tooltip">
-				{social.label}
-			</div>
-			<Icon icon={social.icon} class="h-full w-full"></Icon>
-		</a>
-	{/each}
+	<a href="https://github.com/zakia" class="dock-item" target="_blank">
+		<div class="tooltip">GitHub</div>
+		<Icon icon="line-md:github" class="h-full w-full"></Icon>
+	</a>
 	<div class="bg-edge-1 my-auto h-3/4 w-px"></div>
 
 	<button class="dock-item" onclick={theme.toggle}>

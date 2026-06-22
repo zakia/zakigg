@@ -33,8 +33,7 @@
 {/snippet}
 
 {#if data.meta.fullBleed && craft.kind === 'component'}
-	{const Component = craft.Component}
-	<Component />
+	{@render content()}
 {:else}
 	<section class="gap-s0 mx-auto grid w-full items-start">
 		<a

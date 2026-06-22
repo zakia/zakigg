@@ -102,8 +102,7 @@ function createDragPreviewMedia(
 	media: HTMLImageElement | HTMLVideoElement,
 	rect: DOMRect
 ): HTMLCanvasElement | undefined {
-	const intrinsicWidth =
-		media instanceof HTMLImageElement ? media.naturalWidth : media.videoWidth;
+	const intrinsicWidth = media instanceof HTMLImageElement ? media.naturalWidth : media.videoWidth;
 	const intrinsicHeight =
 		media instanceof HTMLImageElement ? media.naturalHeight : media.videoHeight;
 	if (!intrinsicWidth || !intrinsicHeight) return;

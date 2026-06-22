@@ -71,7 +71,6 @@
 		// Get the first day to display in the calendar (might be from previous month)
 		const calendarStart = firstDayOfMonth.subtract({ days: daysToSubtract });
 
-
 		const days: Array<{ day: number; isCurrentMonth: boolean; date: Temporal.PlainDate }> = [];
 
 		// Generate 42 days (6 weeks * 7 days) starting from calendarStart
@@ -152,14 +151,14 @@
 
 	<!-- Day names header -->
 	<div class="grid grid-cols-7 gap-2">
-		{#each dayNames as dayName}
+		{#each dayNames as dayName (dayName)}
 			<div class="weekday">{dayName}</div>
 		{/each}
 	</div>
 
 	<!-- Calendar grid -->
 	<div class="grid grid-cols-7 gap-2">
-		{#each calendarDays as { day, isCurrentMonth, date }}
+		{#each calendarDays as { day, isCurrentMonth, date } (date.toString())}
 			<button
 				type="button"
 				class="datepicker-day"

@@ -90,4 +90,3 @@ Use this section for taste calibration.
 ### Avoid
 
 - "This is too complex; let's remove title/language/highlighting/keyboard behavior and make a simpler version."
-

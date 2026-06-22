@@ -75,18 +75,15 @@ export function createComponentEmbedRegistry(entries: RegisteredComponentEmbed[]
 		insertable: (context: ComponentEmbedInsertContext = {}) =>
 			entries.filter((entry) => isInsertableEntry(entry, context)),
 		get: (id: string) => byId.get(id),
-		createNode: (id: string, inputProps?: unknown) => createComponentEmbedNode(byId, id, inputProps),
-		parseProps: (id: string, inputProps: unknown) =>
-			parseComponentEmbedProps(byId, id, inputProps),
+		createNode: (id: string, inputProps?: unknown) =>
+			createComponentEmbedNode(byId, id, inputProps),
+		parseProps: (id: string, inputProps: unknown) => parseComponentEmbedProps(byId, id, inputProps),
 		parseAttrs: (attrs: unknown) => parseComponentEmbedAttrs(byId, attrs),
 		validateDocument: (content: JSONContent) => validateComponentEmbeds(byId, content)
 	};
 }
 
-function isInsertableEntry(
-	entry: RegisteredComponentEmbed,
-	context: ComponentEmbedInsertContext
-) {
+function isInsertableEntry(entry: RegisteredComponentEmbed, context: ComponentEmbedInsertContext) {
 	if (entry.insertable === false) return false;
 	if (!entry.crafts?.length) return true;
 
@@ -245,7 +242,11 @@ function validateComponentEmbeds(
 	return issues;
 }
 
-function visitNode(node: JSONContent, path: string, visit: (node: JSONContent, path: string) => void) {
+function visitNode(
+	node: JSONContent,
+	path: string,
+	visit: (node: JSONContent, path: string) => void
+) {
 	visit(node, path);
 	node.content?.forEach((child, index) => {
 		visitNode(child, `${path}.content.${index}`, visit);

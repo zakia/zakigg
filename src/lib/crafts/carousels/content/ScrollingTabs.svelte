@@ -82,7 +82,9 @@
 			<section class="scrolling-tabs-slide" data-index={i} aria-label={title}>
 				<div class="scrolling-tabs-card">
 					<span class="scrolling-tabs-number">{String(i + 1).padStart(2, '0')}</span>
-					<Icon {icon} class="scrolling-tabs-icon" />
+					<span class="scrolling-tabs-icon">
+						<Icon {icon} />
+					</span>
 					<strong>{title}</strong>
 				</div>
 			</section>

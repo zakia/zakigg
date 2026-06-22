@@ -197,7 +197,7 @@
 
 	<div class={CODE_BLOCK_CLASS_NAMES.body}>
 		<span class={CODE_BLOCK_CLASS_NAMES.lineNumbers} contenteditable="false" aria-hidden="true">
-			{#each lineNumbers as line}
+			{#each lineNumbers as line (line)}
 				<span>{line}</span>
 			{/each}
 		</span>
@@ -206,6 +206,7 @@
 			<pre class={CODE_BLOCK_CLASS_NAMES.pre} {@attach attachContentDOM}></pre>
 		{:else}
 			<pre class={CODE_BLOCK_CLASS_NAMES.pre}>
+				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 				<code class={CODE_BLOCK_CLASS_NAMES.content}>{@html highlighted}</code>
 			</pre>
 		{/if}

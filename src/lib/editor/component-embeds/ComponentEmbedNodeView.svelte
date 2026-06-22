@@ -196,9 +196,7 @@
 			<div class="component-embed-output">
 				<Component {...embed.props} />
 				{#if fields.length}
-					<button type="button" class="component-embed-edit" onclick={editAgain}>
-						Edit
-					</button>
+					<button type="button" class="component-embed-edit" onclick={editAgain}> Edit </button>
 				{/if}
 			</div>
 		{/if}

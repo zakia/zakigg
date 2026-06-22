@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { browser } from '$app/environment';
 	import CodeBlock from '$lib/editor/code-block/CodeBlock.svelte';
 
 	const generateFluidScale = ({

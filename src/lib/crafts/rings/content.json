@@ -1,417 +1,417 @@
 {
-  "version": 1,
-  "editor": "tiptap",
-  "content": {
-    "type": "doc",
-    "content": [
-      {
-        "type": "paragraph",
-        "content": [
-          {
-            "type": "text",
-            "text": "The key to building muscle is to make each rep as hard as possible. this is done by using a controlled eccentric (lengthening), pausing between reps, and using a full range of motion. You should strive to make each rep as perfect as possible."
-          }
-        ]
-      },
-      {
-        "type": "paragraph",
-        "content": [
-          {
-            "type": "text",
-            "text": "A lot of people think basic bodyweight exercises are not worth their time; that they can only make progress if it's an hour spent at the gym. If you think you are above push-ups, try doing 20 \"perfect\" pushups. It's extremely humbling."
-          }
-        ]
-      },
-      {
-        "type": "paragraph",
-        "content": [
-          {
-            "type": "text",
-            "text": "When done like this, your rep count will certainly drop. But this is good news! It means you have so much more room to grow in this basic movement."
-          }
-        ]
-      },
-      {
-        "type": "paragraph",
-        "content": [
-          {
-            "type": "text",
-            "text": "For so many people 8-10 pull-ups with great form is tough! 3 sets of that and you're cooked (in a good way). You will work the muscles hard and make "
-          }
-        ]
-      },
-      {
-        "type": "paragraph",
-        "content": [
-          {
-            "type": "text",
-            "text": "Building a solid fitness foundation using fundamental bodyweight movements will enable ANYTHING else you'd like to pursue."
-          }
-        ]
-      },
-      {
-        "type": "heading",
-        "attrs": {
-          "level": 3
-        },
-        "content": [
-          {
-            "type": "text",
-            "text": "Why Rings?"
-          }
-        ]
-      },
-      {
-        "type": "bulletList",
-        "content": [
-          {
-            "type": "listItem",
-            "content": [
-              {
-                "type": "paragraph",
-                "content": [
-                  {
-                    "type": "text",
-                    "text": "One piece of equipment for a full workout"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "type": "listItem",
-            "content": [
-              {
-                "type": "paragraph",
-                "content": [
-                  {
-                    "type": "text",
-                    "text": "Works stabilizing muscles"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "type": "listItem",
-            "content": [
-              {
-                "type": "paragraph",
-                "content": [
-                  {
-                    "type": "text",
-                    "text": "Allows for a wide range of motion naturally"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "type": "listItem",
-            "content": [
-              {
-                "type": "paragraph",
-                "content": [
-                  {
-                    "type": "text",
-                    "text": "Encourages time spent outdoors"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "type": "listItem",
-            "content": [
-              {
-                "type": "paragraph",
-                "content": [
-                  {
-                    "type": "text",
-                    "text": "Scales to your ability"
-                  }
-                ]
-              }
-            ]
-          }
-        ]
-      },
-      {
-        "type": "heading",
-        "attrs": {
-          "level": 3
-        },
-        "content": [
-          {
-            "type": "text",
-            "text": "The workout"
-          }
-        ]
-      },
-      {
-        "type": "table",
-        "content": [
-          {
-            "type": "table_row",
-            "content": [
-              {
-                "type": "table_header",
-                "attrs": {
-                  "colspan": 1,
-                  "rowspan": 1,
-                  "colwidth": null
-                },
-                "content": [
-                  {
-                    "type": "paragraph",
-                    "content": [
-                      {
-                        "type": "text",
-                        "text": "Exercise"
-                      }
-                    ]
-                  }
-                ]
-              },
-              {
-                "type": "table_header",
-                "attrs": {
-                  "colspan": 1,
-                  "rowspan": 1,
-                  "colwidth": null
-                },
-                "content": [
-                  {
-                    "type": "paragraph",
-                    "content": [
-                      {
-                        "type": "text",
-                        "text": "Volume"
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "type": "table_row",
-            "content": [
-              {
-                "type": "table_cell",
-                "attrs": {
-                  "colspan": 1,
-                  "rowspan": 1,
-                  "colwidth": null
-                },
-                "content": [
-                  {
-                    "type": "paragraph",
-                    "content": [
-                      {
-                        "type": "text",
-                        "text": "Pull-Ups"
-                      }
-                    ]
-                  }
-                ]
-              },
-              {
-                "type": "table_cell",
-                "attrs": {
-                  "colspan": 1,
-                  "rowspan": 1,
-                  "colwidth": null
-                },
-                "content": [
-                  {
-                    "type": "paragraph",
-                    "content": [
-                      {
-                        "type": "text",
-                        "text": "3x6-12"
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "type": "table_row",
-            "content": [
-              {
-                "type": "table_cell",
-                "attrs": {
-                  "colspan": 1,
-                  "rowspan": 1,
-                  "colwidth": null
-                },
-                "content": [
-                  {
-                    "type": "paragraph",
-                    "content": [
-                      {
-                        "type": "text",
-                        "text": "Dips"
-                      }
-                    ]
-                  }
-                ]
-              },
-              {
-                "type": "table_cell",
-                "attrs": {
-                  "colspan": 1,
-                  "rowspan": 1,
-                  "colwidth": null
-                },
-                "content": [
-                  {
-                    "type": "paragraph",
-                    "content": [
-                      {
-                        "type": "text",
-                        "text": "3x6-12"
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "type": "table_row",
-            "content": [
-              {
-                "type": "table_cell",
-                "attrs": {
-                  "colspan": 1,
-                  "rowspan": 1,
-                  "colwidth": null
-                },
-                "content": [
-                  {
-                    "type": "paragraph",
-                    "content": [
-                      {
-                        "type": "text",
-                        "text": "Pistol Squats (assisted if needed)"
-                      }
-                    ]
-                  }
-                ]
-              },
-              {
-                "type": "table_cell",
-                "attrs": {
-                  "colspan": 1,
-                  "rowspan": 1,
-                  "colwidth": null
-                },
-                "content": [
-                  {
-                    "type": "paragraph",
-                    "content": [
-                      {
-                        "type": "text",
-                        "text": "3x6-10 (each side)"
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "type": "table_row",
-            "content": [
-              {
-                "type": "table_cell",
-                "attrs": {
-                  "colspan": 1,
-                  "rowspan": 1,
-                  "colwidth": null
-                },
-                "content": [
-                  {
-                    "type": "paragraph",
-                    "content": [
-                      {
-                        "type": "text",
-                        "text": "Push-Ups"
-                      }
-                    ]
-                  }
-                ]
-              },
-              {
-                "type": "table_cell",
-                "attrs": {
-                  "colspan": 1,
-                  "rowspan": 1,
-                  "colwidth": null
-                },
-                "content": [
-                  {
-                    "type": "paragraph",
-                    "content": [
-                      {
-                        "type": "text",
-                        "text": "3x8-14"
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "type": "table_row",
-            "content": [
-              {
-                "type": "table_cell",
-                "attrs": {
-                  "colspan": 1,
-                  "rowspan": 1,
-                  "colwidth": null
-                },
-                "content": [
-                  {
-                    "type": "paragraph",
-                    "content": [
-                      {
-                        "type": "text",
-                        "text": "Rows"
-                      }
-                    ]
-                  }
-                ]
-              },
-              {
-                "type": "table_cell",
-                "attrs": {
-                  "colspan": 1,
-                  "rowspan": 1,
-                  "colwidth": null
-                },
-                "content": [
-                  {
-                    "type": "paragraph",
-                    "content": [
-                      {
-                        "type": "text",
-                        "text": "3x8-14"
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
-          }
-        ]
-      }
-    ]
-  },
-  "updatedAt": "2026-06-21T03:41:05.570Z"
+	"version": 1,
+	"editor": "tiptap",
+	"content": {
+		"type": "doc",
+		"content": [
+			{
+				"type": "paragraph",
+				"content": [
+					{
+						"type": "text",
+						"text": "The key to building muscle is to make each rep as hard as possible. this is done by using a controlled eccentric (lengthening), pausing between reps, and using a full range of motion. You should strive to make each rep as perfect as possible."
+					}
+				]
+			},
+			{
+				"type": "paragraph",
+				"content": [
+					{
+						"type": "text",
+						"text": "A lot of people think basic bodyweight exercises are not worth their time; that they can only make progress if it's an hour spent at the gym. If you think you are above push-ups, try doing 20 \"perfect\" pushups. It's extremely humbling."
+					}
+				]
+			},
+			{
+				"type": "paragraph",
+				"content": [
+					{
+						"type": "text",
+						"text": "When done like this, your rep count will certainly drop. But this is good news! It means you have so much more room to grow in this basic movement."
+					}
+				]
+			},
+			{
+				"type": "paragraph",
+				"content": [
+					{
+						"type": "text",
+						"text": "For so many people 8-10 pull-ups with great form is tough! 3 sets of that and you're cooked (in a good way). You will work the muscles hard and make "
+					}
+				]
+			},
+			{
+				"type": "paragraph",
+				"content": [
+					{
+						"type": "text",
+						"text": "Building a solid fitness foundation using fundamental bodyweight movements will enable ANYTHING else you'd like to pursue."
+					}
+				]
+			},
+			{
+				"type": "heading",
+				"attrs": {
+					"level": 3
+				},
+				"content": [
+					{
+						"type": "text",
+						"text": "Why Rings?"
+					}
+				]
+			},
+			{
+				"type": "bulletList",
+				"content": [
+					{
+						"type": "listItem",
+						"content": [
+							{
+								"type": "paragraph",
+								"content": [
+									{
+										"type": "text",
+										"text": "One piece of equipment for a full workout"
+									}
+								]
+							}
+						]
+					},
+					{
+						"type": "listItem",
+						"content": [
+							{
+								"type": "paragraph",
+								"content": [
+									{
+										"type": "text",
+										"text": "Works stabilizing muscles"
+									}
+								]
+							}
+						]
+					},
+					{
+						"type": "listItem",
+						"content": [
+							{
+								"type": "paragraph",
+								"content": [
+									{
+										"type": "text",
+										"text": "Allows for a wide range of motion naturally"
+									}
+								]
+							}
+						]
+					},
+					{
+						"type": "listItem",
+						"content": [
+							{
+								"type": "paragraph",
+								"content": [
+									{
+										"type": "text",
+										"text": "Encourages time spent outdoors"
+									}
+								]
+							}
+						]
+					},
+					{
+						"type": "listItem",
+						"content": [
+							{
+								"type": "paragraph",
+								"content": [
+									{
+										"type": "text",
+										"text": "Scales to your ability"
+									}
+								]
+							}
+						]
+					}
+				]
+			},
+			{
+				"type": "heading",
+				"attrs": {
+					"level": 3
+				},
+				"content": [
+					{
+						"type": "text",
+						"text": "The workout"
+					}
+				]
+			},
+			{
+				"type": "table",
+				"content": [
+					{
+						"type": "table_row",
+						"content": [
+							{
+								"type": "table_header",
+								"attrs": {
+									"colspan": 1,
+									"rowspan": 1,
+									"colwidth": null
+								},
+								"content": [
+									{
+										"type": "paragraph",
+										"content": [
+											{
+												"type": "text",
+												"text": "Exercise"
+											}
+										]
+									}
+								]
+							},
+							{
+								"type": "table_header",
+								"attrs": {
+									"colspan": 1,
+									"rowspan": 1,
+									"colwidth": null
+								},
+								"content": [
+									{
+										"type": "paragraph",
+										"content": [
+											{
+												"type": "text",
+												"text": "Volume"
+											}
+										]
+									}
+								]
+							}
+						]
+					},
+					{
+						"type": "table_row",
+						"content": [
+							{
+								"type": "table_cell",
+								"attrs": {
+									"colspan": 1,
+									"rowspan": 1,
+									"colwidth": null
+								},
+								"content": [
+									{
+										"type": "paragraph",
+										"content": [
+											{
+												"type": "text",
+												"text": "Pull-Ups"
+											}
+										]
+									}
+								]
+							},
+							{
+								"type": "table_cell",
+								"attrs": {
+									"colspan": 1,
+									"rowspan": 1,
+									"colwidth": null
+								},
+								"content": [
+									{
+										"type": "paragraph",
+										"content": [
+											{
+												"type": "text",
+												"text": "3x6-12"
+											}
+										]
+									}
+								]
+							}
+						]
+					},
+					{
+						"type": "table_row",
+						"content": [
+							{
+								"type": "table_cell",
+								"attrs": {
+									"colspan": 1,
+									"rowspan": 1,
+									"colwidth": null
+								},
+								"content": [
+									{
+										"type": "paragraph",
+										"content": [
+											{
+												"type": "text",
+												"text": "Dips"
+											}
+										]
+									}
+								]
+							},
+							{
+								"type": "table_cell",
+								"attrs": {
+									"colspan": 1,
+									"rowspan": 1,
+									"colwidth": null
+								},
+								"content": [
+									{
+										"type": "paragraph",
+										"content": [
+											{
+												"type": "text",
+												"text": "3x6-12"
+											}
+										]
+									}
+								]
+							}
+						]
+					},
+					{
+						"type": "table_row",
+						"content": [
+							{
+								"type": "table_cell",
+								"attrs": {
+									"colspan": 1,
+									"rowspan": 1,
+									"colwidth": null
+								},
+								"content": [
+									{
+										"type": "paragraph",
+										"content": [
+											{
+												"type": "text",
+												"text": "Pistol Squats (assisted if needed)"
+											}
+										]
+									}
+								]
+							},
+							{
+								"type": "table_cell",
+								"attrs": {
+									"colspan": 1,
+									"rowspan": 1,
+									"colwidth": null
+								},
+								"content": [
+									{
+										"type": "paragraph",
+										"content": [
+											{
+												"type": "text",
+												"text": "3x6-10 (each side)"
+											}
+										]
+									}
+								]
+							}
+						]
+					},
+					{
+						"type": "table_row",
+						"content": [
+							{
+								"type": "table_cell",
+								"attrs": {
+									"colspan": 1,
+									"rowspan": 1,
+									"colwidth": null
+								},
+								"content": [
+									{
+										"type": "paragraph",
+										"content": [
+											{
+												"type": "text",
+												"text": "Push-Ups"
+											}
+										]
+									}
+								]
+							},
+							{
+								"type": "table_cell",
+								"attrs": {
+									"colspan": 1,
+									"rowspan": 1,
+									"colwidth": null
+								},
+								"content": [
+									{
+										"type": "paragraph",
+										"content": [
+											{
+												"type": "text",
+												"text": "3x8-14"
+											}
+										]
+									}
+								]
+							}
+						]
+					},
+					{
+						"type": "table_row",
+						"content": [
+							{
+								"type": "table_cell",
+								"attrs": {
+									"colspan": 1,
+									"rowspan": 1,
+									"colwidth": null
+								},
+								"content": [
+									{
+										"type": "paragraph",
+										"content": [
+											{
+												"type": "text",
+												"text": "Rows"
+											}
+										]
+									}
+								]
+							},
+							{
+								"type": "table_cell",
+								"attrs": {
+									"colspan": 1,
+									"rowspan": 1,
+									"colwidth": null
+								},
+								"content": [
+									{
+										"type": "paragraph",
+										"content": [
+											{
+												"type": "text",
+												"text": "3x8-14"
+											}
+										]
+									}
+								]
+							}
+						]
+					}
+				]
+			}
+		]
+	},
+	"updatedAt": "2026-06-21T03:41:05.570Z"
 }

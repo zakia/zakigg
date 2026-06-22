@@ -288,7 +288,8 @@
 							if (p === other) continue;
 							const dist = distance(p.x, p.y, other.x, other.y);
 							if (dist < LINK_RADIUS) {
-								const linkAlpha = 0.6 * (1 - dist / LINK_RADIUS) * Math.min(p.opacity, other.opacity);
+								const linkAlpha =
+									0.6 * (1 - dist / LINK_RADIUS) * Math.min(p.opacity, other.opacity);
 								ctx.strokeStyle = `oklch(75% 0.18 ${hue} / ${linkAlpha})`;
 								ctx.lineWidth = 1.5;
 								ctx.beginPath();
@@ -369,7 +370,9 @@
 	}
 
 	@keyframes fade-in {
-		from { opacity: 0; }
+		from {
+			opacity: 0;
+		}
 	}
 
 	canvas {

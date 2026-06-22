@@ -113,7 +113,6 @@ li::marker {
 }
 
 /* Custom css */
-p a:not(:has(code)),
 .slide-link {
 	@apply text-brand to-brand bg-linear-to-b from-transparent from-50% to-50%;
 	background-size: auto 185%;
@@ -125,11 +124,6 @@ p a:not(:has(code)),
 		background-position-y: 100%;
 		color: var(--brand-content);
 	}
-}
-
-li a,
-a:has(code) {
-	@apply text-brand;
 }
 
 .preview {

@@ -2,6 +2,8 @@
 
 /* --- 1. THE LOGIC ENGINE --- */
 :root {
+	--hue: 145;
+
 	/* CONFIGURATION */
 	--r-mobile: 1.2; /* Ratio: Minor Third (Safe for phone) */
 	--r-desktop: 1.414; /* Ratio: Augmented Fourth (Epic for desktop) */

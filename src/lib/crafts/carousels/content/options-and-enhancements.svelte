@@ -1,6 +1,6 @@
 <script>
 	import Toggle from '$lib/components/Toggle.svelte';
-	import Highlight from '$lib/Highlight.svelte';
+	import CodeBlock from '$lib/editor/code-block/CodeBlock.svelte';
 	import { useScrollingTabs } from './Tabs.svelte';
 	const tabs = useScrollingTabs();
 </script>
@@ -14,7 +14,7 @@
 	> property.
 </p>
 
-<Highlight
+<CodeBlock
 	header="tabs.css"
 	language="css"
 	code={`.container {
@@ -26,7 +26,7 @@
 .slide {
   width: 100%;
   flex-shrink: 0;
-  scroll-snap-align: start; /* set snapping point */
+	scroll-snap-align: start; /* set snapping point */
 }`}
 />
 <p>

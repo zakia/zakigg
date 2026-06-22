@@ -1,3 +1,18 @@
+<script module lang="ts">
+	import * as v from 'valibot';
+	import type { ComponentEmbedConfig } from '$lib/editor/component-embeds';
+
+	export const scrollingTabsAnchorsPropsSchema = v.object({});
+
+	export const scrollingTabsAnchorsEmbed = {
+		id: 'carousels.ScrollingTabsAnchors',
+		label: 'Anchor Tabs Demo',
+		icon: 'mdi:anchor',
+		props: scrollingTabsAnchorsPropsSchema,
+		crafts: ['carousels']
+	} satisfies ComponentEmbedConfig<typeof scrollingTabsAnchorsPropsSchema>;
+</script>
+
 <script lang="ts">
 	const data = ['Slide_1', 'Slide_2', 'Slide_3', 'Slide_4', 'Slide_5'];
 
@@ -43,7 +58,7 @@
 		<code class:saturate-25={!isSmooth}>smooth</code>
 	</div> -->
 	<div class="mb-4 flex justify-center gap-2">
-		{#each data as title, i}
+		{#each data as title, i (title)}
 			<a
 				href="#{title}"
 				class="btn variant-base rounded-full"
@@ -60,7 +75,7 @@
 		bind:this={container}
 		style:scroll-behavior="smooth"
 	>
-		{#each data as title}
+		{#each data as title (title)}
 			<div
 				class="border-text grid w-full flex-shrink-0 place-content-center overflow-auto rounded-lg border-2"
 				id={title}

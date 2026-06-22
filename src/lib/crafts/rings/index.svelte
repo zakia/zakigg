@@ -30,14 +30,16 @@
 </p>
 
 <p>
-	When done like this, your rep count will certainly drop. But this is good news! It means you have
-	so much more room to grow in this basic movement.
+	A lot of people think basic bodyweight exercises are not worth their time; that they can only make
+	progress ifit's an hour spent at the gym. If you think you are above push-ups, try doing 20
+	"perfect" pushups. It's extremely humbling.
 </p>
 
+<p>For so many people 8-10 pull-ups with great form is tough!</p>
+
 <p>
-	A lot of people think basic bodyweight exercises are not worth their time; that they can only
-	"count" a workout if it's done at the gym. If you think you are above push-ups, try doing 20
-	"perfect" pushups. It's extremely humbling.
+	When done like this, your rep count will certainly drop. But this is good news! It means you have
+	so much more room to grow in this basic movement.
 </p>
 
 <p>
@@ -45,7 +47,7 @@
 	else you'd like to pursue.
 </p>
 
-<p>Why Rings?</p>
+<h3>Why Rings?</h3>
 
 <ul>
 	<li>One piece of equipment for a full workout</li>
@@ -55,12 +57,12 @@
 	<li>Scales to your ability</li>
 </ul>
 
-<h3>THe workout</h3>
-<div>
-	{#each workout as exercise}
+<h3>The workout</h3>
+<div class="grid gap-2">
+	{#each workout as exercise (exercise.name)}
 		<div>
-			<h4>{exercise.name}</h4>
-			<p>{exercise.volume}</p>
+			<strong>{exercise.name}</strong>
+			<div>{exercise.volume}</div>
 		</div>
 	{/each}
 </div>

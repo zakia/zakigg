@@ -19,7 +19,7 @@
 	Instead, I'd just like to explore what's possible using some basic CSS and JavaScript.
 </p>
 <ScrollingTabs />
-{#each data as { title, icon, Content }}
+{#each data as { title, icon, Content } (title)}
 	<h2 class="text-brand gap-s-2 flex items-center">
 		<Icon {icon} class="h-8 w-8" />
 		{title}

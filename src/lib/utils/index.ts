@@ -18,7 +18,7 @@ export function hexToHSL(hex: string) {
 	const max = Math.max(r, g, b);
 	const min = Math.min(r, g, b);
 	let h = 0;
-	let s = 0;
+	let s;
 	const l = (max + min) / 2;
 
 	if (max == min) {
@@ -80,3 +80,34 @@ export const formatDate = (date?: string) => {
 		year: 'numeric'
 	});
 };
+
+export function timeSince(value: Date | number | string, now = Date.now()) {
+	const timestamp =
+		value instanceof Date ? value.getTime() : typeof value === 'string' ? Date.parse(value) : value;
+
+	if (!Number.isFinite(timestamp)) return '';
+
+	const diffSeconds = Math.round((timestamp - now) / 1000);
+	const absSeconds = Math.abs(diffSeconds);
+
+	if (absSeconds < 5) return 'just now';
+
+	const units = [
+		{ unit: 'year', seconds: 31_536_000 },
+		{ unit: 'month', seconds: 2_592_000 },
+		{ unit: 'week', seconds: 604_800 },
+		{ unit: 'day', seconds: 86_400 },
+		{ unit: 'hour', seconds: 3_600 },
+		{ unit: 'minute', seconds: 60 },
+		{ unit: 'second', seconds: 1 }
+	] as const;
+
+	const match = units.find(({ seconds }) => absSeconds >= seconds) ?? units.at(-1);
+
+	if (!match) return '';
+
+	return new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' }).format(
+		Math.round(diffSeconds / match.seconds),
+		match.unit
+	);
+}

@@ -1,8 +1,10 @@
 @layer base {
-	article {
+	:where(article, .article, .editor-prose) {
 		/* 1. Layout & Measure */
 		--base-spacing: var(--s0);
-		max-width: 680px; /* Optimal reading length */
+		color: var(--content);
+		font-size: var(--s0);
+		max-width: 680px;
 		margin-inline: auto;
 		width: 100%;
 
@@ -62,6 +64,7 @@
 
 		& a {
 			color: var(--content);
+			cursor: pointer;
 			text-decoration-color: var(--brand);
 			text-decoration-thickness: 2px;
 			text-underline-offset: 4px;
@@ -75,6 +78,26 @@
 			}
 		}
 
+		& a:has(code) {
+			color: var(--brand);
+		}
+
+		& p a:not(:has(code)) {
+			background-image: linear-gradient(to bottom, transparent 50%, var(--brand) 50%);
+			background-size: auto 185%;
+			color: var(--brand);
+			transition:
+				background-position 0.3s,
+				color 0.3s,
+				text-decoration-color 0.2s ease;
+		}
+
+		& p a:not(:has(code)):hover {
+			background-position-y: 100%;
+			color: var(--brand-content);
+			text-decoration-color: color-mix(in oklch, var(--brand-content) 70%, transparent);
+		}
+
 		& strong {
 			color: var(--content); /* Ensure bold stands out if content-1 is used */
 			font-weight: 700;
@@ -86,13 +109,61 @@
 			padding-left: var(--s1);
 		}
 
+		& ul {
+			list-style-type: disc;
+		}
+
+		& :is(ul, ol) ul {
+			list-style-type: circle;
+		}
+
+		& :is(ul, ol) :is(ul, ol) ul {
+			list-style-type: square;
+		}
+
+		& :is(ul, ol) :is(ul, ol) :is(ul, ol) ul {
+			list-style-type: disc;
+		}
+
+		& :is(ul, ol) :is(ul, ol) :is(ul, ol) :is(ul, ol) ul {
+			list-style-type: circle;
+		}
+
+		& :is(ul, ol) :is(ul, ol) :is(ul, ol) :is(ul, ol) :is(ul, ol) ul {
+			list-style-type: square;
+		}
+
+		& ol {
+			list-style-type: decimal;
+		}
+
+		& :is(ul, ol) ol {
+			list-style-type: lower-alpha;
+		}
+
+		& :is(ul, ol) :is(ul, ol) ol {
+			list-style-type: lower-roman;
+		}
+
+		& :is(ul, ol) :is(ul, ol) :is(ul, ol) ol {
+			list-style-type: decimal;
+		}
+
+		& :is(ul, ol) :is(ul, ol) :is(ul, ol) :is(ul, ol) ol {
+			list-style-type: lower-alpha;
+		}
+
+		& :is(ul, ol) :is(ul, ol) :is(ul, ol) :is(ul, ol) :is(ul, ol) ol {
+			list-style-type: lower-roman;
+		}
+
 		& li {
 			padding-left: var(--s-2);
 			margin-bottom: var(--s-3);
 		}
 
 		& li::marker {
-			color: var(--content-1);
+			color: var(--brand);
 		}
 
 		/* 6. Blockquotes */
@@ -109,12 +180,13 @@
 			/* Inline Code */
 			background: var(--base-2);
 			color: var(--brand);
+			font-family: var(--font-mono);
 			padding: 0.1em 0.3em;
 			border-radius: var(--radius-sm);
 			font-size: 0.9em;
 		}
 
-		& pre {
+		& pre:not(.code-block-pre) {
 			/* Code Blocks */
 			background: var(--base-2);
 			padding: var(--s0);
@@ -131,7 +203,244 @@
 			}
 		}
 
+		& .code-block {
+			--code-block-bg: oklch(97.5% 0.006 var(--hue, 250));
+			--code-block-border: oklch(88% 0.012 var(--hue, 250));
+			--code-block-muted: oklch(48% 0.03 var(--hue, 250));
+			background: var(--code-block-bg);
+			border: 1px solid var(--code-block-border);
+			border-radius: var(--radius);
+			box-shadow: none;
+			display: flex;
+			flex-direction: column;
+			margin: 0.95em 0;
+			overflow: hidden;
+		}
+
+		& .code-block-header {
+			align-items: center;
+			background: transparent;
+			border-bottom: 0;
+			display: grid;
+			gap: var(--s-4);
+			grid-template-columns: minmax(0, 1fr) auto;
+			min-height: 2rem;
+			padding: var(--s-1) var(--s0) 0;
+		}
+
+		& .code-block-title,
+		& .code-block-language,
+		& .code-block-copy {
+			border-radius: var(--s-5);
+			font: inherit;
+			min-height: 1.65rem;
+		}
+
+		& .code-block-title {
+			background: transparent;
+			border: 0;
+			color: var(--code-block-muted);
+			font-size: var(--s-1);
+			font-weight: 500;
+			min-width: 0;
+			overflow: hidden;
+			padding: 0;
+			text-overflow: ellipsis;
+		}
+
+		& .code-block-title::placeholder {
+			color: color-mix(in oklch, var(--code-block-muted) 88%, transparent);
+		}
+
+		& .code-block-title:focus {
+			outline: none;
+		}
+
+		& .code-block-controls {
+			align-items: center;
+			display: flex;
+			gap: var(--s-4);
+			opacity: 0;
+			pointer-events: none;
+			transform: translateY(-2px);
+			transition:
+				opacity 0.16s ease,
+				transform 0.16s ease;
+		}
+
+		& .code-block:hover .code-block-controls,
+		& .code-block:focus-within .code-block-controls {
+			opacity: 1;
+			pointer-events: auto;
+			transform: translateY(0);
+		}
+
+		& .code-block-language {
+			appearance: none;
+			background: transparent;
+			border: 0;
+			color: var(--content-1);
+			cursor: pointer;
+			font-size: var(--s-1);
+			font-weight: 500;
+			max-width: 9.5rem;
+			padding: 0 var(--s-4);
+		}
+
+		& .code-block-language:hover,
+		& .code-block-language:focus {
+			color: var(--content);
+			outline: none;
+		}
+
+		& .code-block-copy {
+			align-items: center;
+			background: transparent;
+			border: 0;
+			color: var(--content-1);
+			cursor: pointer;
+			display: inline-flex;
+			font-size: var(--s-1);
+			font-weight: 560;
+			gap: var(--s-5);
+			padding: 0 var(--s-4);
+			transition:
+				background-color 0.16s ease,
+				color 0.16s ease;
+		}
+
+		& .code-block-copy:hover,
+		& .code-block-copy:focus-visible {
+			background: color-mix(in oklch, var(--content-1) 9%, transparent);
+			color: var(--content);
+			outline: none;
+		}
+
+		& .code-block-copy-icon {
+			font-family: var(--font-mono);
+			font-size: 0.82em;
+			line-height: 1;
+		}
+
+		& .code-block-body {
+			color: #24292e;
+			display: grid;
+			grid-template-columns: max-content minmax(0, 1fr);
+			gap: var(--s-1);
+			overflow-x: auto;
+			padding: 0 var(--s0) var(--s0);
+			tab-size: 4;
+		}
+
+		& .code-block-pre {
+			background: transparent;
+			color: inherit;
+			font-size: 0;
+			line-height: 0;
+			margin: 0;
+			min-width: 0;
+			overflow: visible;
+			padding: 0;
+		}
+
+		& .code-block-line-numbers {
+			background: var(--code-block-bg);
+			color: color-mix(in oklch, var(--code-block-muted) 72%, transparent);
+			display: block;
+			font-family: var(--font-mono);
+			font-size: 0.875rem;
+			line-height: 1.58;
+			min-width: 1.8rem;
+			padding-right: var(--s-2);
+			position: sticky;
+			left: 0;
+			text-align: right;
+			user-select: none;
+			z-index: 1;
+		}
+
+		& .code-block-line-numbers span {
+			display: block;
+			height: 1.3825rem;
+		}
+
+		& .code-block-content {
+			background: transparent;
+			border-radius: 0;
+			color: inherit;
+			display: block;
+			font-family: var(--font-mono);
+			font-size: 0.875rem;
+			line-height: 1.58;
+			min-height: 1.3825rem;
+			outline: none;
+			padding: 0;
+			white-space: pre;
+		}
+
+		& .code-block-token {
+			background: transparent;
+		}
+
+		@media (max-width: 42rem) {
+			& .code-block-header {
+				grid-template-columns: 1fr;
+			}
+
+			& .code-block-controls {
+				justify-content: space-between;
+				opacity: 1;
+				pointer-events: auto;
+				transform: none;
+			}
+
+			& .code-block-language {
+				min-width: 0;
+				width: min(12rem, 62vw);
+			}
+		}
+
 		/* 8. Media & Decorators */
+		& .media-block {
+			display: grid;
+			gap: var(--s-3);
+			margin: 0.95em 0;
+			max-width: 100%;
+			width: 100%;
+		}
+
+		& .media-block-frame,
+		& .media-block > .media-block-media {
+			background: var(--base-2);
+			border-radius: var(--radius);
+			overflow: hidden;
+		}
+
+		& .media-block-media {
+			border: 0;
+			display: block;
+			height: auto;
+			margin: 0;
+			max-height: min(70vh, 42rem);
+			object-fit: contain;
+			width: 100%;
+		}
+
+		& .media-block-caption {
+			color: var(--content-1);
+			font-size: var(--s-1);
+			line-height: 1.4;
+			text-align: center;
+		}
+
+		& .media-block-missing {
+			background: color-mix(in oklch, var(--base-2) 88%, var(--error) 7%);
+			border: 1px solid color-mix(in oklch, var(--error) 30%, transparent);
+			border-radius: var(--radius);
+			color: var(--content-1);
+			padding: var(--s-1) var(--s0);
+		}
+
 		& img,
 		& video {
 			border-radius: var(--radius-md);
@@ -168,5 +477,11 @@
 				border-bottom: 2px solid var(--edge-1);
 			}
 		}
+	}
+
+	:where([data-theme='dark']) :where(article, .article, .editor-prose) .code-block {
+		--code-block-bg: oklch(20% 0.018 var(--hue, 250));
+		--code-block-border: oklch(32% 0.02 var(--hue, 250));
+		--code-block-muted: oklch(68% 0.02 var(--hue, 250));
 	}
 }

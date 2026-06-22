@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
-	import Highlight from '$lib/Highlight.svelte';
+	import CodeBlock from '$lib/editor/code-block/CodeBlock.svelte';
 
 	const generateFluidScale = ({
 		minWidth = 320, // Mobile viewport width (px)
@@ -50,7 +50,7 @@
 
 <section>
 	<h1>Modular</h1>
-	<Highlight
+	<CodeBlock
 		header="fluid-scale.css"
 		language="css"
 		code={generateFluidScale({
@@ -58,7 +58,7 @@
 			maxRatio: Math.SQRT2, // Desktop (The "Root 2" you asked for)
 			steps: 5
 		})}
-	></Highlight>
+	/>
 
 	<div bind:this={sizeEl} style="width: var(--s-1); height: var(--s-1);">
 		{JSON.stringify(sizeEl?.getBoundingClientRect())}

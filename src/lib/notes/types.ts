@@ -3,7 +3,8 @@ import type { JSONContent } from '@tiptap/core';
 export const NOTES_DOC_VERSION = 1;
 export const NOTES_EDITOR = 'tiptap';
 export const DEFAULT_NOTE_ID = 'default';
-export const NOTES_STORAGE_KEY = 'zaki.gg:notes:v1:default';
+export const NOTES_STORAGE_KEY_PREFIX = 'zaki.gg:notes:v1';
+export const NOTES_STORAGE_KEY = `${NOTES_STORAGE_KEY_PREFIX}:${DEFAULT_NOTE_ID}`;
 
 export const EMPTY_TIPTAP_DOC = {
 	type: 'doc',
@@ -31,6 +32,10 @@ export function createNotesDoc(
 		content,
 		updatedAt
 	};
+}
+
+export function getNoteStorageKey(noteId = DEFAULT_NOTE_ID) {
+	return `${NOTES_STORAGE_KEY_PREFIX}:${noteId || DEFAULT_NOTE_ID}`;
 }
 
 export function parseStoredNote(value: unknown): NotesDocV1 | null {

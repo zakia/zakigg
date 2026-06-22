@@ -10,7 +10,7 @@
 		{ label: 'Home', path: '/', icon: 'line-md:home' },
 		{ label: 'About', path: '/about', icon: 'line-md:file-document' },
 		{ label: 'Crafts', path: '/crafts', icon: 'line-md:pencil' },
-		{ label: 'Notes', path: '/notes', icon: 'mdi:notebook-edit-outline' }
+		{ label: 'Editor', path: '/notes', icon: 'mdi:notebook-edit-outline' }
 	] as const;
 
 	let isHidden = $state(false);

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Highlight from '$lib/Highlight.svelte';
+	import CodeBlock from '$lib/editor/code-block/CodeBlock.svelte';
 </script>
 
 <ol class="list-decimal-inside">
@@ -9,7 +9,7 @@
 	</li>
 </ol>
 
-<Highlight
+<CodeBlock
 	header="tabs.html"
 	language="html"
 	code={`<div class="triggers">

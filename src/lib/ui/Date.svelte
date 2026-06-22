@@ -71,8 +71,6 @@
 		// Get the first day to display in the calendar (might be from previous month)
 		const calendarStart = firstDayOfMonth.subtract({ days: daysToSubtract });
 
-		// Get number of days in the month
-		const daysInMonth = firstDayOfMonth.daysInMonth;
 
 		const days: Array<{ day: number; isCurrentMonth: boolean; date: Temporal.PlainDate }> = [];
 

@@ -7,6 +7,6 @@ export const load: PageLoad = async ({ params }) => {
 		error(404, 'Craft not found');
 	}
 	const meta = crafts.find((c) => c.slug === params.slug)!;
-	const Component = await loadCraft(params.slug);
-	return { meta, Component };
+	const craft = await loadCraft(params.slug);
+	return { meta, craft };
 };

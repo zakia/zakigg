@@ -1,0 +1,588 @@
+{
+	"version": 1,
+	"editor": "tiptap",
+	"content": {
+		"type": "doc",
+		"content": [
+			{
+				"type": "paragraph",
+				"content": [
+					{ "type": "text", "text": "You don't have to look far on the internet to come across " },
+					{ "type": "text", "marks": [{ "type": "bold" }], "text": "tabs" },
+					{ "type": "text", "text": " or " },
+					{ "type": "text", "marks": [{ "type": "bold" }], "text": "carousels" },
+					{ "type": "text", "text": "." }
+				]
+			},
+			{
+				"type": "paragraph",
+				"content": [
+					{
+						"type": "text",
+						"text": "Almost any website I work on these days includes at least one of them. I've seen dozens of implementations, and yet there always seems to be something missing."
+					}
+				]
+			},
+			{
+				"type": "paragraph",
+				"content": [
+					{
+						"type": "text",
+						"marks": [{ "type": "bold" }],
+						"text": "So I decided to give it a go myself."
+					}
+				]
+			},
+			{
+				"type": "paragraph",
+				"content": [
+					{
+						"type": "text",
+						"text": "The goal here isn't to replace the numerous carousel and tab libraries out there."
+					},
+					{ "type": "hardBreak" },
+					{
+						"type": "text",
+						"text": "Instead, I'd just like to explore what's possible using some basic CSS and JavaScript."
+					}
+				]
+			},
+			{
+				"type": "componentEmbed",
+				"attrs": {
+					"component": "carousels.ScrollingTabs",
+					"props": {}
+				}
+			},
+			{
+				"type": "heading",
+				"attrs": { "level": 2 },
+				"content": [{ "type": "text", "text": "The Key Idea" }]
+			},
+			{
+				"type": "paragraph",
+				"content": [
+					{ "type": "text", "text": "We can get " },
+					{ "type": "text", "marks": [{ "type": "bold" }], "text": "scrollable" },
+					{ "type": "text", "text": ", " },
+					{ "type": "text", "marks": [{ "type": "bold" }], "text": "responsive" },
+					{ "type": "text", "text": ", and " },
+					{ "type": "text", "marks": [{ "type": "bold" }], "text": "animated" },
+					{ "type": "text", "text": " Tabs with " },
+					{ "type": "text", "marks": [{ "type": "italic" }], "text": "just 5 lines of CSS:" }
+				]
+			},
+			{
+				"type": "codeBlock",
+				"attrs": { "language": "css", "title": "tabs.css" },
+				"content": [
+					{
+						"type": "text",
+						"text": ".container {\n  display: flex; /* place slides in a row */\n  overflow: auto; /* make container scrollable */\n  position: relative; /* this will come in handy later */\n}\n\n.slide {\n\twidth: 100%; /* make slides responsive */\n\tflex-shrink: 0; /* prevent shrinking */\n}"
+					}
+				]
+			},
+			{
+				"type": "paragraph",
+				"content": [
+					{
+						"type": "text",
+						"marks": [{ "type": "bold" }],
+						"text": "This doesn't give us the tab triggers out of the box,"
+					},
+					{
+						"type": "text",
+						"text": " but we do get a solid foundation to build upon."
+					}
+				]
+			},
+			{
+				"type": "paragraph",
+				"content": [
+					{ "type": "text", "text": "We already have a " },
+					{ "type": "text", "marks": [{ "type": "bold" }], "text": "natively scrollable" },
+					{ "type": "text", "text": " container and " },
+					{ "type": "text", "marks": [{ "type": "bold" }], "text": "responsive slides" },
+					{
+						"type": "text",
+						"text": " before touching javascript. (try scrolling to the right)"
+					}
+				]
+			},
+			{
+				"type": "heading",
+				"attrs": { "level": 2 },
+				"content": [{ "type": "text", "text": "What we need" }]
+			},
+			{
+				"type": "orderedList",
+				"content": [
+					{
+						"type": "listItem",
+						"content": [
+							{
+								"type": "paragraph",
+								"content": [
+									{ "type": "text", "text": "A list of " },
+									{ "type": "text", "marks": [{ "type": "bold" }], "text": "slides" },
+									{ "type": "text", "text": " and " },
+									{ "type": "text", "marks": [{ "type": "bold" }], "text": "triggers" }
+								]
+							}
+						]
+					},
+					{
+						"type": "listItem",
+						"content": [
+							{
+								"type": "paragraph",
+								"content": [
+									{ "type": "text", "text": "Clicking a " },
+									{ "type": "text", "marks": [{ "type": "bold" }], "text": "trigger" },
+									{ "type": "text", "text": " should scroll to the appropriate " },
+									{ "type": "text", "marks": [{ "type": "bold" }], "text": "slide" }
+								]
+							}
+						]
+					}
+				]
+			},
+			{
+				"type": "codeBlock",
+				"attrs": { "language": "html", "title": "tabs.html" },
+				"content": [
+					{
+						"type": "text",
+						"text": "<div class=\"triggers\">\n  <button onclick=\"scrollTab(slide_1)\">...\n  <button onclick=\"scrollTab(slide_2)\">...\n</div>\n\n<div class=\"container\">\n  <div class=\"slide\">...\n  <div class=\"slide\">...\n</div>"
+					}
+				]
+			},
+			{
+				"type": "paragraph",
+				"content": [
+					{
+						"type": "text",
+						"marks": [{ "type": "bold" }],
+						"text": "How do we go about finding the correct scroll position?"
+					}
+				]
+			},
+			{
+				"type": "heading",
+				"attrs": { "level": 2 },
+				"content": [{ "type": "text", "text": "Scroll Position" }]
+			},
+			{
+				"type": "paragraph",
+				"content": [
+					{
+						"type": "text",
+						"text": "Rather than thinking of the content moving, we can reframe the idea of scrolling as moving a "
+					},
+					{ "type": "text", "marks": [{ "type": "bold" }], "text": "viewport" },
+					{ "type": "text", "text": " across a fixed strip of content." }
+				]
+			},
+			{
+				"type": "paragraph",
+				"content": [
+					{ "type": "text", "text": "Turns out, the " },
+					{ "type": "text", "marks": [{ "type": "bold" }], "text": "scroll position" },
+					{ "type": "text", "text": " of a slide is just the amount of space to it's left." }
+				]
+			},
+			{
+				"type": "mediaBlock",
+				"attrs": {
+					"kind": "video",
+					"src": "/craft-assets/carousels/tabs-demo.mov",
+					"alt": "",
+					"title": "Tabs demo",
+					"caption": "",
+					"controls": true,
+					"autoplay": true,
+					"loop": true,
+					"muted": true
+				}
+			},
+			{
+				"type": "paragraph",
+				"content": [
+					{ "type": "text", "text": "You could probably spot the formula " },
+					{ "type": "text", "marks": [{ "type": "code" }], "text": "index * (width + gap)" }
+				]
+			},
+			{
+				"type": "paragraph",
+				"content": [
+					{ "type": "text", "marks": [{ "type": "bold" }], "text": "This will work" },
+					{
+						"type": "text",
+						"text": ", but it means that we either need to use a "
+					},
+					{ "type": "text", "marks": [{ "type": "bold" }], "text": "fixed" },
+					{ "type": "text", "text": " width and gap, " },
+					{ "type": "text", "marks": [{ "type": "italic" }], "text": "or" },
+					{ "type": "hardBreak" },
+					{ "type": "text", "text": "we need to calculate the widths and gaps." },
+					{ "type": "hardBreak" },
+					{
+						"type": "text",
+						"text": "(and make sure they stay up-to-date as the screen is resized)"
+					}
+				]
+			},
+			{
+				"type": "heading",
+				"attrs": { "level": 2 },
+				"content": [{ "type": "text", "text": "A better way" }]
+			},
+			{
+				"type": "paragraph",
+				"content": [
+					{
+						"type": "text",
+						"text": "Fortunately for us, there's a more direct way to get the scroll position without dealing with widths and gaps."
+					}
+				]
+			},
+			{
+				"type": "heading",
+				"attrs": { "level": 3 },
+				"content": [
+					{ "type": "text", "text": "The " },
+					{ "type": "text", "marks": [{ "type": "code" }], "text": "offsetLeft" },
+					{ "type": "text", "text": " property" }
+				]
+			},
+			{
+				"type": "blockquote",
+				"content": [
+					{
+						"type": "paragraph",
+						"content": [
+							{
+								"type": "text",
+								"marks": [{ "type": "italic" }],
+								"text": "This property returns the number of pixels that the upper left corner of the current element is offset to the left within it's parent."
+							}
+						]
+					}
+				]
+			},
+			{
+				"type": "paragraph",
+				"content": [
+					{ "type": "text", "text": "This is only true if we have " },
+					{ "type": "text", "marks": [{ "type": "code" }], "text": "position:relative" },
+					{
+						"type": "text",
+						"text": " on the parent. Otherwise, "
+					},
+					{ "type": "text", "marks": [{ "type": "code" }], "text": "offsetLeft" },
+					{ "type": "text", "text": " returns the distance to the edge of the screen." }
+				]
+			},
+			{
+				"type": "paragraph",
+				"content": [
+					{ "type": "text", "text": "Because " },
+					{ "type": "text", "marks": [{ "type": "code" }], "text": "display: flex" },
+					{
+						"type": "text",
+						"text": " places our items in a row, a slide's "
+					},
+					{ "type": "text", "marks": [{ "type": "code" }], "text": "offsetLeft" },
+					{
+						"type": "text",
+						"text": " value is exactly equal to it's scroll position. (even with the overflow)"
+					}
+				]
+			},
+			{
+				"type": "codeBlock",
+				"attrs": { "language": "javascript", "title": "tabs.ts" },
+				"content": [
+					{
+						"type": "text",
+						"text": "const scrollTab = (slide) => {\n  container.scrollTo({\n    left: slide.offsetLeft,\n    behavior: \"smooth\",\n  });\n};"
+					}
+				]
+			},
+			{
+				"type": "paragraph",
+				"content": [
+					{
+						"type": "text",
+						"marks": [{ "type": "bold" }],
+						"text": "That's all we need to implement the triggers."
+					}
+				]
+			},
+			{
+				"type": "paragraph",
+				"content": [
+					{ "type": "text", "text": "Adding " },
+					{ "type": "text", "marks": [{ "type": "code" }], "text": "behavior: \"smooth\"" },
+					{
+						"type": "text",
+						"text": " nicely animates the scroll without us having to do anything else."
+					}
+				]
+			},
+			{
+				"type": "paragraph",
+				"content": [
+					{
+						"type": "text",
+						"text": "Also, because we calculate "
+					},
+					{ "type": "text", "marks": [{ "type": "code" }], "text": "offsetLeft" },
+					{
+						"type": "text",
+						"text": " the moment a trigger is clicked, it will always be up-to-date."
+					}
+				]
+			},
+			{
+				"type": "heading",
+				"attrs": { "level": 2 },
+				"content": [{ "type": "text", "text": "Options & Enhancements" }]
+			},
+			{
+				"type": "paragraph",
+				"content": [
+					{ "type": "text", "text": "We can snap slides into place using the " },
+					{
+						"type": "text",
+						"marks": [
+							{
+								"type": "link",
+								"attrs": { "href": "https://developer.mozilla.org/docs/Web/CSS/CSS_scroll_snap" }
+							},
+							{ "type": "code" }
+						],
+						"text": "scroll-snap-type"
+					},
+					{ "type": "text", "text": " property." }
+				]
+			},
+			{
+				"type": "codeBlock",
+				"attrs": { "language": "css", "title": "tabs.css" },
+				"content": [
+					{
+						"type": "text",
+						"text": ".container {\n  display: flex;\n  overflow: auto; /* allow scrolling */\n  scroll-snap-type: \"x mandatory\"; /* snap to slides */\n}\n\n.slide {\n  width: 100%;\n  flex-shrink: 0;\n\tscroll-snap-align: start; /* set snapping point */\n}"
+					}
+				]
+			},
+			{
+				"type": "paragraph",
+				"content": [
+					{
+						"type": "text",
+						"marks": [{ "type": "bold" }],
+						"text": "We've actually been using this property all along"
+					},
+					{
+						"type": "text",
+						"text": ", but I didn't mention it earlier because it's a little bit buggy out-of-the-box :("
+					}
+				]
+			},
+			{
+				"type": "paragraph",
+				"content": [
+					{ "type": "text", "marks": [{ "type": "code" }], "text": "scroll-snap" },
+					{
+						"type": "text",
+						"text": " works pretty well when scrolling, but there's some jank when using the triggers."
+					}
+				]
+			},
+			{
+				"type": "paragraph",
+				"content": [
+					{
+						"type": "text",
+						"text": "To get around this, we temporarily disable snapping when a trigger is clicked, and re-enable it after the finishes."
+					}
+				]
+			},
+			{
+				"type": "paragraph",
+				"content": [
+					{ "type": "text", "text": "Next, we can set " },
+					{ "type": "text", "marks": [{ "type": "code" }], "text": "overflow: hidden" },
+					{
+						"type": "text",
+						"text": " to prevent scrolling and only allow navigation with the triggers."
+					}
+				]
+			},
+			{
+				"type": "componentEmbed",
+				"attrs": {
+					"component": "carousels.OverflowToggle",
+					"props": {}
+				}
+			},
+			{
+				"type": "paragraph",
+				"content": [
+					{
+						"type": "text",
+						"text": "In general, it's a good idea to allow scrolling. This way, users can navigate using their preferred method."
+					}
+				]
+			},
+			{
+				"type": "paragraph",
+				"content": [
+					{
+						"type": "text",
+						"text": "Finally, you'll also notice the correct trigger highlights as we scroll. This is done using the "
+					},
+					{
+						"type": "text",
+						"marks": [
+							{
+								"type": "link",
+								"attrs": {
+									"href": "https://developer.mozilla.org/docs/Web/API/Intersection_Observer_API"
+								}
+							}
+						],
+						"text": "Intersection Observer API."
+					}
+				]
+			},
+			{
+				"type": "heading",
+				"attrs": { "level": 2 },
+				"content": [{ "type": "text", "text": "Bloopers" }]
+			},
+			{
+				"type": "paragraph",
+				"content": [
+					{
+						"type": "text",
+						"text": "I would have loved to implement a version without JavaScript, using anchor tags as triggers — "
+					},
+					{
+						"type": "text",
+						"marks": [{ "type": "code" }],
+						"text": "<a href=\"#slide-id\"..."
+					},
+					{ "type": "text", "text": " (which I did)." }
+				]
+			},
+			{
+				"type": "paragraph",
+				"content": [
+					{
+						"type": "text",
+						"marks": [{ "type": "bold" }],
+						"text": "However, it's a bit limited:"
+					}
+				]
+			},
+			{
+				"type": "bulletList",
+				"content": [
+					{
+						"type": "listItem",
+						"content": [
+							{
+								"type": "paragraph",
+								"content": [
+									{
+										"type": "text",
+										"text": "Most browsers first scroll the entire page to the anchor, then to the correct slide. In some cases, this behavior might be desired, but it's not ideal for a carousel."
+									}
+								]
+							}
+						]
+					},
+					{
+						"type": "listItem",
+						"content": [
+							{
+								"type": "paragraph",
+								"content": [
+									{
+										"type": "text",
+										"text": "The slides don’t always line up correctly (you may notice the border being cut off)."
+									}
+								]
+							}
+						]
+					}
+				]
+			},
+			{
+				"type": "paragraph",
+				"content": [
+					{
+						"type": "text",
+						"text": "I think we need at least some JavaScript for a fully functional carousel. Nonetheless, I’ve shared the implementation below if you’d like to experiment with it."
+					}
+				]
+			},
+			{
+				"type": "componentEmbed",
+				"attrs": {
+					"component": "carousels.ScrollingTabsAnchors",
+					"props": {}
+				}
+			},
+			{
+				"type": "heading",
+				"attrs": { "level": 3 },
+				"content": [{ "type": "text", "text": "That's a wrap!" }]
+			},
+			{
+				"type": "paragraph",
+				"content": [
+					{ "type": "text", "text": "I hope you learned something from this " },
+					{ "type": "text", "marks": [{ "type": "italic" }], "text": "Craft." },
+					{ "type": "text", "text": " I had a lot of fun putting it together :)" }
+				]
+			},
+			{
+				"type": "paragraph",
+				"content": [
+					{
+						"type": "text",
+						"text": "Digging into this UI pattern and experimenting with different approaches has given me a new appreciation for what goes into making a proper tabs or carousel library."
+					}
+				]
+			},
+			{
+				"type": "paragraph",
+				"content": [
+					{
+						"type": "text",
+						"text": "I'm fairly new to making these Craft pages, but I'm excited to share more of my experiments with you down the road."
+					}
+				]
+			},
+			{
+				"type": "paragraph",
+				"content": [
+					{
+						"type": "text",
+						"text": "If you have any feedback, suggestions, or just wanna chat, feel free to "
+					},
+					{
+						"type": "text",
+						"marks": [{ "type": "link", "attrs": { "href": "mailto:a@zaki.gg" } }],
+						"text": "reach out!"
+					}
+				]
+			}
+		]
+	},
+	"updatedAt": "2026-06-21T21:13:21.000Z"
+}

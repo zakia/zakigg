@@ -5,6 +5,4 @@ export const meta: CraftMeta = {
 	description: 'My attempt at tackling this common design pattern.',
 	tags: ['web', 'fun'],
 	date: '2024-10-04',
-	draft: false,
-	fullBleed: true
 };

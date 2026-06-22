@@ -1,5 +1,5 @@
 <script>
-	import Highlight from '$lib/Highlight.svelte';
+	import CodeBlock from '$lib/editor/code-block/CodeBlock.svelte';
 </script>
 
 <p>
@@ -27,7 +27,7 @@
 	Because <code>display: flex</code> places our items in a row, a slide&#39;s
 	<code>offsetLeft</code> value is exactly equal to it&#39;s scroll position. (even with the overflow)
 </p>
-<Highlight
+<CodeBlock
 	header="tabs.ts"
 	language="javascript"
 	code={`const scrollTab = (slide) => {

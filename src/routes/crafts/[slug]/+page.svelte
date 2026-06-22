@@ -1,10 +1,12 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import Icon from '@iconify/svelte';
 	import { Temporal } from 'temporal-polyfill';
+	import CraftDocumentRenderer from '$lib/crafts/CraftDocumentRenderer.svelte';
 
 	let { data } = $props();
 
-	const Component = $derived(data.Component);
+	const craft = $derived(data.craft);
 
 	const printDate = (iso: string) => {
 		return Temporal.PlainDate.from(iso.split('T')[0]).toLocaleString(undefined, {
@@ -22,11 +24,23 @@
 	<meta property="og:description" content={data.meta.description} />
 </svelte:head>
 
-{#if data.meta.fullBleed}
+{#snippet content()}
+	{#if craft.kind === 'document'}
+		<CraftDocumentRenderer document={craft.document} />
+	{:else}
+		<craft.Component />
+	{/if}
+{/snippet}
+
+{#if data.meta.fullBleed && craft.kind === 'component'}
+	{const Component = craft.Component}
 	<Component />
 {:else}
 	<section class="gap-s0 mx-auto grid w-full items-start">
-		<a href="/crafts" class="btn text-brand top-(--vertical-spacing) w-fit p-0 md:sticky">
+		<a
+			href={resolve('/crafts')}
+			class="btn text-brand top-(--vertical-spacing) w-fit p-0 md:sticky"
+		>
 			<Icon icon="ep:top-left" />Back
 		</a>
 
@@ -37,7 +51,7 @@
 				<time class="text-content-1">{printDate(data.meta.date)}</time>
 			</hgroup>
 
-			<Component />
+			{@render content()}
 		</article>
 	</section>
 {/if}

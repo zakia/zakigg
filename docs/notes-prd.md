@@ -2,10 +2,10 @@
 
 ## Summary
 
-Build `/notes` as a public, local-first scratch pad on zaki.gg. V0 is intentionally small:
+Build `/notes` as a public, local-first document editor on zaki.gg. V0 is intentionally small:
 one rich text document, autosaved locally in the browser, with markdown export. The long-term
-direction is a block-document workspace that can grow into multiple notes, background cloud sync,
-collaboration, custom blocks, and spatial/canvas layout.
+direction is a block-document workspace that can grow into multiple documents, background cloud
+sync, collaboration, custom blocks, and spatial/canvas layout.
 
 The product principle is: **rich text UX, block-document data, markdown portability**.
 
@@ -23,7 +23,7 @@ The product principle is: **rich text UX, block-document data, markdown portabil
 ## V0 Scope
 
 - Add a public `/notes` route.
-- Show one default scratch-pad document.
+- Show one default document editor as the primary screen.
 - Support rich text editing with common blocks and marks:
   - Paragraphs
   - Headings

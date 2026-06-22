@@ -1,104 +1,530 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import Icon from '@iconify/svelte';
-	import { Editor } from '@tiptap/core';
-	import { Markdown } from '@tiptap/markdown';
-	import { Placeholder } from '@tiptap/extension-placeholder';
-	import { StarterKit } from '@tiptap/starter-kit';
-	import { createNotesDoc, EMPTY_TIPTAP_DOC } from './types';
-	import { loadDefaultNote, saveDefaultNote } from './storage';
+	import { Editor, posToDOMRect, type JSONContent, type Range } from '@tiptap/core';
+	import type { EditorView } from '@tiptap/pm/view';
+	import { craftComponentEmbeds } from '$lib/crafts/component-embeds';
+	import { insertRegisteredComponentEmbed } from '$lib/editor/component-embeds';
+	import type { MediaBlockAttrs, MediaBlockKind } from '$lib/editor/media-block';
+	import EditorDocumentActions from './EditorDocumentActions.svelte';
+	import EditorHistoryPanel from './EditorHistoryPanel.svelte';
+	import EditorSurface from './EditorSurface.svelte';
+	import EditorToolbar from './EditorToolbar.svelte';
+	import LinkPopover from './LinkPopover.svelte';
+	import { createEditorExtensions } from './editor-extensions';
+	import {
+		MAX_EDITOR_HISTORY_ENTRIES,
+		cloneEditorContent,
+		createEditorHistoryEntry,
+		getEditorHistorySignature,
+		type EditorHistoryEntry
+	} from './history';
+	import { applyLinkEditToEditor, removeLinkFromEditor } from './link-edits';
+	import {
+		LINK_POPOVER_DELAY,
+		createHiddenLinkPopover,
+		createLinkPopoverState,
+		getCurrentLinkRange,
+		getLinkDetails,
+		getLinkRangeAtPosition,
+		openLinkHrefOnce,
+		type LinkPopoverState
+	} from './link-popover';
+	import { downloadMarkdownFile, getEditorMarkdown } from './markdown';
+	import {
+		createLocalAssetSrc,
+		getAltTextForFile,
+		getMediaFiles,
+		getMediaKindForFile,
+		getMediaKindForUrl,
+		isMediaFile
+	} from './media';
+	import { formatSaveLabel, type SaveState } from './save-state';
+	import { loadNote, resolveNoteAssetObjectUrl, saveNote, saveNoteAsset } from './storage';
+	import { createTimer } from '../editor/timers';
+	import { createNotesDoc, DEFAULT_NOTE_ID, EMPTY_TIPTAP_DOC, type NotesDocV1 } from './types';
 
-	type SaveState = 'loading' | 'saving' | 'saved' | 'error';
-	type MarkdownEditor = Editor & { getMarkdown: () => string };
+	type EditorTarget =
+		| { kind: 'note' }
+		| {
+				kind: 'craft';
+				slug: string;
+				content: JSONContent;
+				updatedAt?: string;
+				onPublish: (content: JSONContent) => void | Promise<void>;
+				onUploadAsset?: (file: File) => Promise<string>;
+		  };
+
+	type SelectionToolbarMode = 'format' | 'link';
+
+	type SelectionAnchor = {
+		left: number;
+		top: number;
+		width: number;
+		height: number;
+	};
+
+	type SelectionToolbarState = {
+		visible: boolean;
+		mode: SelectionToolbarMode;
+		from: number;
+		to: number;
+		label: string;
+		href: string;
+		error: string;
+		anchor: SelectionAnchor;
+	};
+
+	let { target = { kind: 'note' } }: { target?: EditorTarget } = $props();
 
 	let editorHost = $state<HTMLDivElement>();
+	let imageInput = $state<HTMLInputElement>();
+	let videoInput = $state<HTMLInputElement>();
 	let editor = $state<Editor>();
 	let saveState = $state<SaveState>('loading');
 	let lastSavedAt = $state<string>();
 	let copied = $state(false);
 	let editorTick = $state(0);
-	let saveTimer: number | undefined;
-	let copyTimer: number | undefined;
+	let historyEntries = $state<EditorHistoryEntry[]>([]);
+	let activeHistoryId = $state('');
+	let previewHistoryId = $state('');
+	let historyPanelOpen = $state(false);
+	let editorTickQueued = false;
+	let linkPopover = $state<LinkPopoverState>(createHiddenLinkPopover());
+	let selectionToolbar = $state<SelectionToolbarState>(createHiddenSelectionToolbar());
+	let selectionToolbarFrame = 0;
+	let pointerSelectionActive = false;
+	let historyEntryIndex = 0;
+	let previewReturnContent: JSONContent | null = null;
+	const saveTimer = createTimer();
+	const copyTimer = createTimer();
+	const historyTimer = createTimer();
+	const linkShowTimer = createTimer();
+	const linkHideTimer = createTimer();
 
-	const saveLabel = $derived.by(() => {
-		if (saveState === 'loading') return 'Loading';
-		if (saveState === 'saving') return 'Saving...';
-		if (saveState === 'error') return 'Save failed';
-		if (!lastSavedAt) return 'Saved locally';
-
-		return `Saved locally ${new Intl.DateTimeFormat(undefined, {
-			hour: 'numeric',
-			minute: '2-digit'
-		}).format(new Date(lastSavedAt))}`;
-	});
+	const saveLabel = $derived(formatSaveLabel(saveState, lastSavedAt));
+	const publishLabel = $derived(target.kind === 'craft' ? 'Publish' : undefined);
+	const selectionAnchorStyle = $derived(
+		`left: ${selectionToolbar.anchor.left}px; top: ${selectionToolbar.anchor.top}px; width: ${selectionToolbar.anchor.width}px; height: ${selectionToolbar.anchor.height}px;`
+	);
+	const selectionToolbarFallbackLeft = $derived(
+		selectionToolbar.anchor.left + selectionToolbar.anchor.width / 2
+	);
+	const selectionToolbarFallbackTop = $derived(selectionToolbar.anchor.top);
+	const embedActions = $derived(
+		craftComponentEmbeds
+			.insertable({
+				craftSlug: target.kind === 'craft' ? target.slug : undefined
+			})
+			.map(({ id, label, icon }) => ({ id, label, icon }))
+	);
 
 	onMount(() => {
 		let destroyed = false;
+		const syncVisibleSelectionToolbar = () => {
+			if (selectionToolbar.visible) scheduleSelectionToolbarSync();
+		};
+		const handleDocumentPointerdown = (event: PointerEvent) => {
+			const target = event.target as Element | null;
+
+			if (!target) return;
+			if (target.closest('.selection-toolbar')) return;
+
+			if (editorHost?.contains(target)) {
+				if (event.button === 0) {
+					pointerSelectionActive = true;
+					closeSelectionToolbar();
+				}
+
+				return;
+			}
+
+			if (selectionToolbar.visible) closeSelectionToolbar();
+		};
+		const handleDocumentPointerup = () => {
+			if (!pointerSelectionActive) return;
+
+			pointerSelectionActive = false;
+			scheduleSelectionToolbarSync();
+		};
+		const handleDocumentPointercancel = () => {
+			pointerSelectionActive = false;
+		};
 
 		async function setupEditor() {
-			const stored = await loadDefaultNote();
+			const stored = await loadNote(getTargetNoteId());
 			if (destroyed || !editorHost) return;
 
+			const initialContent = getInitialContent(stored);
 			const instance = new Editor({
 				element: editorHost,
-				extensions: [
-					StarterKit.configure({
-						heading: {
-							levels: [1, 2, 3]
-						}
-					}),
-					Markdown.configure({
-						indentation: {
-							style: 'space',
-							size: 2
-						}
-					}),
-					Placeholder.configure({
-						placeholder: 'Start writing...'
-					})
-				],
-				content: stored?.content ?? EMPTY_TIPTAP_DOC,
+				extensions: createEditorExtensions(craftComponentEmbeds, resolveNoteAssetObjectUrl),
+				content: initialContent,
 				autofocus: 'end',
 				editorProps: {
 					attributes: {
-						'aria-label': 'Notes editor',
-						class: 'notes-prose'
-					}
+						'aria-label': target.kind === 'craft' ? 'Craft editor' : 'Notes editor',
+						class: 'editor-prose'
+					},
+					handlePaste: (_view, event) => handleMediaPaste(event),
+					handleDrop: (view, event, _slice, moved) => handleMediaDrop(view, event, moved),
+					handleDOMEvents: createEditorDomHandlers()
 				},
 				onUpdate: () => {
-					editorTick += 1;
+					noteEditorChanged();
 					scheduleSave();
+					scheduleHistorySnapshot();
 				},
-				onSelectionUpdate: () => {
-					editorTick += 1;
-				},
-				onTransaction: () => {
-					editorTick += 1;
-				}
+				onSelectionUpdate: noteEditorChanged,
+				onTransaction: noteEditorChanged
 			});
 
+			recordHistorySnapshotFromContent(initialContent);
 			editor = instance;
 			lastSavedAt = stored?.updatedAt;
 			saveState = 'saved';
-			editorTick += 1;
+			noteEditorChanged();
 		}
 
 		void setupEditor();
+		window.addEventListener('resize', syncVisibleSelectionToolbar);
+		document.addEventListener('scroll', syncVisibleSelectionToolbar, true);
+		document.addEventListener('pointerdown', handleDocumentPointerdown, true);
+		document.addEventListener('pointerup', handleDocumentPointerup, true);
+		document.addEventListener('pointercancel', handleDocumentPointercancel, true);
 
 		return () => {
 			destroyed = true;
-			if (saveTimer) window.clearTimeout(saveTimer);
-			if (copyTimer) window.clearTimeout(copyTimer);
+			pointerSelectionActive = false;
+			cancelSelectionToolbarSync();
+			saveTimer.cancel();
+			copyTimer.cancel();
+			historyTimer.cancel();
+			cancelLinkPopoverOpen();
+			cancelLinkPopoverClose();
+			window.removeEventListener('resize', syncVisibleSelectionToolbar);
+			document.removeEventListener('scroll', syncVisibleSelectionToolbar, true);
+			document.removeEventListener('pointerdown', handleDocumentPointerdown, true);
+			document.removeEventListener('pointerup', handleDocumentPointerup, true);
+			document.removeEventListener('pointercancel', handleDocumentPointercancel, true);
 			void persistNow();
 			editor?.destroy();
 		};
 	});
 
-	function scheduleSave() {
-		if (saveTimer) window.clearTimeout(saveTimer);
+	function createHiddenSelectionToolbar(): SelectionToolbarState {
+		return {
+			visible: false,
+			mode: 'format',
+			from: 0,
+			to: 0,
+			label: '',
+			href: '',
+			error: '',
+			anchor: {
+				left: 0,
+				top: 0,
+				width: 1,
+				height: 1
+			}
+		};
+	}
 
+	function getTargetNoteId() {
+		return target.kind === 'craft' ? `craft:${target.slug}` : DEFAULT_NOTE_ID;
+	}
+
+	function getInitialContent(stored: NotesDocV1 | null) {
+		if (target.kind === 'craft') {
+			if (!stored?.content) return target.content;
+			if (!target.updatedAt) return stored.content;
+
+			return Date.parse(stored.updatedAt) > Date.parse(target.updatedAt)
+				? stored.content
+				: target.content;
+		}
+
+		if (stored?.content) return stored.content;
+		return EMPTY_TIPTAP_DOC;
+	}
+
+	function createEditorDomHandlers() {
+		return {
+			keydown: (_view: unknown, event: KeyboardEvent) => {
+				if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+					event.preventDefault();
+					openLinkEditorFromKeyboard();
+					return true;
+				}
+
+				if (event.key === 'Escape' && selectionToolbar.visible) {
+					closeSelectionToolbar();
+					return true;
+				}
+
+				if (event.key === 'Escape' && linkPopover.visible) {
+					closeLinkPopover();
+					return true;
+				}
+
+				return false;
+			},
+			mouseover: (_view: unknown, event: MouseEvent) => {
+				scheduleLinkPopoverFromMouse(event);
+				return false;
+			},
+			mousedown: (_view: unknown, event: MouseEvent) => {
+				const target = event.target as Element | null;
+				const link = target?.closest<HTMLAnchorElement>('a[data-href]');
+
+				if (!link || event.button !== 0) {
+					return false;
+				}
+
+				event.preventDefault();
+				return true;
+			},
+			click: (_view: unknown, event: MouseEvent) => {
+				const target = event.target as Element | null;
+				const link = target?.closest<HTMLAnchorElement>('a[data-href]');
+
+				if (!link) return false;
+
+				event.preventDefault();
+				event.stopPropagation();
+				event.stopImmediatePropagation();
+				cancelLinkPopoverOpen();
+
+				if (!linkPopover.editing) {
+					closeLinkPopover();
+				}
+
+				const href = link.dataset.href;
+				if (!href) return true;
+
+				openLinkHrefOnce(href);
+
+				return true;
+			},
+			mouseout: (_view: unknown, event: MouseEvent) => {
+				scheduleLinkPopoverCloseFromMouse(event);
+				return false;
+			}
+		};
+	}
+
+	function noteEditorChanged() {
+		scheduleSelectionToolbarSync();
+
+		if (editorTickQueued) return;
+
+		editorTickQueued = true;
+		queueMicrotask(() => {
+			editorTickQueued = false;
+			editorTick += 1;
+		});
+	}
+
+	function scheduleSelectionToolbarSync() {
+		if (selectionToolbarFrame) return;
+
+		selectionToolbarFrame = requestAnimationFrame(() => {
+			selectionToolbarFrame = 0;
+			syncSelectionToolbarFromEditor();
+		});
+	}
+
+	function cancelSelectionToolbarSync() {
+		if (!selectionToolbarFrame) return;
+
+		cancelAnimationFrame(selectionToolbarFrame);
+		selectionToolbarFrame = 0;
+	}
+
+	function syncSelectionToolbarFromEditor() {
+		if (pointerSelectionActive) return;
+
+		if (!editor) {
+			closeSelectionToolbar();
+			return;
+		}
+
+		const { from, to, empty } = editor.state.selection;
+		if (empty) {
+			closeSelectionToolbar();
+			return;
+		}
+
+		const label = getSelectedText({ from, to });
+		if (!label.trim()) {
+			closeSelectionToolbar();
+			return;
+		}
+
+		const anchor = getSelectionAnchor({ from, to });
+		if (!anchor) {
+			closeSelectionToolbar();
+			return;
+		}
+
+		const keepLinkMode =
+			selectionToolbar.visible &&
+			selectionToolbar.mode === 'link' &&
+			selectionToolbar.from === from &&
+			selectionToolbar.to === to;
+
+		selectionToolbar = {
+			visible: true,
+			mode: keepLinkMode ? 'link' : 'format',
+			from,
+			to,
+			label,
+			href: keepLinkMode ? selectionToolbar.href : '',
+			error: keepLinkMode ? selectionToolbar.error : '',
+			anchor
+		};
+
+		if (linkPopover.visible) closeLinkPopover();
+	}
+
+	function closeSelectionToolbar() {
+		selectionToolbar = createHiddenSelectionToolbar();
+	}
+
+	function getSelectedText(range: Range) {
+		if (!editor) return '';
+
+		return editor.state.doc.textBetween(range.from, range.to, '\n');
+	}
+
+	function getSelectionAnchor(range: Range): SelectionAnchor | undefined {
+		if (!editor) return;
+
+		const rect = posToDOMRect(editor.view, range.from, range.to);
+
+		if (!Number.isFinite(rect.left) || !Number.isFinite(rect.top)) return;
+
+		return {
+			left: rect.left,
+			top: rect.top,
+			width: Math.max(rect.width, 1),
+			height: Math.max(rect.height, 1)
+		};
+	}
+
+	function updateEditorHost(host?: HTMLDivElement) {
+		editorHost = host;
+	}
+
+	function openImagePicker() {
+		imageInput?.click();
+	}
+
+	function openVideoPicker() {
+		videoInput?.click();
+	}
+
+	function handlePickedMedia(event: Event) {
+		const input = event.currentTarget as HTMLInputElement;
+		const files = Array.from(input.files ?? []).filter(isMediaFile);
+
+		input.value = '';
+		void insertMediaFiles(files);
+	}
+
+	function handleMediaPaste(event: ClipboardEvent) {
+		const files = getMediaFiles(event.clipboardData);
+
+		if (files.length) {
+			event.preventDefault();
+			void insertMediaFiles(files);
+			return true;
+		}
+
+		const text = event.clipboardData?.getData('text/plain')?.trim();
+		const kind = text ? getMediaKindForUrl(text) : null;
+
+		if (!text || !kind) return false;
+
+		event.preventDefault();
+		insertMediaUrl(text, kind);
+
+		return true;
+	}
+
+	function handleMediaDrop(view: EditorView, event: DragEvent, moved: boolean) {
+		if (moved) return false;
+
+		const files = getMediaFiles(event.dataTransfer);
+
+		if (!files.length) return false;
+
+		event.preventDefault();
+
+		const dropPosition = view.posAtCoords({
+			left: event.clientX,
+			top: event.clientY
+		});
+
+		if (dropPosition) {
+			editor?.chain().focus().setTextSelection(dropPosition.pos).run();
+		}
+
+		void insertMediaFiles(files);
+
+		return true;
+	}
+
+	async function insertMediaFiles(files: File[]) {
+		if (!editor || !files.length) return;
+
+		try {
+			saveState = 'saving';
+
+			for (const file of files) {
+				const media = await resolveMediaFile(file);
+
+				insertMediaBlock({
+					kind: getMediaKindForFile(file),
+					src: media.src,
+					assetId: media.assetId,
+					alt: getAltTextForFile(file)
+				});
+			}
+		} catch {
+			saveState = 'error';
+		}
+	}
+
+	async function resolveMediaFile(file: File) {
+		if (target.kind === 'craft' && target.onUploadAsset) {
+			return {
+				src: await target.onUploadAsset(file)
+			};
+		}
+
+		const asset = await saveNoteAsset(file);
+
+		return {
+			src: createLocalAssetSrc(asset.id),
+			assetId: asset.id
+		};
+	}
+
+	function insertMediaUrl(src: string, kind: MediaBlockKind) {
+		insertMediaBlock({ kind, src });
+	}
+
+	function insertMediaBlock(
+		attrs: Partial<MediaBlockAttrs> & { kind: MediaBlockKind; src: string }
+	) {
+		if (!editor || !attrs.src) return;
+
+		editor.chain().focus().insertMediaBlock(attrs).run();
+	}
+
+	function scheduleSave() {
 		saveState = 'saving';
-		saveTimer = window.setTimeout(() => {
+		saveTimer.schedule(() => {
 			void persistNow();
 		}, 350);
 	}
@@ -107,8 +533,8 @@
 		if (!editor) return;
 
 		try {
-			const note = createNotesDoc(editor.getJSON());
-			await saveDefaultNote(note);
+			const note = createNotesDoc(previewReturnContent ?? editor.getJSON());
+			await saveNote(getTargetNoteId(), note);
 			lastSavedAt = note.updatedAt;
 			saveState = 'saved';
 		} catch {
@@ -116,481 +542,532 @@
 		}
 	}
 
-	function run(command: (activeEditor: Editor) => void) {
+	function scheduleHistorySnapshot() {
+		historyTimer.schedule(recordEditorHistorySnapshot, 550);
+	}
+
+	function flushHistorySnapshot() {
+		historyTimer.cancel();
+		recordEditorHistorySnapshot();
+	}
+
+	function recordEditorHistorySnapshot() {
 		if (!editor) return;
-		command(editor);
-		editorTick += 1;
+
+		recordHistorySnapshotFromContent(previewReturnContent ?? editor.getJSON());
 	}
 
-	function active(name: string, attrs?: Record<string, unknown>) {
-		return editorTick >= 0 && (editor?.isActive(name, attrs) ?? false);
+	function recordHistorySnapshotFromContent(content: JSONContent) {
+		const signature = getEditorHistorySignature(content);
+		const existing = historyEntries.find((entry) => entry.signature === signature);
+
+		if (existing) {
+			activeHistoryId = existing.id;
+			return;
+		}
+
+		const entry = createEditorHistoryEntry(content, createHistoryId());
+
+		historyEntries = [entry, ...historyEntries].slice(0, MAX_EDITOR_HISTORY_ENTRIES);
+		activeHistoryId = entry.id;
 	}
 
-	function canRun(command: (activeEditor: Editor) => boolean) {
-		return editorTick >= 0 && editor ? command(editor) : false;
+	function createHistoryId() {
+		historyEntryIndex += 1;
+
+		return `history-${Date.now()}-${historyEntryIndex}`;
 	}
 
-	function getMarkdown() {
-		if (!editor) return '';
-		return (editor as MarkdownEditor).getMarkdown();
+	function toggleHistoryPanel() {
+		if (!historyPanelOpen) {
+			flushHistorySnapshot();
+		}
+
+		historyPanelOpen = !historyPanelOpen;
+	}
+
+	function closeHistoryPanel() {
+		clearHistoryPreview();
+		historyPanelOpen = false;
+	}
+
+	function restoreHistoryEntry(entry: EditorHistoryEntry) {
+		if (!editor) return;
+
+		clearHistoryPreview();
+
+		const currentSignature = getEditorHistorySignature(editor.getJSON());
+
+		historyTimer.cancel();
+		activeHistoryId = entry.id;
+
+		if (currentSignature === entry.signature) {
+			editor.commands.focus();
+			return;
+		}
+
+		closeSelectionToolbar();
+		closeLinkPopover();
+		editor.commands.setContent(cloneEditorContent(entry.content));
+		editor.commands.focus();
+	}
+
+	function previewHistoryEntry(entry: EditorHistoryEntry) {
+		if (!editor || entry.id === activeHistoryId) return;
+
+		previewReturnContent ??= editor.getJSON();
+		previewHistoryId = entry.id;
+		replaceEditorContentForPreview(entry.content);
+	}
+
+	function clearHistoryPreview() {
+		if (!editor || !previewReturnContent) return;
+
+		const content = previewReturnContent;
+
+		previewReturnContent = null;
+		previewHistoryId = '';
+		replaceEditorContentForPreview(content);
+	}
+
+	function replaceEditorContentForPreview(content: JSONContent) {
+		if (!editor) return;
+
+		const document = editor.schema.nodeFromJSON(cloneEditorContent(content));
+		const transaction = editor.state.tr
+			.replaceWith(0, editor.state.doc.content.size, document)
+			.setMeta('addToHistory', false)
+			.setMeta('preventUpdate', true);
+
+		editor.view.dispatch(transaction);
+		noteEditorChanged();
+	}
+
+	async function publishNow() {
+		if (!editor || target.kind !== 'craft') return;
+
+		try {
+			clearHistoryPreview();
+			saveState = 'saving';
+			const content = editor.getJSON();
+			await target.onPublish(content);
+			const note = createNotesDoc(content);
+			await saveNote(getTargetNoteId(), note);
+			lastSavedAt = note.updatedAt;
+			saveState = 'saved';
+		} catch {
+			saveState = 'error';
+		}
+	}
+
+	function insertEmbed(id: string) {
+		if (!editor) return;
+
+		const result = insertRegisteredComponentEmbed(editor, craftComponentEmbeds, id);
+
+		if (!result.ok) {
+			saveState = 'error';
+		}
+	}
+
+	function showLinkPopover(range: Range, editing = false) {
+		if (!editor || !editorHost) return;
+
+		cancelLinkPopoverOpen();
+		cancelLinkPopoverClose();
+
+		linkPopover = createLinkPopoverState({ editor, range, editing });
+	}
+
+	function scheduleLinkPopoverFromMouse(event: MouseEvent) {
+		if (!editor || linkPopover.editing || selectionToolbar.visible) return;
+
+		const target = event.target as Element | null;
+		const link = target?.closest('a[data-href]');
+
+		if (!link || !editorHost?.contains(link)) return;
+
+		const position = editor.view.posAtCoords({ left: event.clientX, top: event.clientY });
+		if (!position) return;
+
+		const range = getLinkRangeAtPosition(editor, position.pos);
+		if (!range) return;
+
+		cancelLinkPopoverOpen();
+		cancelLinkPopoverClose();
+
+		linkShowTimer.schedule(() => {
+			showLinkPopover(range);
+		}, LINK_POPOVER_DELAY);
+	}
+
+	function scheduleLinkPopoverCloseFromMouse(event: MouseEvent) {
+		if (linkPopover.editing) return;
+
+		const target = event.target as Element | null;
+		const link = target?.closest('a[data-href]');
+
+		if (!link) return;
+
+		const relatedTarget = event.relatedTarget as Element | null;
+
+		if (
+			relatedTarget?.closest('.link-popover') ||
+			relatedTarget?.closest('a[data-href]') === link
+		) {
+			return;
+		}
+
+		cancelLinkPopoverOpen();
+		if (!linkPopover.visible) return;
+
+		scheduleLinkPopoverClose();
+	}
+
+	function scheduleLinkPopoverClose() {
+		linkHideTimer.schedule(() => {
+			if (!linkPopover.editing) closeLinkPopover();
+		}, 180);
+	}
+
+	function cancelLinkPopoverClose() {
+		linkHideTimer.cancel();
+	}
+
+	function cancelLinkPopoverOpen() {
+		linkShowTimer.cancel();
+	}
+
+	function closeLinkPopover() {
+		cancelLinkPopoverOpen();
+		cancelLinkPopoverClose();
+		linkPopover = createHiddenLinkPopover();
+	}
+
+	function openLinkEditorFromKeyboard() {
+		if (!editor || !editorHost) return;
+
+		if (editor.state.selection.empty) {
+			openDetailedLinkEditorFromCaret();
+			return;
+		}
+
+		openLinkEditorFromSelection();
+	}
+
+	function openDetailedLinkEditorFromCaret() {
+		if (!editor) return;
+
+		const linkRange = getCurrentLinkRange(editor);
+		const range = linkRange ?? {
+			from: editor.state.selection.from,
+			to: editor.state.selection.to
+		};
+		const details = linkRange ? getLinkDetails(editor, linkRange) : { href: '', label: '' };
+
+		showDetailedLinkEditor(range, details);
+	}
+
+	function openLinkEditorFromSelection() {
+		if (!editor || !editorHost) return;
+
+		const { from, to, empty } = editor.state.selection;
+		if (empty) return;
+
+		const range = { from, to };
+		const label = getSelectedText(range);
+		if (!label.trim()) return;
+
+		const linkRange = getCurrentLinkRange(editor);
+		const activeRange = linkRange && rangesOverlap(linkRange, range) ? linkRange : range;
+		const details =
+			linkRange && rangesOverlap(linkRange, range)
+				? getLinkDetails(editor, linkRange)
+				: { href: '', label };
+
+		showSelectionLinkForm(activeRange, details.href, details.label);
+	}
+
+	function showDetailedLinkEditor(
+		range: Range,
+		details: Partial<Pick<LinkPopoverState, 'href' | 'label'>> = {}
+	) {
+		if (!editor) return;
+
+		cancelLinkPopoverOpen();
+		cancelLinkPopoverClose();
+		closeSelectionToolbar();
+
+		linkPopover = createLinkPopoverState({
+			editor,
+			range,
+			editing: true,
+			href: details.href,
+			label: details.label
+		});
+	}
+
+	function rangesOverlap(first: Range, second: Range) {
+		return first.from <= second.to && second.from <= first.to;
+	}
+
+	function showSelectionLinkForm(range: Range, href = '', label = getSelectedText(range)) {
+		if (!editor) return;
+
+		const anchor = getSelectionAnchor(range);
+		if (!anchor || !label.trim()) return;
+
+		cancelLinkPopoverOpen();
+		cancelLinkPopoverClose();
+		if (linkPopover.visible) closeLinkPopover();
+
+		selectionToolbar = {
+			visible: true,
+			mode: 'link',
+			from: range.from,
+			to: range.to,
+			label,
+			href,
+			error: '',
+			anchor
+		};
+	}
+
+	function updateSelectionLinkHref(href: string) {
+		selectionToolbar = {
+			...selectionToolbar,
+			href,
+			error: ''
+		};
+	}
+
+	function cancelSelectionLinkEdit() {
+		if (!selectionToolbar.visible) return;
+
+		selectionToolbar = {
+			...selectionToolbar,
+			mode: 'format',
+			error: ''
+		};
+
+		editor?.commands.focus();
+	}
+
+	function applySelectionLinkEdit(event: SubmitEvent) {
+		event.preventDefault();
+		if (!editor || !selectionToolbar.visible) return;
+
+		const result = applyLinkEditToEditor(editor, {
+			visible: true,
+			editing: true,
+			placement: 'below',
+			href: selectionToolbar.href,
+			label: selectionToolbar.label,
+			from: selectionToolbar.from,
+			to: selectionToolbar.to,
+			left: 0,
+			top: 0,
+			error: selectionToolbar.error
+		});
+
+		if (!result.ok) {
+			selectionToolbar = {
+				...selectionToolbar,
+				error: result.error
+			};
+			return;
+		}
+
+		const anchor = getSelectionAnchor(result.range) ?? selectionToolbar.anchor;
+
+		selectionToolbar = {
+			visible: true,
+			mode: 'format',
+			from: result.range.from,
+			to: result.range.to,
+			label: getSelectedText(result.range),
+			href: '',
+			error: '',
+			anchor
+		};
+
+		noteEditorChanged();
+	}
+
+	function editVisibleLink() {
+		if (!linkPopover.visible) return;
+
+		linkPopover = {
+			...linkPopover,
+			editing: true,
+			error: ''
+		};
+	}
+
+	function updateLinkPopover(patch: Partial<LinkPopoverState>) {
+		linkPopover = {
+			...linkPopover,
+			...patch
+		};
+	}
+
+	function applyLinkEdit(event?: SubmitEvent) {
+		event?.preventDefault();
+		if (!editor || !linkPopover.visible) return;
+
+		const result = applyLinkEditToEditor(editor, linkPopover);
+
+		if (!result.ok) {
+			updateLinkPopover({ error: result.error });
+			return;
+		}
+
+		showLinkPopover(result.range);
+		noteEditorChanged();
+	}
+
+	function removeVisibleLink() {
+		if (!editor || !linkPopover.visible) return;
+
+		removeLinkFromEditor(editor, linkPopover);
+		closeLinkPopover();
+		noteEditorChanged();
+	}
+
+	function openVisibleLink() {
+		if (!linkPopover.href) return;
+
+		openLinkHrefOnce(linkPopover.href);
+	}
+
+	function handleLinkPopoverKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape') {
+			event.preventDefault();
+			closeLinkPopover();
+		}
 	}
 
 	async function copyMarkdown() {
-		const markdown = getMarkdown();
+		const markdown = getEditorMarkdown(editor);
 		if (!markdown) return;
 
 		await navigator.clipboard.writeText(markdown);
 		copied = true;
-		if (copyTimer) window.clearTimeout(copyTimer);
-		copyTimer = window.setTimeout(() => {
+		copyTimer.schedule(() => {
 			copied = false;
 		}, 1800);
 	}
 
 	function downloadMarkdown() {
-		const markdown = getMarkdown();
-		const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
-		const url = URL.createObjectURL(blob);
-		const anchor = document.createElement('a');
-
-		anchor.href = url;
-		anchor.download = `notes-${new Date().toISOString().slice(0, 10)}.md`;
-		document.body.append(anchor);
-		anchor.click();
-		window.setTimeout(() => {
-			anchor.remove();
-			URL.revokeObjectURL(url);
-		}, 1000);
-	}
-
-	function keepEditorSelection(event: PointerEvent) {
-		if ((event.target as HTMLElement).closest('button')) {
-			event.preventDefault();
-		}
+		downloadMarkdownFile(getEditorMarkdown(editor));
 	}
 </script>
 
-<div class="notes-editor">
-	<header class="notes-topbar">
-		<div class="status" data-state={saveState}>
-			<span class="status-dot"></span>
-			<span>{saveLabel}</span>
-		</div>
+<div class="rich-editor">
+	<input
+		bind:this={imageInput}
+		class="media-file-input"
+		type="file"
+		accept="image/png,image/jpeg,image/webp,image/gif,image/avif"
+		multiple
+		onchange={handlePickedMedia}
+	/>
+	<input
+		bind:this={videoInput}
+		class="media-file-input"
+		type="file"
+		accept="video/mp4,video/webm,video/quicktime,video/x-m4v"
+		multiple
+		onchange={handlePickedMedia}
+	/>
 
-		<div class="export-actions" aria-label="Markdown export actions">
-			<button
-				type="button"
-				class="toolbar-button text-action"
-				title="Copy Markdown"
-				aria-label="Copy Markdown"
-				onclick={copyMarkdown}
-				disabled={!editor}
-			>
-				<Icon icon={copied ? 'mdi:check' : 'mdi:content-copy'} />
-				<span>{copied ? 'Copied' : 'Markdown'}</span>
-			</button>
-			<button
-				type="button"
-				class="toolbar-button"
-				title="Download Markdown"
-				aria-label="Download Markdown"
-				onclick={downloadMarkdown}
-				disabled={!editor}
-			>
-				<Icon icon="mdi:download-outline" />
-			</button>
-		</div>
-	</header>
+	<EditorDocumentActions
+		{copied}
+		{saveState}
+		{saveLabel}
+		historyOpen={historyPanelOpen}
+		embeds={embedActions}
+		onCopyMarkdown={copyMarkdown}
+		onDownloadMarkdown={downloadMarkdown}
+		onToggleHistory={toggleHistoryPanel}
+		onInsertImage={openImagePicker}
+		onInsertVideo={openVideoPicker}
+		onInsertEmbed={insertEmbed}
+		onPublish={target.kind === 'craft' ? publishNow : undefined}
+		{publishLabel}
+	/>
 
-	<div
-		class="toolbar"
-		role="toolbar"
-		tabindex="-1"
-		aria-label="Notes formatting toolbar"
-		onpointerdown={keepEditorSelection}
-	>
-		<div class="toolbar-group">
-			<button
-				type="button"
-				class:active={active('heading', { level: 1 })}
-				class="toolbar-button"
-				title="Heading 1"
-				aria-label="Heading 1"
-				aria-pressed={active('heading', { level: 1 })}
-				onclick={() => run((e) => e.chain().focus().toggleHeading({ level: 1 }).run())}
-				disabled={!editor}
-			>
-				<Icon icon="mdi:format-header-1" />
-			</button>
-			<button
-				type="button"
-				class:active={active('heading', { level: 2 })}
-				class="toolbar-button"
-				title="Heading 2"
-				aria-label="Heading 2"
-				aria-pressed={active('heading', { level: 2 })}
-				onclick={() => run((e) => e.chain().focus().toggleHeading({ level: 2 }).run())}
-				disabled={!editor}
-			>
-				<Icon icon="mdi:format-header-2" />
-			</button>
-			<button
-				type="button"
-				class:active={active('paragraph')}
-				class="toolbar-button"
-				title="Paragraph"
-				aria-label="Paragraph"
-				aria-pressed={active('paragraph')}
-				onclick={() => run((e) => e.chain().focus().setParagraph().run())}
-				disabled={!editor}
-			>
-				<Icon icon="mdi:format-paragraph" />
-			</button>
-		</div>
+	<EditorHistoryPanel
+		entries={historyEntries}
+		activeId={activeHistoryId}
+		previewId={previewHistoryId}
+		visible={historyPanelOpen}
+		onClose={closeHistoryPanel}
+		onRestore={restoreHistoryEntry}
+		onPreview={previewHistoryEntry}
+		onClearPreview={clearHistoryPreview}
+	/>
 
-		<div class="toolbar-group">
-			<button
-				type="button"
-				class:active={active('bold')}
-				class="toolbar-button"
-				title="Bold"
-				aria-label="Bold"
-				aria-pressed={active('bold')}
-				onclick={() => run((e) => e.chain().focus().toggleBold().run())}
-				disabled={!canRun((e) => e.can().chain().focus().toggleBold().run())}
-			>
-				<Icon icon="mdi:format-bold" />
-			</button>
-			<button
-				type="button"
-				class:active={active('italic')}
-				class="toolbar-button"
-				title="Italic"
-				aria-label="Italic"
-				aria-pressed={active('italic')}
-				onclick={() => run((e) => e.chain().focus().toggleItalic().run())}
-				disabled={!canRun((e) => e.can().chain().focus().toggleItalic().run())}
-			>
-				<Icon icon="mdi:format-italic" />
-			</button>
-			<button
-				type="button"
-				class:active={active('strike')}
-				class="toolbar-button"
-				title="Strike"
-				aria-label="Strike"
-				aria-pressed={active('strike')}
-				onclick={() => run((e) => e.chain().focus().toggleStrike().run())}
-				disabled={!canRun((e) => e.can().chain().focus().toggleStrike().run())}
-			>
-				<Icon icon="mdi:format-strikethrough" />
-			</button>
-			<button
-				type="button"
-				class:active={active('code')}
-				class="toolbar-button"
-				title="Inline Code"
-				aria-label="Inline Code"
-				aria-pressed={active('code')}
-				onclick={() => run((e) => e.chain().focus().toggleCode().run())}
-				disabled={!canRun((e) => e.can().chain().focus().toggleCode().run())}
-			>
-				<Icon icon="mdi:code-tags" />
-			</button>
-		</div>
+	{#if selectionToolbar.visible}
+		<div class="selection-anchor" style={selectionAnchorStyle} aria-hidden="true"></div>
+	{/if}
 
-		<div class="toolbar-group">
-			<button
-				type="button"
-				class:active={active('bulletList')}
-				class="toolbar-button"
-				title="Bullet List"
-				aria-label="Bullet List"
-				aria-pressed={active('bulletList')}
-				onclick={() => run((e) => e.chain().focus().toggleBulletList().run())}
-				disabled={!editor}
-			>
-				<Icon icon="mdi:format-list-bulleted" />
-			</button>
-			<button
-				type="button"
-				class:active={active('orderedList')}
-				class="toolbar-button"
-				title="Ordered List"
-				aria-label="Ordered List"
-				aria-pressed={active('orderedList')}
-				onclick={() => run((e) => e.chain().focus().toggleOrderedList().run())}
-				disabled={!editor}
-			>
-				<Icon icon="mdi:format-list-numbered" />
-			</button>
-			<button
-				type="button"
-				class:active={active('blockquote')}
-				class="toolbar-button"
-				title="Quote"
-				aria-label="Quote"
-				aria-pressed={active('blockquote')}
-				onclick={() => run((e) => e.chain().focus().toggleBlockquote().run())}
-				disabled={!editor}
-			>
-				<Icon icon="mdi:format-quote-close" />
-			</button>
-			<button
-				type="button"
-				class:active={active('codeBlock')}
-				class="toolbar-button"
-				title="Code Block"
-				aria-label="Code Block"
-				aria-pressed={active('codeBlock')}
-				onclick={() => run((e) => e.chain().focus().toggleCodeBlock().run())}
-				disabled={!editor}
-			>
-				<Icon icon="mdi:code-braces" />
-			</button>
-		</div>
+	<EditorToolbar
+		{editor}
+		{editorTick}
+		visible={selectionToolbar.visible}
+		mode={selectionToolbar.mode}
+		linkHref={selectionToolbar.href}
+		linkError={selectionToolbar.error}
+		fallbackLeft={selectionToolbarFallbackLeft}
+		fallbackTop={selectionToolbarFallbackTop}
+		onCommand={noteEditorChanged}
+		onOpenLink={openLinkEditorFromSelection}
+		onCancelLink={cancelSelectionLinkEdit}
+		onClose={closeSelectionToolbar}
+		onLinkHrefChange={updateSelectionLinkHref}
+		onSubmitLink={applySelectionLinkEdit}
+	/>
 
-		<div class="toolbar-group">
-			<button
-				type="button"
-				class="toolbar-button"
-				title="Undo"
-				aria-label="Undo"
-				onclick={() => run((e) => e.chain().focus().undo().run())}
-				disabled={!canRun((e) => e.can().chain().focus().undo().run())}
-			>
-				<Icon icon="mdi:undo" />
-			</button>
-			<button
-				type="button"
-				class="toolbar-button"
-				title="Redo"
-				aria-label="Redo"
-				onclick={() => run((e) => e.chain().focus().redo().run())}
-				disabled={!canRun((e) => e.can().chain().focus().redo().run())}
-			>
-				<Icon icon="mdi:redo" />
-			</button>
-		</div>
-	</div>
+	<EditorSurface onHost={updateEditorHost} />
 
-	<div class="editor-surface">
-		<div bind:this={editorHost}></div>
-	</div>
+	{#if linkPopover.visible}
+		<LinkPopover
+			popover={linkPopover}
+			onUpdate={updateLinkPopover}
+			onSubmit={applyLinkEdit}
+			onEdit={editVisibleLink}
+			onRemove={removeVisibleLink}
+			onOpen={openVisibleLink}
+			onCancelClose={cancelLinkPopoverClose}
+			onScheduleClose={scheduleLinkPopoverClose}
+			onKeydown={handleLinkPopoverKeydown}
+		/>
+	{/if}
 </div>
 
 <style>
-	.notes-editor {
-		--toolbar-size: 2.25rem;
-		background: color-mix(in oklch, var(--base-1) 96%, transparent);
-		border: 1px solid var(--edge);
-		border-radius: var(--radius);
-		box-shadow: 0 18px 60px rgb(0 0 0 / 0.08);
-		display: flex;
-		flex-direction: column;
-		min-height: min(46rem, calc(100vh - 12rem));
-		overflow: hidden;
-	}
-
-	.notes-topbar {
-		align-items: center;
-		border-bottom: 1px solid var(--edge);
-		display: flex;
-		gap: var(--s-1);
-		justify-content: space-between;
-		min-height: 3rem;
-		padding: var(--s-2) var(--s0);
-	}
-
-	.status,
-	.export-actions,
-	.toolbar,
-	.toolbar-group,
-	.toolbar-button {
-		align-items: center;
-		display: flex;
-	}
-
-	.status {
-		color: var(--content-1);
-		font-size: var(--s-1);
-		gap: var(--s-3);
-		min-width: 0;
-	}
-
-	.status-dot {
-		background: var(--success);
-		border-radius: 999px;
-		display: block;
-		height: 0.5rem;
-		width: 0.5rem;
-	}
-
-	.status[data-state='saving'] .status-dot,
-	.status[data-state='loading'] .status-dot {
-		background: var(--warning);
-	}
-
-	.status[data-state='error'] .status-dot {
-		background: var(--error);
-	}
-
-	.export-actions {
-		gap: var(--s-3);
-	}
-
-	.toolbar {
-		background: var(--base-2);
-		border-bottom: 1px solid var(--edge);
-		flex-wrap: wrap;
-		gap: var(--s-2);
-		padding: var(--s-2);
-	}
-
-	.toolbar-group {
-		background: var(--base-1);
-		border: 1px solid var(--edge);
-		border-radius: var(--radius);
-		gap: var(--s-4);
-		padding: var(--s-4);
-	}
-
-	.toolbar-button {
-		background: transparent;
-		border-radius: var(--s-4);
-		color: var(--content-1);
-		gap: var(--s-3);
-		height: var(--toolbar-size);
-		justify-content: center;
-		min-width: var(--toolbar-size);
-		padding: 0 var(--s-3);
-		transition:
-			background-color 0.2s,
-			color 0.2s,
-			opacity 0.2s;
-	}
-
-	.toolbar-button :global(svg) {
-		height: 1.25rem;
-		width: 1.25rem;
-	}
-
-	.toolbar-button:hover:not(:disabled),
-	.toolbar-button.active {
-		background: color-mix(in oklch, var(--brand) 16%, transparent);
-		color: var(--content);
-	}
-
-	.toolbar-button:disabled {
-		cursor: not-allowed;
-		opacity: 0.35;
-	}
-
-	.text-action {
-		border: 1px solid var(--edge);
-		font-size: var(--s-1);
-		padding-inline: var(--s-2);
-	}
-
-	.editor-surface {
-		flex: 1;
-		min-height: 28rem;
-		overflow: auto;
-	}
-
-	.editor-surface :global(.ProseMirror) {
-		color: var(--content);
-		min-height: 28rem;
-		outline: none;
-		padding: clamp(var(--s0), 5vw, var(--s2));
-	}
-
-	.editor-surface :global(.notes-prose) {
-		font-size: var(--s0);
-	}
-
-	.editor-surface :global(.ProseMirror > * + *) {
-		margin-top: 0.85em;
-	}
-
-	.editor-surface :global(.ProseMirror h1) {
-		font-size: var(--s3);
-		font-weight: 780;
-		line-height: 1.08;
-	}
-
-	.editor-surface :global(.ProseMirror h2) {
-		font-size: var(--s2);
-		font-weight: 740;
-		line-height: 1.15;
-	}
-
-	.editor-surface :global(.ProseMirror h3) {
-		font-size: var(--s1);
-		font-weight: 700;
-		line-height: 1.2;
-	}
-
-	.editor-surface :global(.ProseMirror ul),
-	.editor-surface :global(.ProseMirror ol) {
-		padding-left: var(--s1);
-	}
-
-	.editor-surface :global(.ProseMirror blockquote) {
-		border-left: 3px solid var(--brand);
-		color: var(--content-1);
-		padding-left: var(--s0);
-	}
-
-	.editor-surface :global(.ProseMirror pre) {
-		background: var(--base);
-		border: 1px solid var(--edge);
-		border-radius: var(--radius);
-		color: var(--content);
-		overflow-x: auto;
-		padding: var(--s0);
-	}
-
-	.editor-surface :global(.ProseMirror code) {
-		background: var(--base-2);
-		border-radius: var(--s-4);
-		font-family: var(--font-mono);
-		font-size: 0.9em;
-		padding: 0.08em 0.32em;
-	}
-
-	.editor-surface :global(.ProseMirror pre code) {
-		background: transparent;
-		border-radius: 0;
-		padding: 0;
-	}
-
-	.editor-surface :global(.ProseMirror p.is-editor-empty:first-child::before) {
-		color: var(--content-1);
-		content: attr(data-placeholder);
-		float: left;
-		height: 0;
+	.selection-anchor {
+		anchor-name: --notes-selection-anchor;
+		opacity: 0;
 		pointer-events: none;
+		position: fixed;
 	}
 
-	@media (max-width: 42rem) {
-		.notes-topbar {
-			align-items: flex-start;
-			flex-direction: column;
-		}
+	.rich-editor {
+		--toolbar-size: 2.25rem;
+		background: color-mix(in oklch, var(--base) 92%, var(--base-1));
+		display: flex;
+		flex: 1;
+		flex-direction: column;
+		height: 100vh;
+		min-height: 100vh;
+		overflow: hidden;
+		position: relative;
+		width: 100%;
+	}
 
-		.export-actions,
-		.toolbar-group {
-			width: 100%;
-		}
-
-		.export-actions {
-			justify-content: flex-end;
-		}
-
-		.toolbar-group {
-			flex: 1 1 12rem;
-			flex-wrap: wrap;
-		}
+	.media-file-input {
+		display: none;
 	}
 </style>

@@ -5,6 +5,4 @@ export const meta: CraftMeta = {
 	description: 'A workout for the rings.',
 	tags: ['health'],
 	date: '2025-02-15',
-	draft: false,
-	fullBleed: true
 };

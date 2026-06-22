@@ -5,7 +5,7 @@ import { ComponentEmbed, type ComponentEmbedRegistry } from '$lib/editor/compone
 import { CodeBlock } from '../editor/code-block';
 import { MediaBlock, type MediaBlockAssetResolver } from '../editor/media-block';
 import { EditorLink, MarkdownLinkInput } from './links';
-import { ListMarkerInput } from './lists';
+import { ListContinuity, ListMarkerInput } from './lists';
 import { Table, TableCell, TableHeader, TableKit, TableRow } from './tables';
 
 export function createEditorExtensions(
@@ -45,6 +45,7 @@ export function createEditorExtensions(
 		}),
 		MarkdownLinkInput,
 		ListMarkerInput,
+		ListContinuity,
 		Markdown.configure({
 			indentation: {
 				style: 'space',

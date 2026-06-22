@@ -1,5 +1,7 @@
 import { Extension, type Editor } from '@tiptap/core';
-import type { ResolvedPos } from '@tiptap/pm/model';
+import type { Node as ProseMirrorNode, ResolvedPos } from '@tiptap/pm/model';
+import { Plugin, PluginKey } from '@tiptap/pm/state';
+import { canJoin } from '@tiptap/pm/transform';
 
 type ListTypeName = 'bulletList' | 'orderedList';
 type ListMarker = {
@@ -7,6 +9,7 @@ type ListMarker = {
 	attrs: Record<string, unknown>;
 };
 
+const listContinuityPluginKey = new PluginKey('listContinuity');
 const BULLET_MARKER_PATTERN = /^[-+*]$/;
 const ORDERED_MARKER_PATTERN = /^(\d+)\.$/;
 
@@ -138,3 +141,63 @@ export const ListMarkerInput = Extension.create({
 		};
 	}
 });
+
+export const ListContinuity = Extension.create({
+	name: 'listContinuity',
+
+	addProseMirrorPlugins() {
+		return [
+			new Plugin({
+				key: listContinuityPluginKey,
+				appendTransaction: (transactions, _oldState, newState) => {
+					if (!transactions.some((transaction) => transaction.docChanged)) return null;
+
+					let transaction = newState.tr;
+					let joinPosition = findAdjacentListJoinPosition(transaction.doc);
+
+					while (joinPosition !== undefined) {
+						transaction = transaction.join(joinPosition);
+						joinPosition = findAdjacentListJoinPosition(transaction.doc);
+					}
+
+					return transaction.docChanged ? transaction : null;
+				}
+			})
+		];
+	}
+});
+
+function findAdjacentListJoinPosition(doc: ProseMirrorNode) {
+	let joinPosition: number | undefined;
+
+	doc.descendants((node, position, parent, index) => {
+		if (joinPosition !== undefined || !parent) return false;
+
+		const next = parent.maybeChild(index + 1);
+
+		if (
+			next &&
+			canMergeAdjacentLists(node, next) &&
+			canJoin(doc, position + node.nodeSize)
+		) {
+			joinPosition = position + node.nodeSize;
+			return false;
+		}
+
+		return true;
+	});
+
+	return joinPosition;
+}
+
+function canMergeAdjacentLists(left: ProseMirrorNode, right: ProseMirrorNode) {
+	if (!isListNode(left) || left.type !== right.type) return false;
+
+	if (left.type.name !== 'orderedList') return true;
+
+	return Number(right.attrs?.start ?? 1) === 1;
+}
+
+function isListNode(node: ProseMirrorNode) {
+	return node.type.name === 'bulletList' || node.type.name === 'orderedList';
+}

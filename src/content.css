@@ -1,5 +1,5 @@
 @layer base {
-	:where(article, .article, .editor-prose) {
+	:where(article, .article, .content, .editor-prose) {
 		/* 1. Layout & Measure */
 		--base-spacing: var(--s0);
 		color: var(--content);
@@ -479,7 +479,7 @@
 		}
 	}
 
-	:where([data-theme='dark']) :where(article, .article, .editor-prose) .code-block {
+	:where([data-theme='dark']) :where(article, .article, .content, .editor-prose) .code-block {
 		--code-block-bg: oklch(20% 0.018 var(--hue, 250));
 		--code-block-border: oklch(32% 0.02 var(--hue, 250));
 		--code-block-muted: oklch(68% 0.02 var(--hue, 250));

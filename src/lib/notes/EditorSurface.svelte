@@ -1,7 +1,15 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
 
-	let { onHost }: { onHost: (host?: HTMLDivElement) => void } = $props();
+	let {
+		onHost,
+		onDragOver,
+		onDrop
+	}: {
+		onHost: (host?: HTMLDivElement) => void;
+		onDragOver?: (event: DragEvent) => void;
+		onDrop?: (event: DragEvent) => void;
+	} = $props();
 	let host = $state<HTMLDivElement>();
 
 	$effect(() => {
@@ -13,7 +21,7 @@
 	});
 </script>
 
-<div class="editor-surface">
+<div class="editor-surface" role="presentation" ondragover={onDragOver} ondrop={onDrop}>
 	<div class="editor-host" bind:this={host}></div>
 </div>
 

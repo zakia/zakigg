@@ -1,5 +1,5 @@
 @import './globals.css';
-@import './article.css';
+@import './content.css';
 
 @utility btn {
 	@apply gap-s-2 px-s0 py-s-2 inline-flex items-center justify-center rounded-md font-medium transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50;
@@ -84,24 +84,6 @@ body {
 
 button:focus:not(:focus-visible) {
 	outline: none;
-}
-
-ul {
-	list-style-type: disc;
-	padding-left: var(--s1);
-}
-
-ol {
-	list-style-type: decimal;
-	padding-left: var(--s1);
-}
-
-ul ul {
-	list-style-type: circle;
-}
-
-li::marker {
-	@apply text-brand;
 }
 
 .footnotes {

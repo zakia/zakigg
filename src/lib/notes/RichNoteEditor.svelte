@@ -29,7 +29,13 @@
 		openLinkHrefOnce,
 		type LinkPopoverState
 	} from './link-popover';
-	import { downloadMarkdownFile, getEditorMarkdown } from './markdown';
+	import {
+		downloadMarkdownFile,
+		getEditorMarkdown,
+		getMarkdownFiles,
+		insertEditorMarkdown,
+		looksLikeMarkdown
+	} from './markdown';
 	import {
 		createLocalAssetSrc,
 		getAltTextForFile,
@@ -163,10 +169,10 @@
 				editorProps: {
 					attributes: {
 						'aria-label': target.kind === 'craft' ? 'Craft editor' : 'Notes editor',
-						class: 'editor-prose'
+						class: 'content content-editor'
 					},
-					handlePaste: (_view, event) => handleMediaPaste(event),
-					handleDrop: (view, event, _slice, moved) => handleMediaDrop(view, event, moved),
+					handlePaste: (_view, event) => handleEditorPaste(event),
+					handleDrop: (view, event, _slice, moved) => handleEditorDrop(view, event, moved),
 					handleDOMEvents: createEditorDomHandlers()
 				},
 				onUpdate: () => {
@@ -431,6 +437,12 @@
 		void insertMediaFiles(files);
 	}
 
+	function handleEditorPaste(event: ClipboardEvent) {
+		if (handleMediaPaste(event)) return true;
+
+		return handleMarkdownPaste(event);
+	}
+
 	function handleMediaPaste(event: ClipboardEvent) {
 		const files = getMediaFiles(event.clipboardData);
 
@@ -451,15 +463,73 @@
 		return true;
 	}
 
-	function handleMediaDrop(view: EditorView, event: DragEvent, moved: boolean) {
-		if (moved) return false;
+	function handleMarkdownPaste(event: ClipboardEvent) {
+		const text = event.clipboardData?.getData('text/plain') ?? '';
 
+		if (!looksLikeMarkdown(text)) return false;
+
+		event.preventDefault();
+
+		return insertMarkdown(text);
+	}
+
+	function handleEditorDrop(view: EditorView, event: DragEvent, moved: boolean) {
+		if (moved) return false;
+		if (handleMarkdownFileDrop(view, event)) return true;
+
+		return handleMediaDrop(view, event);
+	}
+
+	function handleSurfaceDragOver(event: DragEvent) {
+		if (event.defaultPrevented || !hasDroppableEditorFiles(event.dataTransfer)) return;
+
+		event.preventDefault();
+
+		if (event.dataTransfer) {
+			event.dataTransfer.dropEffect = 'copy';
+		}
+	}
+
+	function handleSurfaceDrop(event: DragEvent) {
+		if (event.defaultPrevented || !editor) return;
+
+		const view = editor.view;
+
+		if (handleMarkdownFileDrop(view, event)) return;
+
+		handleMediaDrop(view, event);
+	}
+
+	function hasDroppableEditorFiles(data: DataTransfer | null | undefined) {
+		return Boolean(getMarkdownFiles(data).length || getMediaFiles(data).length);
+	}
+
+	function handleMarkdownFileDrop(view: EditorView, event: DragEvent) {
+		const files = getMarkdownFiles(event.dataTransfer);
+
+		if (!files.length) return false;
+
+		event.preventDefault();
+		setDropSelection(view, event);
+		void insertMarkdownFiles(files);
+
+		return true;
+	}
+
+	function handleMediaDrop(view: EditorView, event: DragEvent) {
 		const files = getMediaFiles(event.dataTransfer);
 
 		if (!files.length) return false;
 
 		event.preventDefault();
+		setDropSelection(view, event);
 
+		void insertMediaFiles(files);
+
+		return true;
+	}
+
+	function setDropSelection(view: EditorView, event: DragEvent) {
 		const dropPosition = view.posAtCoords({
 			left: event.clientX,
 			top: event.clientY
@@ -468,10 +538,20 @@
 		if (dropPosition) {
 			editor?.chain().focus().setTextSelection(dropPosition.pos).run();
 		}
+	}
 
-		void insertMediaFiles(files);
+	async function insertMarkdownFiles(files: File[]) {
+		try {
+			const markdown = (await Promise.all(files.map((file) => file.text()))).join('\n\n');
 
-		return true;
+			insertMarkdown(markdown);
+		} catch {
+			saveState = 'error';
+		}
+	}
+
+	function insertMarkdown(markdown: string) {
+		return insertEditorMarkdown(editor, markdown);
 	}
 
 	async function insertMediaFiles(files: File[]) {
@@ -1029,7 +1109,11 @@
 		onSubmitLink={applySelectionLinkEdit}
 	/>
 
-	<EditorSurface onHost={updateEditorHost} />
+	<EditorSurface
+		onHost={updateEditorHost}
+		onDragOver={handleSurfaceDragOver}
+		onDrop={handleSurfaceDrop}
+	/>
 
 	{#if linkPopover.visible}
 		<LinkPopover

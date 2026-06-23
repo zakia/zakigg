@@ -14,7 +14,7 @@
 </script>
 
 <script lang="ts">
-	import Icon from '@iconify/svelte';
+	import Icon from '$lib/components/Icon.svelte';
 	import { data, useScrollingTabs } from './Tabs.svelte';
 
 	const tabs = useScrollingTabs();

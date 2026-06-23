@@ -1,5 +1,5 @@
 <script>
-	import Icon from '@iconify/svelte';
+	import Icon from '$lib/components/Icon.svelte';
 	import LogoHawe from './hawe.svg';
 	import LogoHR from './hr.svg';
 	import LogoLehne from './lehne.svg';

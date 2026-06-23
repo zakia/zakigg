@@ -30,12 +30,12 @@
 		type LinkPopoverState
 	} from './link-popover';
 	import {
-		downloadMarkdownFile,
 		getEditorMarkdown,
 		getMarkdownFiles,
 		insertEditorMarkdown,
 		looksLikeMarkdown
 	} from './markdown';
+	import { downloadNotePageExport } from './export';
 	import {
 		createLocalAssetSrc,
 		getAltTextForFile,
@@ -45,20 +45,9 @@
 		isMediaFile
 	} from './media';
 	import { formatSaveLabel, type SaveState } from './save-state';
-	import { loadNote, resolveNoteAssetObjectUrl, saveNote, saveNoteAsset } from './storage';
+	import { resolveNoteAssetObjectUrl, saveNoteAsset, saveNotePage } from './storage';
 	import { createTimer } from '../editor/timers';
-	import { createNotesDoc, DEFAULT_NOTE_ID, EMPTY_TIPTAP_DOC, type NotesDocV1 } from './types';
-
-	type EditorTarget =
-		| { kind: 'note' }
-		| {
-				kind: 'craft';
-				slug: string;
-				content: JSONContent;
-				updatedAt?: string;
-				onPublish: (content: JSONContent) => void | Promise<void>;
-				onUploadAsset?: (file: File) => Promise<string>;
-		  };
+	import type { NotePageV1 } from './types';
 
 	type SelectionToolbarMode = 'format' | 'link';
 
@@ -80,7 +69,13 @@
 		anchor: SelectionAnchor;
 	};
 
-	let { target = { kind: 'note' } }: { target?: EditorTarget } = $props();
+	let {
+		page,
+		onSaved
+	}: {
+		page: NotePageV1;
+		onSaved?: (page: NotePageV1) => void;
+	} = $props();
 
 	let editorHost = $state<HTMLDivElement>();
 	let imageInput = $state<HTMLInputElement>();
@@ -108,7 +103,6 @@
 	const linkHideTimer = createTimer();
 
 	const saveLabel = $derived(formatSaveLabel(saveState, lastSavedAt));
-	const publishLabel = $derived(target.kind === 'craft' ? 'Publish' : undefined);
 	const selectionAnchorStyle = $derived(
 		`left: ${selectionToolbar.anchor.left}px; top: ${selectionToolbar.anchor.top}px; width: ${selectionToolbar.anchor.width}px; height: ${selectionToolbar.anchor.height}px;`
 	);
@@ -117,11 +111,7 @@
 	);
 	const selectionToolbarFallbackTop = $derived(selectionToolbar.anchor.top);
 	const embedActions = $derived(
-		craftComponentEmbeds
-			.insertable({
-				craftSlug: target.kind === 'craft' ? target.slug : undefined
-			})
-			.map(({ id, label, icon }) => ({ id, label, icon }))
+		craftComponentEmbeds.insertable().map(({ id, label, icon }) => ({ id, label, icon }))
 	);
 
 	onMount(() => {
@@ -157,10 +147,9 @@
 		};
 
 		async function setupEditor() {
-			const stored = await loadNote(getTargetNoteId());
 			if (destroyed || !editorHost) return;
 
-			const initialContent = getInitialContent(stored);
+			const initialContent = page.content;
 			const instance = new Editor({
 				element: editorHost,
 				extensions: createEditorExtensions(craftComponentEmbeds, resolveNoteAssetObjectUrl),
@@ -168,7 +157,7 @@
 				autofocus: 'end',
 				editorProps: {
 					attributes: {
-						'aria-label': target.kind === 'craft' ? 'Craft editor' : 'Notes editor',
+						'aria-label': `${page.title} editor`,
 						class: 'content content-editor'
 					},
 					handlePaste: (_view, event) => handleEditorPaste(event),
@@ -186,7 +175,7 @@
 
 			recordHistorySnapshotFromContent(initialContent);
 			editor = instance;
-			lastSavedAt = stored?.updatedAt;
+			lastSavedAt = page.updatedAt;
 			saveState = 'saved';
 			noteEditorChanged();
 		}
@@ -233,24 +222,6 @@
 				height: 1
 			}
 		};
-	}
-
-	function getTargetNoteId() {
-		return target.kind === 'craft' ? `craft:${target.slug}` : DEFAULT_NOTE_ID;
-	}
-
-	function getInitialContent(stored: NotesDocV1 | null) {
-		if (target.kind === 'craft') {
-			if (!stored?.content) return target.content;
-			if (!target.updatedAt) return stored.content;
-
-			return Date.parse(stored.updatedAt) > Date.parse(target.updatedAt)
-				? stored.content
-				: target.content;
-		}
-
-		if (stored?.content) return stored.content;
-		return EMPTY_TIPTAP_DOC;
 	}
 
 	function createEditorDomHandlers() {
@@ -576,13 +547,7 @@
 	}
 
 	async function resolveMediaFile(file: File) {
-		if (target.kind === 'craft' && target.onUploadAsset) {
-			return {
-				src: await target.onUploadAsset(file)
-			};
-		}
-
-		const asset = await saveNoteAsset(file);
+		const asset = await saveNoteAsset(file, page.id);
 
 		return {
 			src: createLocalAssetSrc(asset.id),
@@ -613,9 +578,12 @@
 		if (!editor) return;
 
 		try {
-			const note = createNotesDoc(previewReturnContent ?? editor.getJSON());
-			await saveNote(getTargetNoteId(), note);
-			lastSavedAt = note.updatedAt;
+			const nextPage = await saveNotePage({
+				...page,
+				content: previewReturnContent ?? editor.getJSON()
+			});
+			onSaved?.(nextPage);
+			lastSavedAt = nextPage.updatedAt;
 			saveState = 'saved';
 		} catch {
 			saveState = 'error';
@@ -721,23 +689,6 @@
 
 		editor.view.dispatch(transaction);
 		noteEditorChanged();
-	}
-
-	async function publishNow() {
-		if (!editor || target.kind !== 'craft') return;
-
-		try {
-			clearHistoryPreview();
-			saveState = 'saving';
-			const content = editor.getJSON();
-			await target.onPublish(content);
-			const note = createNotesDoc(content);
-			await saveNote(getTargetNoteId(), note);
-			lastSavedAt = note.updatedAt;
-			saveState = 'saved';
-		} catch {
-			saveState = 'error';
-		}
 	}
 
 	function insertEmbed(id: string) {
@@ -1039,7 +990,9 @@
 	}
 
 	function downloadMarkdown() {
-		downloadMarkdownFile(getEditorMarkdown(editor));
+		if (!editor) return;
+
+		void downloadNotePageExport(page, editor.getJSON());
 	}
 </script>
 
@@ -1073,8 +1026,6 @@
 		onInsertImage={openImagePicker}
 		onInsertVideo={openVideoPicker}
 		onInsertEmbed={insertEmbed}
-		onPublish={target.kind === 'craft' ? publishNow : undefined}
-		{publishLabel}
 	/>
 
 	<EditorHistoryPanel

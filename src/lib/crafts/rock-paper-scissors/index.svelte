@@ -3,7 +3,7 @@
 </script>
 
 <script lang="ts">
-	import Icon from '@iconify/svelte';
+	import Icon from '$lib/components/Icon.svelte';
 
 	let cheating = $state(false);
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Icon from '@iconify/svelte';
+	import Icon from '$lib/components/Icon.svelte';
 	import SaveStatus from './SaveStatus.svelte';
 	import type { SaveState } from './save-state';
 
@@ -28,8 +28,6 @@
 		onInsertImage?: () => void;
 		onInsertVideo?: () => void;
 		onInsertEmbed?: (id: string) => void;
-		onPublish?: () => void | Promise<void>;
-		publishLabel?: string;
 	};
 
 	let {
@@ -43,9 +41,7 @@
 		onToggleHistory,
 		onInsertImage,
 		onInsertVideo,
-		onInsertEmbed,
-		onPublish,
-		publishLabel = 'Publish'
+		onInsertEmbed
 	}: Props = $props();
 
 	function actions(): DocumentAction[] {
@@ -67,14 +63,6 @@
 				action: onDownloadMarkdown
 			}
 		];
-
-		if (onPublish) {
-			items.unshift({
-				title: publishLabel,
-				icon: 'mdi:cloud-upload-outline',
-				action: onPublish
-			});
-		}
 
 		if (onInsertVideo) {
 			items.unshift({

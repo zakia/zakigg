@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import Icon from '@iconify/svelte';
+	import Icon from '$lib/components/Icon.svelte';
 	import { Temporal } from 'temporal-polyfill';
 	import CraftDocumentRenderer from '$lib/crafts/CraftDocumentRenderer.svelte';
 

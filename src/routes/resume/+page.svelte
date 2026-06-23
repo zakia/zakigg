@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Icon from '@iconify/svelte';
+	import Icon from '$lib/components/Icon.svelte';
 	import { title } from 'radash';
 	import Card from './Card.svelte';
 	import { experiences, projects, skills } from './data';

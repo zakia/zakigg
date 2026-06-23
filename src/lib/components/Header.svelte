@@ -1,16 +1,16 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
+	import Icon from '$lib/components/Icon.svelte';
 	import { useTheme } from '$lib/theme.svelte';
 	import { clamp } from '$lib/utils';
-	import Icon from '@iconify/svelte';
 
 	const theme = useTheme();
 	const links = [
 		{ label: 'Home', path: '/', icon: 'line-md:home' },
 		{ label: 'About', path: '/about', icon: 'line-md:file-document' },
 		{ label: 'Crafts', path: '/crafts', icon: 'line-md:pencil' },
-		{ label: 'Editor', path: '/notes', icon: 'mdi:notebook-edit-outline' }
+		{ label: 'Notes', path: '/notes', icon: 'mdi:notebook-edit-outline' }
 	] as const;
 
 	let isHidden = $state(false);
@@ -58,6 +58,12 @@
 			});
 		});
 	});
+
+	function isActive(path: string) {
+		if (path === '/') return page.url.pathname === '/';
+
+		return page.url.pathname === path || page.url.pathname.startsWith(`${path}/`);
+	}
 </script>
 
 <header
@@ -65,11 +71,7 @@
 	style:translate="-50% {isHidden ? '200%' : '0%'}"
 >
 	{#each links as link (link.path)}
-		<a
-			href={resolve(link.path)}
-			class="dock-item"
-			class:text-brand={link.path === page.url.pathname}
-		>
+		<a href={resolve(link.path)} class="dock-item" class:text-brand={isActive(link.path)}>
 			<div class="tooltip">
 				{link.label}
 			</div>

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Icon from '@iconify/svelte';
+	import Icon from '$lib/components/Icon.svelte';
 	import ScrollingTabs from './content/ScrollingTabs.svelte';
 	import ScrollingTabsAnchors from './content/ScrollingTabsAnchors.svelte';
 	import { data } from './content/Tabs.svelte';

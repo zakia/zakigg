@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Icon from '@iconify/svelte';
+	import Icon from '$lib/components/Icon.svelte';
 	import { AI, bestMove, checkWinner, EMPTY, HUMAN } from './minimax';
 
 	let board = $state<number[]>(Array(9).fill(EMPTY));

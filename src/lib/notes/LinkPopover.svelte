@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { tick } from 'svelte';
-	import Icon from '@iconify/svelte';
+	import Icon from '$lib/components/Icon.svelte';
 	import type { LinkPopoverState } from './link-popover';
 
 	type LinkPopoverPatch = Partial<Pick<LinkPopoverState, 'href' | 'label' | 'error'>>;

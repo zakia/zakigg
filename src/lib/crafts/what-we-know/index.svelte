@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import Icon from '@iconify/svelte';
+	import Icon from '$lib/components/Icon.svelte';
 	import PassiveCard from './PassiveCard.svelte';
 	import PermissionCard from './PermissionCard.svelte';
 	import type { PermissionState } from './PermissionCard.svelte';

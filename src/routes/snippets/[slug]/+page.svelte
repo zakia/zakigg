@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { Temporal } from 'temporal-polyfill';
-	import Icon from '@iconify/svelte';
+	import Icon from '$lib/components/Icon.svelte';
 	import type { SnippetMeta } from '$lib/snippets';
 
 	const slug = $derived(page.params.slug ?? '');

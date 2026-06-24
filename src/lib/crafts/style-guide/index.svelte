@@ -1,6 +1,6 @@
 <script lang="ts">
 	import typographyMD from './typography.md?raw';
-	import Icon from '@iconify/svelte';
+	import Icon from '$lib/components/Icon.svelte';
 	import MarkdownIt from 'markdown-it';
 	import Date from '$lib/ui/Date.svelte';
 

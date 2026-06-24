@@ -1,10 +1,12 @@
 import type { JSONContent } from '@tiptap/core';
 
 export const NOTES_DOC_VERSION = 1;
+export const NOTES_PAGE_VERSION = 1;
 export const NOTES_EDITOR = 'tiptap';
-export const DEFAULT_NOTE_ID = 'default';
+export const DEFAULT_NOTE_SLUG = 'default';
+export const DEFAULT_NOTE_ID = 'page_default';
 export const NOTES_STORAGE_KEY_PREFIX = 'zaki.gg:notes:v1';
-export const NOTES_STORAGE_KEY = `${NOTES_STORAGE_KEY_PREFIX}:${DEFAULT_NOTE_ID}`;
+export const NOTES_STORAGE_KEY = `${NOTES_STORAGE_KEY_PREFIX}:default`;
 
 export const EMPTY_TIPTAP_DOC = {
 	type: 'doc',
@@ -22,6 +24,26 @@ export type NotesDocV1 = {
 	updatedAt: string;
 };
 
+export type NotePageV1 = {
+	version: typeof NOTES_PAGE_VERSION;
+	editor: typeof NOTES_EDITOR;
+	id: string;
+	slug: string;
+	title: string;
+	tags: string[];
+	content: JSONContent;
+	createdAt: string;
+	updatedAt: string;
+};
+
+export type NotePageSummary = Pick<
+	NotePageV1,
+	'id' | 'slug' | 'title' | 'tags' | 'createdAt' | 'updatedAt'
+> & {
+	assetCount: number;
+	wordCount: number;
+};
+
 export function createNotesDoc(
 	content: JSONContent,
 	updatedAt = new Date().toISOString()
@@ -34,8 +56,76 @@ export function createNotesDoc(
 	};
 }
 
-export function getNoteStorageKey(noteId = DEFAULT_NOTE_ID) {
-	return `${NOTES_STORAGE_KEY_PREFIX}:${noteId || DEFAULT_NOTE_ID}`;
+export function createNotePage(input: Partial<NotePageV1> = {}): NotePageV1 {
+	const now = new Date().toISOString();
+	const title = normalizePageTitle(input.title);
+
+	return {
+		version: NOTES_PAGE_VERSION,
+		editor: NOTES_EDITOR,
+		id: input.id || createPageId(),
+		slug: normalizePageSlug(input.slug || title || DEFAULT_NOTE_SLUG),
+		title,
+		tags: normalizePageTags(input.tags),
+		content: input.content && isJSONContent(input.content) ? input.content : EMPTY_TIPTAP_DOC,
+		createdAt: normalizeDate(input.createdAt) || now,
+		updatedAt: normalizeDate(input.updatedAt) || now
+	};
+}
+
+export function createDefaultNotePage(legacyNote?: NotesDocV1 | null): NotePageV1 {
+	const updatedAt = legacyNote?.updatedAt ?? new Date().toISOString();
+
+	return createNotePage({
+		id: DEFAULT_NOTE_ID,
+		slug: DEFAULT_NOTE_SLUG,
+		title: 'Default',
+		content: legacyNote?.content ?? EMPTY_TIPTAP_DOC,
+		createdAt: updatedAt,
+		updatedAt
+	});
+}
+
+export function createPageId() {
+	return `page_${crypto.randomUUID?.() ?? `${Date.now()}_${Math.random().toString(36).slice(2)}`}`;
+}
+
+export function getNoteStorageKey(noteId = 'default') {
+	return `${NOTES_STORAGE_KEY_PREFIX}:${noteId || 'default'}`;
+}
+
+export function normalizePageTitle(value: unknown) {
+	const title = typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : '';
+
+	return title || 'Untitled';
+}
+
+export function normalizePageSlug(value: unknown) {
+	const slug = String(value ?? '')
+		.toLowerCase()
+		.trim()
+		.replace(/['"`]/g, '')
+		.replace(/[^a-z0-9]+/g, '-')
+		.replace(/^-+|-+$/g, '')
+		.slice(0, 72);
+
+	return slug || DEFAULT_NOTE_SLUG;
+}
+
+export function titleFromSlug(slug: string) {
+	const title = normalizePageSlug(slug)
+		.split('-')
+		.filter(Boolean)
+		.map((word) => word[0]?.toUpperCase() + word.slice(1))
+		.join(' ');
+
+	return title || 'Untitled';
+}
+
+export function normalizePageTags(value: unknown) {
+	const tags = Array.isArray(value) ? value : typeof value === 'string' ? value.split(',') : [];
+
+	return [...new Set(tags.map(normalizeTag).filter(Boolean))].sort((a, b) => a.localeCompare(b));
 }
 
 export function parseStoredNote(value: unknown): NotesDocV1 | null {
@@ -58,6 +148,99 @@ export function parseStoredNote(value: unknown): NotesDocV1 | null {
 		content: note.content,
 		updatedAt: note.updatedAt
 	};
+}
+
+export function parseStoredPage(value: unknown): NotePageV1 | null {
+	if (!value || typeof value !== 'object') return null;
+
+	const page = value as Partial<NotePageV1>;
+
+	if (
+		page.version !== NOTES_PAGE_VERSION ||
+		page.editor !== NOTES_EDITOR ||
+		typeof page.id !== 'string' ||
+		typeof page.slug !== 'string' ||
+		typeof page.title !== 'string' ||
+		typeof page.createdAt !== 'string' ||
+		typeof page.updatedAt !== 'string' ||
+		!isJSONContent(page.content)
+	) {
+		return null;
+	}
+
+	return {
+		version: NOTES_PAGE_VERSION,
+		editor: NOTES_EDITOR,
+		id: page.id,
+		slug: normalizePageSlug(page.slug),
+		title: normalizePageTitle(page.title),
+		tags: normalizePageTags(page.tags),
+		content: page.content,
+		createdAt: page.createdAt,
+		updatedAt: page.updatedAt
+	};
+}
+
+export function getReferencedAssetIds(content: JSONContent) {
+	const ids = new Set<string>();
+
+	visitContent(content, (node) => {
+		if (node.type !== 'mediaBlock') return;
+
+		const assetId = typeof node.attrs?.assetId === 'string' ? node.attrs.assetId.trim() : '';
+		if (assetId) ids.add(assetId);
+	});
+
+	return [...ids];
+}
+
+export function getContentText(content: JSONContent) {
+	const parts: string[] = [];
+
+	visitContent(content, (node) => {
+		if (node.text) parts.push(node.text);
+	});
+
+	return parts.join(' ').replace(/\s+/g, ' ').trim();
+}
+
+export function summarizeNotePage(page: NotePageV1): NotePageSummary {
+	const text = getContentText(page.content);
+
+	return {
+		id: page.id,
+		slug: page.slug,
+		title: page.title,
+		tags: page.tags,
+		createdAt: page.createdAt,
+		updatedAt: page.updatedAt,
+		assetCount: getReferencedAssetIds(page.content).length,
+		wordCount: text ? text.split(/\s+/).length : 0
+	};
+}
+
+function normalizeTag(value: unknown) {
+	return String(value ?? '')
+		.toLowerCase()
+		.trim()
+		.replace(/^#+/, '')
+		.replace(/\s+/g, '-')
+		.replace(/[^a-z0-9-]/g, '')
+		.replace(/-+/g, '-')
+		.replace(/^-+|-+$/g, '');
+}
+
+function normalizeDate(value: unknown) {
+	if (typeof value !== 'string') return '';
+
+	const time = Date.parse(value);
+
+	return Number.isFinite(time) ? new Date(time).toISOString() : '';
+}
+
+function visitContent(node: JSONContent, visit: (node: JSONContent) => void) {
+	visit(node);
+	node.content?.forEach((child) => visitContent(child, visit));
 }
 
 function isJSONContent(value: unknown): value is JSONContent {

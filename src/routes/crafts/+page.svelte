@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Icon from '@iconify/svelte';
+	import Icon from '$lib/components/Icon.svelte';
 	import { Temporal } from 'temporal-polyfill';
 
 	let { data } = $props();

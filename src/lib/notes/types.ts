@@ -270,7 +270,11 @@ export function resolveNotePageMetadata(
 	frontmatter?: NotePageFrontmatter;
 } {
 	const metadataBlockFrontmatter = getNotePageMetadataBlockFrontmatter(content);
-	const metadataBlockIsSource = metadataBlockFrontmatter.hasMetadataBlock;
+	// A block with zero properties carries no metadata — treat it as absent
+	// (e.g. a schema-synthesized empty block) rather than letting it wipe the
+	// page's stored frontmatter.
+	const metadataBlockIsSource =
+		metadataBlockFrontmatter.hasMetadataBlock && Boolean(metadataBlockFrontmatter.frontmatter);
 	const frontmatter = normalizeNotePageFrontmatter({
 		...(metadataBlockIsSource ? metadataBlockFrontmatter.frontmatter : page.frontmatter),
 		...patch

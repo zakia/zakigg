@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import ActionTooltip from './ActionTooltip.svelte';
 	import {
 		getEditorShortcut,
 		isAppleShortcutPlatform,
 		shortcutTitle,
 		type EditorShortcut
 	} from './keyboard-shortcuts';
-	import ShortcutKeys from './ShortcutKeys.svelte';
 	import SaveStatus from './SaveStatus.svelte';
 	import type { SaveState } from './save-state';
 
@@ -136,12 +136,7 @@
 				onclick={() => void item.action()}
 			>
 				<Icon icon={item.icon} />
-				<span class="action-tooltip" role="tooltip">
-					<span>{item.title}</span>
-					{#if item.shortcut}
-						<ShortcutKeys keys={item.shortcut.keys} />
-					{/if}
-				</span>
+				<ActionTooltip title={item.title} shortcut={item.shortcut} />
 			</button>
 		{/each}
 	</div>
@@ -203,44 +198,6 @@
 	button :global(svg) {
 		height: 1.1rem;
 		width: 1.1rem;
-	}
-
-	.action-tooltip {
-		align-items: center;
-		background: color-mix(in oklch, var(--content) 94%, transparent);
-		border: 1px solid color-mix(in oklch, var(--edge) 62%, transparent);
-		border-radius: var(--s-4);
-		box-shadow: 0 12px 34px rgb(0 0 0 / 0.16);
-		color: var(--base);
-		display: flex;
-		font-size: var(--s-1);
-		font-weight: 650;
-		gap: var(--s-2);
-		left: 50%;
-		line-height: 1;
-		opacity: 0;
-		padding: var(--s-3) var(--s-2);
-		pointer-events: none;
-		position: absolute;
-		top: calc(100% + var(--s-3));
-		transform: translate(-50%, -0.18rem);
-		transition:
-			opacity 0.14s ease,
-			transform 0.14s ease;
-		white-space: nowrap;
-		z-index: 20;
-	}
-
-	.action-tooltip :global(kbd) {
-		background: color-mix(in oklch, var(--base) 92%, transparent);
-		border-color: color-mix(in oklch, var(--base-1) 36%, transparent);
-		color: var(--content);
-	}
-
-	button:hover .action-tooltip,
-	button:focus-visible .action-tooltip {
-		opacity: 1;
-		transform: translate(-50%, 0);
 	}
 
 	@media (max-width: 42rem) {

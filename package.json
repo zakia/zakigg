@@ -62,6 +62,7 @@
 		"chroma-js": "^3.2.0",
 		"culori": "^4.0.2",
 		"embla-carousel-svelte": "^8.6.0",
+		"fflate": "^0.8.3",
 		"highlight.js": "^11.11.1",
 		"iconify-icon": "^3.0.2",
 		"idb": "^8.0.3",

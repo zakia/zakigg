@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import ActionTooltip from './ActionTooltip.svelte';
 	import {
 		getEditorShortcut,
 		isAppleShortcutPlatform,
 		shortcutTitle,
 		type EditorShortcutId
 	} from './keyboard-shortcuts';
-	import ShortcutKeys from './ShortcutKeys.svelte';
 
 	type Props = {
 		title: string;
@@ -57,12 +57,7 @@
 	{#if text}
 		<span>{text}</span>
 	{/if}
-	<span class="toolbar-tooltip" role="tooltip">
-		<span>{title}</span>
-		{#if shortcut}
-			<ShortcutKeys keys={shortcut.keys} />
-		{/if}
-	</span>
+	<ActionTooltip {title} {shortcut} />
 </button>
 
 <style>
@@ -104,43 +99,5 @@
 		border: 1px solid var(--edge);
 		font-size: var(--s-1);
 		padding-inline: var(--s-2);
-	}
-
-	.toolbar-tooltip {
-		align-items: center;
-		background: color-mix(in oklch, var(--content) 94%, transparent);
-		border: 1px solid color-mix(in oklch, var(--edge) 62%, transparent);
-		border-radius: var(--s-4);
-		box-shadow: 0 12px 34px rgb(0 0 0 / 0.16);
-		color: var(--base);
-		display: flex;
-		font-size: var(--s-1);
-		font-weight: 650;
-		gap: var(--s-2);
-		left: 50%;
-		line-height: 1;
-		opacity: 0;
-		padding: var(--s-3) var(--s-2);
-		pointer-events: none;
-		position: absolute;
-		top: calc(100% + var(--s-3));
-		transform: translate(-50%, -0.18rem);
-		transition:
-			opacity 0.14s ease,
-			transform 0.14s ease;
-		white-space: nowrap;
-		z-index: 20;
-	}
-
-	.toolbar-tooltip :global(kbd) {
-		background: color-mix(in oklch, var(--base) 92%, transparent);
-		border-color: color-mix(in oklch, var(--base-1) 36%, transparent);
-		color: var(--content);
-	}
-
-	.toolbar-button:hover .toolbar-tooltip,
-	.toolbar-button:focus-visible .toolbar-tooltip {
-		opacity: 1;
-		transform: translate(-50%, 0);
 	}
 </style>

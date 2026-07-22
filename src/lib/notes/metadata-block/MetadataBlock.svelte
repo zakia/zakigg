@@ -1,10 +1,12 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import { flip } from 'svelte/animate';
-	import { dragHandle, dragHandleZone, type DndEvent } from 'svelte-dnd-action';
+	import { dragHandleZone, type DndEvent } from 'svelte-dnd-action';
 	import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 	import type { Readable } from 'svelte/store';
+	import ComboboxInput from '$lib/components/ComboboxInput.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import MetadataPropertyRow from './MetadataPropertyRow.svelte';
 	import { focusMetadataField, getMetadataFieldElements } from './focus';
 	import {
 		METADATA_PROPERTY_DEFINITIONS,
@@ -355,14 +357,10 @@
 		exitBlock('after');
 	}
 
-	function handlePropertyKeyInput(event: Event) {
-		propertyKeyDraft = (event.currentTarget as HTMLInputElement).value;
+	function handlePropertyKeyInput(value: string) {
+		propertyKeyDraft = value;
 		propertyComboboxOpen = true;
 		highlightedPropertyIndex = 0;
-	}
-
-	function handlePropertyKeyFocus() {
-		propertyComboboxOpen = true;
 	}
 
 	function handlePropertyKeyBlur() {
@@ -438,22 +436,10 @@
 		addProperty(definition);
 	}
 
-	function getTextValue(value: MetadataPropertyValue) {
-		return Array.isArray(value)
-			? value.join(', ')
-			: typeof value === 'boolean'
-				? String(value)
-				: value;
-	}
+	function selectPropertyKey(key: string) {
+		const definition = availableProperties.find((candidate) => candidate.key === key);
 
-	function getListValue(value: MetadataPropertyValue) {
-		return Array.isArray(value) ? value : normalizeMetadataList(value);
-	}
-
-	function getDateValue(value: MetadataPropertyValue) {
-		const raw = getTextValue(value);
-
-		return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : '';
+		if (definition) addProperty(definition);
 	}
 
 	function commitListDraft(key: string) {
@@ -462,15 +448,21 @@
 
 		if (!nextItems.length) return;
 
-		updateProperty(key, [...getListValue(getEntryValue(key) ?? []), ...nextItems]);
+		updateProperty(key, [...getListValue(key), ...nextItems]);
 		listDrafts[key] = '';
 	}
 
 	function removeListItem(key: string, item: string) {
 		updateProperty(
 			key,
-			getListValue(getEntryValue(key) ?? []).filter((current) => current !== item)
+			getListValue(key).filter((current) => current !== item)
 		);
+	}
+
+	function getListValue(key: string) {
+		const value = getEntryValue(key) ?? [];
+
+		return Array.isArray(value) ? value : normalizeMetadataList(value);
 	}
 
 	function handleListKeydown(event: KeyboardEvent, key: string) {
@@ -483,7 +475,7 @@
 		if (event.key !== 'Backspace' || listDrafts[key]) return;
 		if (event.metaKey || event.ctrlKey) return;
 
-		const values = getListValue(getEntryValue(key) ?? []);
+		const values = getListValue(key);
 		if (!values.length) return;
 
 		event.preventDefault();
@@ -557,102 +549,29 @@
 				onfinalize={handleDndFinalize}
 			>
 				{#each dndRows as row (row.id)}
-					{@const definition = row.definition}
 					<div
 						class="metadata-row"
-						data-property-key={definition.key}
+						data-property-key={row.definition.key}
 						role="listitem"
 						animate:flip={{ duration: ROW_FLIP_DURATION }}
 					>
-						<div
-							class="drag-handle"
-							use:dragHandle
-							aria-label={`Drag ${definition.label}`}
-							title={`Drag ${definition.label}`}
-						>
-							<Icon icon="mdi:drag" />
-						</div>
-
-						<button
-							type="button"
-							class="property-name"
-							data-metadata-key
-							data-key={definition.key}
-							title={`${definition.label} property`}
-							onkeydown={(event) => handleKeyCellKeydown(event, definition.key)}
-						>
-							<Icon icon={definition.icon} />
-							<span>{definition.label}</span>
-						</button>
-
-						<div class="property-control">
-							{#if definition.type === 'list'}
-								<div class="chip-input">
-									{#each getListValue(row.value) as item (item)}
-										<span class="chip">
-											{item}
-											<button
-												type="button"
-												tabindex={-1}
-												aria-label={`Remove ${item}`}
-												onclick={() => removeListItem(definition.key, item)}
-											>
-												<Icon icon="mdi:close" />
-											</button>
-										</span>
-									{/each}
-									<input
-										aria-label={definition.label}
-										data-metadata-field
-										placeholder="Empty"
-										value={listDrafts[definition.key] ?? ''}
-										oninput={(event) => (listDrafts[definition.key] = event.currentTarget.value)}
-										onblur={() => commitListDraft(definition.key)}
-										onkeydown={(event) => handleListValueKeydown(event, definition.key)}
-									/>
-								</div>
-							{:else if definition.type === 'boolean'}
-								<label class="boolean-control">
-									<input
-										type="checkbox"
-										data-metadata-field
-										checked={row.value === true}
-										onchange={(event) =>
-											updateProperty(definition.key, event.currentTarget.checked)}
-										onkeydown={(event) => handleValueKeydown(event, { key: definition.key })}
-									/>
-									<span>{row.value === true ? 'true' : 'false'}</span>
-								</label>
-							{:else}
-								<input
-									aria-label={definition.label}
-									data-metadata-field
-									type={definition.type === 'date' ? 'date' : 'text'}
-									placeholder={definition.type === 'date' ? 'yyyy-mm-dd' : 'Empty'}
-									value={textDrafts[definition.key] ??
-										(definition.type === 'date'
-											? getDateValue(row.value)
-											: getTextValue(row.value))}
-									oninput={(event) => updateTextProperty(definition.key, event.currentTarget.value)}
-									onblur={() => clearTextDraft(definition.key)}
-									onkeydown={(event) =>
-										handleValueKeydown(event, {
-											key: definition.key,
-											arrows: definition.type !== 'date'
-										})}
-								/>
-							{/if}
-						</div>
-
-						<button
-							type="button"
-							class="remove-property"
-							tabindex={-1}
-							aria-label={`Remove ${definition.label}`}
-							onclick={() => removePropertyAndFocusNeighbor(definition.key)}
-						>
-							<Icon icon="mdi:close" />
-						</button>
+						<MetadataPropertyRow
+							definition={row.definition}
+							value={row.value}
+							listDraft={listDrafts[row.definition.key] ?? ''}
+							textDraft={textDrafts[row.definition.key]}
+							onKeyCellKeydown={(event) => handleKeyCellKeydown(event, row.definition.key)}
+							onValueKeydown={(event, options) =>
+								handleValueKeydown(event, { key: row.definition.key, ...options })}
+							onListKeydown={(event) => handleListValueKeydown(event, row.definition.key)}
+							onListDraft={(value) => (listDrafts[row.definition.key] = value)}
+							onListCommit={() => commitListDraft(row.definition.key)}
+							onListRemoveItem={(item) => removeListItem(row.definition.key, item)}
+							onToggle={(checked) => updateProperty(row.definition.key, checked)}
+							onTextInput={(value) => updateTextProperty(row.definition.key, value)}
+							onTextBlur={() => clearTextDraft(row.definition.key)}
+							onRemove={() => removePropertyAndFocusNeighbor(row.definition.key)}
+						/>
 					</div>
 				{/each}
 			</div>
@@ -670,47 +589,27 @@
 							<Icon icon="mdi:plus" />
 						</button>
 
-						<div class="property-key-combobox">
-							<input
-								bind:this={propertyKeyInput}
-								aria-activedescendant={propertyComboboxOpen &&
-								filteredAvailableProperties[highlightedPropertyIndex]
-									? `${propertyOptionsId}-${filteredAvailableProperties[highlightedPropertyIndex].key}`
-									: undefined}
-								aria-controls={propertyOptionsId}
-								aria-expanded={propertyComboboxOpen}
-								aria-label="Property key"
+						<div class="property-key-slot">
+							<ComboboxInput
+								bind:inputEl={propertyKeyInput}
 								data-metadata-field
-								role="combobox"
-								autocomplete="off"
-								spellcheck="false"
+								options={filteredAvailableProperties.map((definition) => ({
+									id: definition.key,
+									label: definition.label,
+									icon: definition.icon
+								}))}
 								value={propertyKeyDraft}
-								onblur={handlePropertyKeyBlur}
-								onfocus={handlePropertyKeyFocus}
-								oninput={handlePropertyKeyInput}
-								onkeydown={handlePropertyKeydown}
+								open={propertyComboboxOpen}
+								highlightedIndex={highlightedPropertyIndex}
+								listboxId={propertyOptionsId}
+								label="Property key"
+								onInput={handlePropertyKeyInput}
+								onFocus={() => (propertyComboboxOpen = true)}
+								onBlur={handlePropertyKeyBlur}
+								onKeydown={handlePropertyKeydown}
+								onSelect={selectPropertyKey}
+								onHighlight={(index) => (highlightedPropertyIndex = index)}
 							/>
-
-							{#if propertyComboboxOpen && filteredAvailableProperties.length}
-								<div class="property-menu" id={propertyOptionsId} role="listbox">
-									{#each filteredAvailableProperties as definition, index (definition.key)}
-										<button
-											type="button"
-											id={`${propertyOptionsId}-${definition.key}`}
-											class:highlighted={index === highlightedPropertyIndex}
-											role="option"
-											tabindex={-1}
-											aria-selected={index === highlightedPropertyIndex}
-											onmousedown={(event) => event.preventDefault()}
-											onmouseenter={() => (highlightedPropertyIndex = index)}
-											onclick={() => addProperty(definition)}
-										>
-											<Icon icon={definition.icon} />
-											<span>{definition.label}</span>
-										</button>
-									{/each}
-								</div>
-							{/if}
 						</div>
 
 						<div class="property-value-placeholder">Empty</div>
@@ -749,22 +648,9 @@
 		margin-block-end: var(--s-1);
 	}
 
-	.metadata-header,
-	.metadata-row,
-	.property-name,
-	.chip-input,
-	.chip,
-	.property-value-placeholder,
-	.boolean-control,
-	.add-property,
-	.add-property-button,
-	.add-property-plus,
-	.property-menu button {
+	.metadata-header {
 		align-items: center;
 		display: flex;
-	}
-
-	.metadata-header {
 		gap: var(--s-3);
 		min-height: 2rem;
 	}
@@ -784,23 +670,13 @@
 		padding: 0;
 	}
 
-	button:disabled {
-		cursor: default;
-		opacity: 0.45;
-	}
-
-	button:focus-visible,
-	input:focus-visible,
-	.drag-handle:focus-visible {
+	button:focus-visible {
 		box-shadow: var(--focus-ring);
 		outline: none;
 	}
 
 	.collapse-button,
-	.drag-handle,
-	.add-property-plus,
-	.remove-property,
-	.chip button {
+	.add-property-plus {
 		border-radius: var(--s-5);
 		color: var(--content-1);
 		display: grid;
@@ -811,10 +687,7 @@
 	}
 
 	.collapse-button:hover,
-	.drag-handle:hover,
-	.add-property-plus:hover,
-	.remove-property:hover,
-	.chip button:hover {
+	.add-property-plus:hover {
 		background: color-mix(in oklch, var(--base-1) 82%, var(--content) 8%);
 		color: var(--content);
 	}
@@ -838,46 +711,6 @@
 		position: relative;
 	}
 
-	.drag-handle {
-		cursor: grab;
-		margin-inline-start: calc(var(--s-5) * -1);
-	}
-
-	.drag-handle:active {
-		cursor: grabbing;
-	}
-
-	.property-name {
-		border-radius: var(--s-5);
-		color: var(--content-1);
-		font-weight: 700;
-		gap: var(--s-3);
-		justify-content: flex-start;
-		min-width: 0;
-		padding-inline: var(--s-4);
-		text-align: start;
-	}
-
-	.property-name:hover,
-	.property-name:focus-visible {
-		background: color-mix(in oklch, var(--base-1) 72%, transparent);
-		color: var(--content);
-	}
-
-	.property-name :global(svg),
-	.drag-handle :global(svg),
-	.add-property-button :global(svg),
-	.add-property-plus :global(svg),
-	.property-menu :global(svg) {
-		flex: 0 0 auto;
-		height: 1.05rem;
-		width: 1.05rem;
-	}
-
-	.property-control {
-		min-width: 0;
-	}
-
 	.metadata-row-new {
 		align-items: start;
 	}
@@ -887,17 +720,14 @@
 		margin-top: 0.2rem;
 	}
 
-	.property-key-combobox {
+	.property-key-slot {
 		min-width: 0;
-		position: relative;
-	}
-
-	.property-key-combobox input {
-		font-weight: 720;
 	}
 
 	.property-value-placeholder {
+		align-items: center;
 		color: color-mix(in oklch, var(--content-1) 72%, transparent);
+		display: flex;
 		min-height: 2rem;
 		min-width: 0;
 		padding-inline: var(--s-3);
@@ -909,97 +739,18 @@
 		width: 1.6rem;
 	}
 
-	input {
-		background: transparent;
-		border: 1px solid transparent;
-		border-radius: var(--s-5);
-		color: var(--content);
-		font: inherit;
-		min-height: 2rem;
-		min-width: 0;
-		padding: 0 var(--s-3);
-		width: 100%;
-	}
-
-	input::placeholder {
-		color: color-mix(in oklch, var(--content-1) 62%, transparent);
-	}
-
-	input:hover,
-	input:focus {
-		background: color-mix(in oklch, var(--base-1) 72%, transparent);
-		border-color: color-mix(in oklch, var(--edge) 76%, transparent);
-	}
-
-	.chip-input {
-		border: 1px solid transparent;
-		border-radius: var(--s-5);
-		flex-wrap: wrap;
-		gap: var(--s-4);
-		min-height: 2rem;
-		padding-inline: var(--s-4);
-	}
-
-	.chip-input:focus-within,
-	.chip-input:hover {
-		background: color-mix(in oklch, var(--base-1) 72%, transparent);
-		border-color: color-mix(in oklch, var(--edge) 76%, transparent);
-	}
-
-	.chip-input input {
-		border: 0;
-		flex: 1 1 8rem;
-		min-height: 1.7rem;
-		padding-inline: var(--s-4);
-		width: auto;
-	}
-
-	.chip-input input:hover,
-	.chip-input input:focus {
-		background: transparent;
-		border-color: transparent;
-		box-shadow: none;
-	}
-
-	.chip {
-		background: color-mix(in oklch, var(--brand) 18%, transparent);
-		border-radius: 999px;
-		color: color-mix(in oklch, var(--brand) 68%, var(--content));
-		font-weight: 720;
-		gap: 0.15rem;
-		line-height: 1;
-		min-height: 1.55rem;
-		padding: 0.1rem 0.1rem 0.1rem var(--s-3);
-	}
-
-	.chip button {
-		height: 1.25rem;
-		width: 1.25rem;
-	}
-
-	.boolean-control {
-		color: var(--content-1);
-		gap: var(--s-3);
-		min-height: 2rem;
-		width: fit-content;
-	}
-
-	.boolean-control input {
-		accent-color: var(--brand);
-		height: 1rem;
-		padding: 0;
-		width: 1rem;
-	}
-
 	.add-property {
 		align-items: start;
 		color: var(--content-1);
+		display: flex;
 		gap: var(--s-3);
 		position: relative;
 	}
 
 	.add-property-button {
+		align-items: center;
 		border-radius: var(--s-5);
+		display: flex;
 		gap: var(--s-3);
 		min-height: 2rem;
 		padding: 0 var(--s-3);
@@ -1010,35 +761,12 @@
 		color: var(--content);
 	}
 
-	.property-menu {
-		background: var(--base-1);
-		border: 1px solid color-mix(in oklch, var(--edge) 78%, transparent);
-		border-radius: var(--s-3);
-		box-shadow: 0 1rem 2rem color-mix(in oklch, black 16%, transparent);
-		display: grid;
-		gap: var(--s-5);
-		left: 0;
-		max-height: min(22rem, 52vh);
-		min-width: min(16rem, 86vw);
-		overflow: auto;
-		padding: var(--s-4);
-		position: absolute;
-		top: calc(100% + var(--s-4));
-		z-index: 5;
-	}
-
-	.property-menu button {
-		border-radius: var(--s-5);
-		gap: var(--s-3);
-		min-height: 2rem;
-		padding: 0 var(--s-3);
-		text-align: start;
-	}
-
-	.property-menu button:hover,
-	.property-menu button.highlighted {
-		background: color-mix(in oklch, var(--base) 80%, var(--brand) 8%);
-		color: var(--content);
+	.collapse-button :global(svg),
+	.add-property-plus :global(svg),
+	.add-property-button :global(svg) {
+		flex: 0 0 auto;
+		height: 1.05rem;
+		width: 1.05rem;
 	}
 
 	@media (max-width: 42rem) {
@@ -1046,15 +774,7 @@
 			grid-template-columns: auto minmax(0, 1fr) auto;
 		}
 
-		.property-name {
-			grid-column: 2 / -1;
-		}
-
-		.property-control {
-			grid-column: 2 / -1;
-		}
-
-		.metadata-row-new .property-key-combobox,
+		.metadata-row-new .property-key-slot,
 		.metadata-row-new .property-value-placeholder {
 			grid-column: 2 / -1;
 		}

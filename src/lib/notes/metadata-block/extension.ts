@@ -29,7 +29,7 @@ export const MetadataBlock = Node.create({
 				default: []
 			},
 			collapsed: {
-				default: false
+				default: true
 			},
 			adding: {
 				default: false,

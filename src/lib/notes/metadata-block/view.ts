@@ -5,7 +5,7 @@ import type { NodeView } from '@tiptap/pm/view';
 import { flushSync, mount, unmount } from 'svelte';
 import { writable } from 'svelte/store';
 import MetadataBlock from './MetadataBlock.svelte';
-import { normalizeMetadataBlockAttrs, type MetadataEntry } from './config';
+import type { MetadataEntry } from './config';
 
 export function createMetadataBlockNodeView(editor: Editor) {
 	return ({
@@ -37,12 +37,6 @@ export function createMetadataBlockNodeView(editor: Editor) {
 		const updateProperties = (properties: MetadataEntry[]) => {
 			updateAttributes({
 				properties
-			});
-		};
-
-		const setCollapsed = (collapsed: boolean) => {
-			updateAttributes({
-				collapsed
 			});
 		};
 
@@ -103,7 +97,6 @@ export function createMetadataBlockNodeView(editor: Editor) {
 			props: {
 				node: nodeStore,
 				updateProperties,
-				setCollapsed,
 				setAdding,
 				exitBlock
 			}
@@ -117,10 +110,6 @@ export function createMetadataBlockNodeView(editor: Editor) {
 				if (updatedNode.type.name !== currentNode.type.name) return false;
 
 				currentNode = updatedNode;
-				root.toggleAttribute(
-					'data-collapsed',
-					normalizeMetadataBlockAttrs(currentNode.attrs).collapsed
-				);
 				nodeStore.set(currentNode);
 
 				return true;

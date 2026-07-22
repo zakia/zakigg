@@ -107,7 +107,9 @@ export function normalizeMetadataBlockAttrs(value: unknown): MetadataBlockAttrs 
 
 	return {
 		properties: normalizeMetadataEntries(attrs.properties),
-		collapsed: attrs.collapsed === true,
+		// Collapsed unless explicitly opened — properties stay out of the way
+		// by default. Stored documents carry an explicit boolean either way.
+		collapsed: attrs.collapsed !== false,
 		adding: attrs.adding === true
 	};
 }
@@ -201,7 +203,7 @@ export function createMetadataBlockContent(
 		type: METADATA_BLOCK_NODE_NAME,
 		attrs: {
 			properties: normalizeMetadataEntries(properties),
-			collapsed: attrs.collapsed === true,
+			collapsed: attrs.collapsed !== false,
 			adding: attrs.adding === true
 		}
 	};

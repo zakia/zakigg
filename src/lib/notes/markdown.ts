@@ -1,5 +1,23 @@
 import type { Editor, JSONContent } from '@tiptap/core';
+import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import { normalizeMediaBlockAttrs } from '$lib/editor/media-block/config';
+import {
+	METADATA_BLOCK_NODE_NAME,
+	createMetadataBlockContent,
+	getMetadataBlockProperties,
+	insertMetadataBlockAfterFirstHeading,
+	normalizeMetadataProperties,
+	type MetadataProperties
+} from './metadata-block';
+import {
+	metadataPropertiesToNotePageFrontmatter,
+	normalizePageSlug,
+	normalizePageTags,
+	resolveNotePageMetadata,
+	type NotePageFrontmatter,
+	type NotePageMetadataPatch,
+	type NotePageV1
+} from './types';
 
 type MarkdownEditor = Editor & {
 	getMarkdown: () => string;
@@ -13,24 +31,81 @@ const MARKDOWN_MIME_TYPES = new Set(['text/markdown', 'text/x-markdown']);
 const MARKDOWN_BLOCK_RE =
 	/^[ \t]{0,3}(?:#{1,6}\s+\S|[-+*]\s+\S|\d+[.)]\s+\S|>\s+\S|`{3,}|~{3,}|-{3,}\s*$|\*{3,}\s*$|_{3,}\s*$|\|.+\||::component\{)/m;
 const MARKDOWN_INLINE_RE = /(?:!\[[^\]]*]\([^)]+\)|\[[^\]]+]\([^)]+\)|`[^`]+`|\*\*[^*]+\*\*)/;
+const FRONTMATTER_RE = /^\uFEFF?---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/;
+
+export type NoteMarkdownFrontmatter = NotePageFrontmatter;
+
+export type ParsedMarkdown = {
+	markdown: string;
+	frontmatter?: NoteMarkdownFrontmatter;
+	properties?: MetadataProperties;
+	hasFrontmatter: boolean;
+};
+
+export type InsertEditorMarkdownResult = {
+	inserted: boolean;
+	frontmatter?: NoteMarkdownFrontmatter;
+	properties?: MetadataProperties;
+};
+
+export type ParsedFrontmatterSource = {
+	frontmatter?: NoteMarkdownFrontmatter;
+	properties?: MetadataProperties;
+	error?: string;
+};
 
 export function getEditorMarkdown(editor?: Editor) {
 	return editor ? (editor as MarkdownEditor).getMarkdown() : '';
 }
 
-export function insertEditorMarkdown(editor: Editor | undefined, markdown: string) {
-	if (!editor || !markdown.trim()) return false;
+export function insertEditorMarkdown(
+	editor: Editor | undefined,
+	markdown: string
+): InsertEditorMarkdownResult {
+	if (!editor || !markdown.trim()) return { inserted: false };
 
-	const content = (editor as MarkdownEditor).markdown?.parse(markdown)?.content;
+	const parsed = parseMarkdownFrontmatter(markdown);
 
-	if (!content?.length) return false;
+	if (!parsed.markdown.trim()) {
+		return {
+			inserted: parsed.properties
+				? editor.chain().focus().insertContent(createMetadataBlockContent(parsed.properties)).run()
+				: parsed.hasFrontmatter,
+			frontmatter: parsed.frontmatter,
+			properties: parsed.properties
+		};
+	}
 
-	return editor.chain().focus().insertContent(normalizeMarkdownContent(content)).run();
+	const parsedContent = (editor as MarkdownEditor).markdown?.parse(parsed.markdown)?.content;
+
+	if (!parsedContent?.length) {
+		return {
+			inserted: false,
+			frontmatter: parsed.frontmatter,
+			properties: parsed.properties
+		};
+	}
+
+	const normalizedContent: JSONContent = {
+		type: 'doc',
+		content: normalizeMarkdownContent(parsedContent)
+	};
+	const content = parsed.properties
+		? (insertMetadataBlockAfterFirstHeading(normalizedContent, parsed.properties).content ?? [])
+		: (normalizedContent.content ?? []);
+
+	return {
+		inserted: editor.chain().focus().insertContent(content).run(),
+		frontmatter: parsed.frontmatter,
+		properties: parsed.properties
+	};
 }
 
 export function looksLikeMarkdown(value: string) {
-	const text = value.trim();
+	const parsed = parseMarkdownFrontmatter(value);
+	const text = parsed.markdown.trim();
 
+	if (parsed.hasFrontmatter) return true;
 	if (!text) return false;
 	if (text.includes('::component{')) return true;
 
@@ -88,8 +163,236 @@ export function serializeNoteMarkdown(
 	return markdown ? `${markdown}\n` : '';
 }
 
+export function serializeNotePageMarkdown(
+	page: NotePageV1,
+	content: JSONContent = page.content,
+	options: { assetPaths?: Map<string, string> } = {}
+) {
+	const exportContent = getMetadataBlockProperties(content)
+		? content
+		: insertMetadataBlockAfterFirstHeading(content, getNotePageFrontmatter(page, content));
+
+	return serializeNoteMarkdown(exportContent, options);
+}
+
+export function getNotePageFrontmatter(
+	page: NotePageV1,
+	content: JSONContent = page.content
+): NoteMarkdownFrontmatter {
+	const metadata = resolveNotePageMetadata(page, content);
+
+	return {
+		...(page.frontmatter?.title ? { title: metadata.title } : {}),
+		...(page.frontmatter?.slug ? { slug: metadata.slug } : {}),
+		...(page.frontmatter?.description ? { description: page.frontmatter.description } : {}),
+		tags: metadata.tags,
+		date: dateOnly(metadata.createdAt),
+		...(typeof page.frontmatter?.draft === 'boolean' ? { draft: page.frontmatter.draft } : {})
+	};
+}
+
+export function getDefaultNotePageFrontmatter(
+	page: NotePageV1,
+	content: JSONContent = page.content
+): NoteMarkdownFrontmatter {
+	return getNotePageFrontmatter({ ...page, frontmatter: undefined }, content);
+}
+
+export function serializeNoteFrontmatterYaml(frontmatter: NoteMarkdownFrontmatter) {
+	return serializeMetadataPropertiesYaml(frontmatter);
+}
+
+export function parseMarkdownFrontmatter(markdown: string): ParsedMarkdown {
+	const topMatch = markdown.match(FRONTMATTER_RE);
+
+	if (topMatch) {
+		const parsed = parseNoteFrontmatterYaml(topMatch[1] ?? '');
+
+		return {
+			markdown: markdown.slice(topMatch[0].length),
+			frontmatter: parsed.frontmatter,
+			properties: parsed.properties,
+			hasFrontmatter: true
+		};
+	}
+
+	const embedded = findHeadingFrontmatter(markdown);
+
+	if (!embedded) return { markdown, hasFrontmatter: false };
+
+	const parsed = parseNoteFrontmatterYaml(embedded.yaml);
+
+	return {
+		markdown: embedded.markdown,
+		frontmatter: parsed.frontmatter,
+		properties: parsed.properties,
+		hasFrontmatter: true
+	};
+}
+
+export function frontmatterToPageMetadata(
+	frontmatter: NoteMarkdownFrontmatter | undefined,
+	defaults?: NoteMarkdownFrontmatter,
+	clearMissing = false
+): NotePageMetadataPatch {
+	if (!frontmatter) {
+		return clearMissing
+			? {
+					title: undefined,
+					slug: undefined,
+					description: undefined,
+					tags: undefined,
+					date: undefined,
+					draft: undefined
+				}
+			: {};
+	}
+
+	const tags = frontmatter.tags ?? [];
+
+	return {
+		...(frontmatter.title && frontmatter.title !== defaults?.title
+			? { title: frontmatter.title }
+			: clearMissing
+				? { title: undefined }
+				: {}),
+		...(frontmatter.slug && frontmatter.slug !== defaults?.slug
+			? { slug: frontmatter.slug }
+			: clearMissing
+				? { slug: undefined }
+				: {}),
+		...(frontmatter.description && frontmatter.description !== defaults?.description
+			? { description: frontmatter.description }
+			: clearMissing
+				? { description: undefined }
+				: {}),
+		...(frontmatter.tags ? { tags } : clearMissing ? { tags: undefined } : {}),
+		...(frontmatter.date && frontmatter.date !== defaults?.date
+			? { date: frontmatter.date }
+			: clearMissing
+				? { date: undefined }
+				: {}),
+		...(typeof frontmatter.draft === 'boolean' && frontmatter.draft !== defaults?.draft
+			? { draft: frontmatter.draft }
+			: clearMissing
+				? { draft: undefined }
+				: {})
+	};
+}
+
 function getFileKey(file: File) {
 	return [file.name, file.type, file.size, file.lastModified].join(':');
+}
+
+export function parseNoteFrontmatterYaml(source: string): ParsedFrontmatterSource {
+	try {
+		const parsed = parseYaml(source);
+		if (!parsed) return {};
+		if (typeof parsed !== 'object' || Array.isArray(parsed)) {
+			return { error: 'Frontmatter must be a YAML object.' };
+		}
+
+		const properties = normalizeMetadataProperties(parsed);
+		const frontmatter = metadataPropertiesToNotePageFrontmatter(properties);
+
+		return {
+			frontmatter,
+			properties: Object.keys(properties).length ? properties : undefined
+		};
+	} catch (error) {
+		return {
+			error: error instanceof Error ? error.message : 'Invalid YAML frontmatter.'
+		};
+	}
+}
+
+export function serializeMetadataPropertiesYaml(properties: MetadataProperties) {
+	const normalized = normalizeMetadataProperties(properties);
+	if (!Object.keys(normalized).length) return '';
+
+	const serializable = Object.fromEntries(
+		Object.entries(normalized).map(([key, value]) => [
+			key,
+			Array.isArray(value) ? (value.length ? value : null) : value === '' ? null : value
+		])
+	);
+
+	return stringifyYaml(serializable, {
+		lineWidth: 0,
+		nullStr: ''
+	}).trimEnd();
+}
+
+function findHeadingFrontmatter(markdown: string) {
+	const lines = markdown.match(/[^\n]*(?:\n|$)/g)?.filter((line) => line.length) ?? [];
+	const offsets: number[] = [];
+	let offset = 0;
+
+	for (const line of lines) {
+		offsets.push(offset);
+		offset += line.length;
+	}
+
+	const headingLine = lines.findIndex((line) => isLevelOneHeadingLine(line));
+	if (headingLine < 0) return;
+
+	let fenceLine = headingLine + 1;
+
+	while (fenceLine < lines.length && isBlankLine(lines[fenceLine])) {
+		fenceLine += 1;
+	}
+
+	const block = getYamlFenceBlock(lines, offsets, fenceLine);
+	if (!block) return;
+
+	return {
+		yaml: block.yaml,
+		markdown: markdown.slice(0, offsets[fenceLine]) + markdown.slice(block.end)
+	};
+}
+
+function getYamlFenceBlock(lines: string[], offsets: number[], startLine: number) {
+	if (!isYamlFenceLine(lines[startLine])) return;
+
+	for (let line = startLine + 1; line < lines.length; line += 1) {
+		if (!isYamlFenceLine(lines[line])) continue;
+
+		return {
+			yaml: lines
+				.slice(startLine + 1, line)
+				.join('')
+				.trimEnd(),
+			end: offsets[line] + lines[line].length
+		};
+	}
+}
+
+function isLevelOneHeadingLine(line: string) {
+	return /^[ \t]{0,3}#[ \t]+\S/.test(stripLineEnding(line).replace(/^\uFEFF/, ''));
+}
+
+function isYamlFenceLine(line: string | undefined) {
+	return (
+		stripLineEnding(line ?? '')
+			.replace(/^\uFEFF/, '')
+			.trim() === '---'
+	);
+}
+
+function isBlankLine(line: string | undefined) {
+	return stripLineEnding(line ?? '').trim() === '';
+}
+
+function stripLineEnding(line: string) {
+	return line.replace(/\r?\n$/, '');
+}
+
+function dateOnly(value: string) {
+	const time = Date.parse(value);
+
+	return Number.isFinite(time)
+		? new Date(time).toISOString().slice(0, 10)
+		: new Date().toISOString().slice(0, 10);
 }
 
 function normalizeMarkdownContent(content: JSONContent[]) {
@@ -140,6 +443,8 @@ function renderBlock(node: JSONContent, context: RenderContext): string {
 			return renderCodeBlock(node);
 		case 'mediaBlock':
 			return renderMediaBlock(node, context);
+		case METADATA_BLOCK_NODE_NAME:
+			return renderMetadataBlock(node);
 		case 'componentEmbed':
 			return renderComponentEmbed(node);
 		case 'table':
@@ -251,6 +556,13 @@ function renderMediaBlock(node: JSONContent, context: RenderContext) {
 		: '';
 
 	return `<figure data-media-block data-media-kind="${attrs.kind}">\n${media}${caption}\n</figure>`;
+}
+
+function renderMetadataBlock(node: JSONContent) {
+	const properties = normalizeMetadataProperties(node.attrs?.properties);
+	const yaml = serializeMetadataPropertiesYaml(properties);
+
+	return yaml ? `---\n${yaml}\n---` : '---\n---';
 }
 
 function renderComponentEmbed(node: JSONContent) {

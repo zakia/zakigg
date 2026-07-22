@@ -56,6 +56,117 @@ export async function createZipBlob(entries: ZipEntryInput[]) {
 	});
 }
 
+export type UnzippedEntry = {
+	path: string;
+	bytes: Uint8Array;
+};
+
+const textDecoder = new TextDecoder();
+
+const EOCD_SIGNATURE = 0x06054b50;
+const CENTRAL_DIRECTORY_SIGNATURE = 0x02014b50;
+const LOCAL_FILE_SIGNATURE = 0x04034b50;
+
+export async function readZipEntries(
+	source: Blob | ArrayBuffer | Uint8Array
+): Promise<UnzippedEntry[]> {
+	const buffer = await toArrayBuffer(source);
+	const view = new DataView(buffer);
+	const bytes = new Uint8Array(buffer);
+	const eocd = findEndOfCentralDirectory(view);
+
+	if (!eocd) throw new Error('Not a valid zip archive.');
+
+	const entries: UnzippedEntry[] = [];
+	let pointer = eocd.centralDirectoryOffset;
+
+	for (let index = 0; index < eocd.entryCount; index += 1) {
+		if (
+			pointer + 46 > view.byteLength ||
+			view.getUint32(pointer, true) !== CENTRAL_DIRECTORY_SIGNATURE
+		) {
+			break;
+		}
+
+		const method = view.getUint16(pointer + 10, true);
+		const compressedSize = view.getUint32(pointer + 20, true);
+		const nameLength = view.getUint16(pointer + 28, true);
+		const extraLength = view.getUint16(pointer + 30, true);
+		const commentLength = view.getUint16(pointer + 32, true);
+		const localOffset = view.getUint32(pointer + 42, true);
+		const path = textDecoder.decode(bytes.subarray(pointer + 46, pointer + 46 + nameLength));
+
+		if (path && !path.endsWith('/')) {
+			entries.push({
+				path,
+				bytes: await readLocalEntry(view, bytes, localOffset, method, compressedSize)
+			});
+		}
+
+		pointer += 46 + nameLength + extraLength + commentLength;
+	}
+
+	return entries;
+}
+
+async function readLocalEntry(
+	view: DataView,
+	bytes: Uint8Array,
+	localOffset: number,
+	method: number,
+	compressedSize: number
+) {
+	if (view.getUint32(localOffset, true) !== LOCAL_FILE_SIGNATURE) {
+		throw new Error('Corrupt zip entry.');
+	}
+
+	const nameLength = view.getUint16(localOffset + 26, true);
+	const extraLength = view.getUint16(localOffset + 28, true);
+	const dataStart = localOffset + 30 + nameLength + extraLength;
+	const compressed = bytes.subarray(dataStart, dataStart + compressedSize);
+
+	if (method === 0) return compressed.slice();
+	if (method === 8) return inflateRaw(compressed);
+
+	throw new Error(`Unsupported zip compression method: ${method}`);
+}
+
+async function inflateRaw(data: Uint8Array): Promise<Uint8Array> {
+	const stream = new Blob([toBlobPart(data)])
+		.stream()
+		.pipeThrough(new DecompressionStream('deflate-raw'));
+
+	return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+function findEndOfCentralDirectory(view: DataView) {
+	const minOffset = Math.max(0, view.byteLength - 22 - 0xffff);
+
+	for (let offset = view.byteLength - 22; offset >= minOffset; offset -= 1) {
+		if (view.getUint32(offset, true) !== EOCD_SIGNATURE) continue;
+
+		return {
+			entryCount: view.getUint16(offset + 10, true),
+			centralDirectorySize: view.getUint32(offset + 12, true),
+			centralDirectoryOffset: view.getUint32(offset + 16, true)
+		};
+	}
+
+	return null;
+}
+
+async function toArrayBuffer(source: Blob | ArrayBuffer | Uint8Array): Promise<ArrayBuffer> {
+	if (source instanceof ArrayBuffer) return source;
+	if (source instanceof Uint8Array) {
+		return source.buffer.slice(
+			source.byteOffset,
+			source.byteOffset + source.byteLength
+		) as ArrayBuffer;
+	}
+
+	return source.arrayBuffer();
+}
+
 export function downloadBlob(blob: Blob, fileName: string) {
 	const url = URL.createObjectURL(blob);
 	const anchor = document.createElement('a');

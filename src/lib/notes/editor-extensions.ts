@@ -6,6 +6,7 @@ import { CodeBlock } from '../editor/code-block';
 import { MediaBlock, type MediaBlockAssetResolver } from '../editor/media-block';
 import { EditorLink, MarkdownLinkInput } from './links';
 import { ListContinuity, ListMarkerInput } from './lists';
+import { MetadataBlock } from './metadata-block';
 import { Table, TableCell, TableHeader, TableKit, TableRow } from './tables';
 
 export function createEditorExtensions(
@@ -24,6 +25,7 @@ export function createEditorExtensions(
 		MediaBlock.configure({
 			resolveAssetSrc: resolveMediaAssetSrc
 		}),
+		MetadataBlock,
 		ComponentEmbed.configure({
 			registry: componentEmbedRegistry
 		}),
@@ -53,7 +55,10 @@ export function createEditorExtensions(
 			}
 		}),
 		Placeholder.configure({
-			placeholder: 'Start writing...'
+			placeholder: ({ node }) =>
+				node.type.name === 'heading' && Number(node.attrs.level) === 1
+					? 'Untitled'
+					: 'Start writing...'
 		})
 	];
 }

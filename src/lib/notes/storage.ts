@@ -121,14 +121,65 @@ export async function createNotePageRecord(input: Partial<NotePageV1> = {}): Pro
 
 	await initializeNotesDb();
 
-	const page = createNotePage({
-		...input,
-		slug: await getAvailablePageSlug(input.slug || input.title)
-	});
+	// createNotePage re-derives the slug from the title/content, so dedupe the
+	// resolved slug afterwards rather than the input — otherwise two notes that
+	// resolve to the same slug (e.g. two "Untitled" notes) collide on the
+	// unique by-slug index.
+	const base = createNotePage(input);
+	const page: NotePageV1 = { ...base, slug: await getAvailablePageSlug(base.slug, base.id) };
 
 	await putNotePage(page);
 
 	return page;
+}
+
+export type NotesAssetImport = {
+	id: string;
+	blob: Blob;
+	mediaType: string;
+	name: string;
+	size: number;
+	createdAt?: string;
+	updatedAt?: string;
+};
+
+export async function importNotePage(input: Partial<NotePageV1>): Promise<NotePageV1> {
+	if (!browser) throw new Error('Notes are only available in the browser');
+
+	await initializeNotesDb();
+
+	const base = createNotePage({ ...input, id: undefined });
+	const page: NotePageV1 = { ...base, slug: await getAvailablePageSlug(base.slug) };
+
+	await putNotePage(page);
+	await attachAssetsToPage(page.id, getReferencedAssetIds(page.content));
+
+	return page;
+}
+
+export async function importNoteAsset(asset: NotesAssetImport): Promise<void> {
+	if (!browser || !asset.id) return;
+
+	await initializeNotesDb();
+
+	const db = await getDb();
+	const existing = normalizeStoredAsset(await db.get(ASSETS_STORE_NAME, asset.id));
+	const now = new Date().toISOString();
+
+	await db.put(
+		ASSETS_STORE_NAME,
+		{
+			id: asset.id,
+			blob: asset.blob,
+			mediaType: asset.mediaType,
+			name: asset.name,
+			size: asset.size,
+			pageIds: existing?.pageIds ?? [],
+			createdAt: asset.createdAt ?? existing?.createdAt ?? now,
+			updatedAt: asset.updatedAt ?? now
+		},
+		asset.id
+	);
 }
 
 export async function saveNotePage(page: NotePageV1): Promise<NotePageV1> {
@@ -137,14 +188,16 @@ export async function saveNotePage(page: NotePageV1): Promise<NotePageV1> {
 	await initializeNotesDb();
 
 	const current = await loadNotePageById(page.id);
-	const next = createNotePage({
+	const base = createNotePage({
 		...current,
 		...page,
 		id: current?.id ?? page.id,
-		createdAt: current?.createdAt ?? page.createdAt,
-		slug: await getAvailablePageSlug(page.slug, page.id),
+		createdAt: page.createdAt ?? current?.createdAt,
 		updatedAt: new Date().toISOString()
 	});
+	// Dedupe the slug createNotePage resolved (it re-derives from title/content),
+	// excluding this page, so distinct notes never collide on the unique index.
+	const next: NotePageV1 = { ...base, slug: await getAvailablePageSlug(base.slug, base.id) };
 
 	await putNotePage(next);
 	await attachAssetsToPage(next.id, getReferencedAssetIds(next.content));
@@ -163,6 +216,10 @@ export async function updateNotePageMetadata(
 	return saveNotePage({
 		...page,
 		...metadata,
+		frontmatter: {
+			...page.frontmatter,
+			...metadata
+		},
 		content: page.content
 	});
 }

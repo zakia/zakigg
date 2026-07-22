@@ -57,6 +57,10 @@ export type NotePageSummary = Pick<
 	NotePageV1,
 	'id' | 'slug' | 'title' | 'tags' | 'createdAt' | 'updatedAt'
 > & {
+	// The document date: the verbatim metadata `date` when present (often a
+	// timezone-less `yyyy-mm-dd`, which display code must not shift through
+	// the local timezone), else the record's createdAt timestamp.
+	date: string;
 	assetCount: number;
 	wordCount: number;
 };
@@ -347,12 +351,14 @@ export function normalizeNotePageFrontmatter(value: unknown): NotePageFrontmatte
 
 export function summarizeNotePage(page: NotePageV1): NotePageSummary {
 	const text = getContentText(page.content);
+	const frontmatterDate = page.frontmatter?.date?.trim() ?? '';
 
 	return {
 		id: page.id,
 		slug: page.slug,
 		title: page.title,
 		tags: page.tags,
+		date: Number.isFinite(Date.parse(frontmatterDate)) ? frontmatterDate : page.createdAt,
 		createdAt: page.createdAt,
 		updatedAt: page.updatedAt,
 		assetCount: getReferencedAssetIds(page.content).length,

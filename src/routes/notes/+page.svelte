@@ -177,13 +177,15 @@
 		);
 	}
 
-	// Pages arrive sorted by updatedAt descending, so consecutive runs of the
-	// same year form the groups.
+	// The document date (metadata `date` property) drives ordering and
+	// grouping — imported historical posts sit under their original year, not
+	// the year they were last touched.
 	function groupPagesByYear(source: NotePageSummary[]) {
+		const sorted = [...source].sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
 		const groups: YearGroup[] = [];
 
-		for (const page of source) {
-			const year = new Date(page.updatedAt).getFullYear();
+		for (const page of sorted) {
+			const year = pageYear(page);
 			const current = groups.at(-1);
 
 			if (current?.year === year) current.pages.push(page);
@@ -191,6 +193,18 @@
 		}
 
 		return groups;
+	}
+
+	// Date-only values (`2024-03-16`) parse as UTC midnight; formatting them
+	// in the local timezone would shift them back a day west of UTC.
+	function isDateOnly(value: string) {
+		return /^\d{4}-\d{2}-\d{2}$/.test(value);
+	}
+
+	function pageYear(page: NotePageSummary) {
+		const date = new Date(page.date);
+
+		return isDateOnly(page.date) ? date.getUTCFullYear() : date.getFullYear();
 	}
 
 	async function exportPage(page: NotePageSummary) {
@@ -240,11 +254,12 @@
 		}, 2400);
 	}
 
-	function formatDay(value: string) {
+	function formatDay(page: NotePageSummary) {
 		return new Intl.DateTimeFormat('en-US', {
 			month: 'short',
-			day: 'numeric'
-		}).format(new Date(value));
+			day: 'numeric',
+			...(isDateOnly(page.date) ? { timeZone: 'UTC' } : {})
+		}).format(new Date(page.date));
 	}
 
 	function readingMinutes(page: NotePageSummary) {
@@ -317,7 +332,7 @@
 							<a class="page-link" href={resolve(`/notes/${page.slug}`)}>
 								<span class="page-title">{page.title}</span>
 								<span class="page-meta">
-									{formatDay(page.updatedAt)}
+									{formatDay(page)}
 									{#if readingMinutes(page)}
 										<span class="meta-dot">·</span>
 										{readingMinutes(page)}min

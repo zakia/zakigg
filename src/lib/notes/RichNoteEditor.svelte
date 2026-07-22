@@ -99,6 +99,7 @@
 	let historyPanelOpen = $state(false);
 	let shortcutsPanelOpen = $state(false);
 	let editorTickQueued = false;
+	let pendingSave = false;
 	let linkPopover = $state<LinkPopoverState>(createHiddenLinkPopover());
 	let selectionToolbar = $state<SelectionToolbarState>(createHiddenSelectionToolbar());
 	let selectionToolbarFrame = 0;
@@ -212,7 +213,11 @@
 			document.removeEventListener('pointerdown', handleDocumentPointerdown, true);
 			document.removeEventListener('pointerup', handleDocumentPointerup, true);
 			document.removeEventListener('pointercancel', handleDocumentPointercancel, true);
-			void persistNow({ notify: false });
+			// Flush only when an edit is actually pending. An unconditional
+			// teardown save would rewrite the record (bumping updatedAt) on
+			// every visit, and can persist a transient editor state — e.g. a
+			// mid-HMR or mid-destroy document — over real content.
+			if (pendingSave) void persistNow({ notify: false });
 			editor?.destroy();
 		};
 	});
@@ -626,6 +631,7 @@
 
 	function scheduleSave() {
 		saveState = 'saving';
+		pendingSave = true;
 		saveTimer.schedule(() => {
 			void persistNow();
 		}, 350);
@@ -633,6 +639,8 @@
 
 	async function persistNow({ notify = true }: { notify?: boolean } = {}) {
 		if (!editor) return;
+
+		pendingSave = false;
 
 		try {
 			const content = previewReturnContent ?? editor.getJSON();

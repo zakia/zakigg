@@ -17,6 +17,13 @@
 	} from '$lib/notes/storage';
 	import type { NotePageSummary } from '$lib/notes/types';
 
+	type YearGroup = {
+		year: number;
+		pages: NotePageSummary[];
+	};
+
+	const READING_WORDS_PER_MINUTE = 200;
+
 	let pages = $state<NotePageSummary[]>([]);
 	let loading = $state(true);
 	let busy = $state('');
@@ -27,6 +34,7 @@
 	let dragDepth = 0;
 
 	const filteredPages = $derived(filterPages(pages));
+	const yearGroups = $derived(groupPagesByYear(filteredPages));
 
 	onMount(() => {
 		void refresh();
@@ -169,6 +177,22 @@
 		);
 	}
 
+	// Pages arrive sorted by updatedAt descending, so consecutive runs of the
+	// same year form the groups.
+	function groupPagesByYear(source: NotePageSummary[]) {
+		const groups: YearGroup[] = [];
+
+		for (const page of source) {
+			const year = new Date(page.updatedAt).getFullYear();
+			const current = groups.at(-1);
+
+			if (current?.year === year) current.pages.push(page);
+			else groups.push({ year, pages: [page] });
+		}
+
+		return groups;
+	}
+
 	async function exportPage(page: NotePageSummary) {
 		const fullPage = await loadNotePageById(page.id);
 		if (!fullPage) return;
@@ -216,14 +240,17 @@
 		}, 2400);
 	}
 
-	function formatDate(value: string) {
-		return new Intl.DateTimeFormat(undefined, {
+	function formatDay(value: string) {
+		return new Intl.DateTimeFormat('en-US', {
 			month: 'short',
-			day: 'numeric',
-			year: 'numeric',
-			hour: 'numeric',
-			minute: '2-digit'
+			day: 'numeric'
 		}).format(new Date(value));
+	}
+
+	function readingMinutes(page: NotePageSummary) {
+		if (!page.wordCount) return 0;
+
+		return Math.max(1, Math.round(page.wordCount / READING_WORDS_PER_MINUTE));
 	}
 </script>
 
@@ -253,30 +280,26 @@
 	<div class="manager-toolbar">
 		<label class="search-field">
 			<Icon icon="mdi:magnify" />
-			<input
-				type="search"
-				bind:value={query}
-				placeholder="Search pages"
-				aria-label="Search pages"
-			/>
+			<input type="search" bind:value={query} placeholder="Search" aria-label="Search pages" />
 		</label>
 		<button
 			type="button"
-			class="ghost-button"
+			class="quiet-button"
+			title="Import note export"
+			aria-label="Import note export"
 			disabled={busy === 'import'}
 			onclick={openImportPicker}
 		>
 			<Icon icon="mdi:package-up" />
-			Import
 		</button>
 		<button
 			type="button"
-			class="new-note-button"
+			class="quiet-button new-note-button"
 			disabled={busy === 'create'}
 			onclick={() => void createNote()}
 		>
 			<Icon icon="mdi:plus" />
-			New note
+			New
 		</button>
 	</div>
 
@@ -285,64 +308,60 @@
 	{:else if !filteredPages.length}
 		<p class="empty-state">No pages match this search.</p>
 	{:else}
-		<div class="page-list">
-			{#each filteredPages as page (page.id)}
-				<article class="page-row">
-					<a class="page-main" href={resolve(`/notes/${page.slug}`)}>
-						<span class="page-title">{page.title}</span>
-						<span class="page-meta">
-							/{page.slug} · {formatDate(page.updatedAt)}
-							{#if page.wordCount}
-								· {page.wordCount} words
-							{/if}
-							{#if page.assetCount}
-								· {page.assetCount} assets
-							{/if}
-						</span>
-						{#if page.tags.length}
-							<span class="page-tags">
-								{#each page.tags as tag (tag)}
-									<span>{tag}</span>
-								{/each}
-							</span>
-						{/if}
-					</a>
+		{#each yearGroups as group (group.year)}
+			<div class="year-group">
+				<span class="year-ghost" aria-hidden="true">{group.year}</span>
+				<ul class="year-list">
+					{#each group.pages as page (page.id)}
+						<li class="page-row">
+							<a class="page-link" href={resolve(`/notes/${page.slug}`)}>
+								<span class="page-title">{page.title}</span>
+								<span class="page-meta">
+									{formatDay(page.updatedAt)}
+									{#if readingMinutes(page)}
+										<span class="meta-dot">·</span>
+										{readingMinutes(page)}min
+									{/if}
+								</span>
+							</a>
 
-					<div class="row-actions" aria-label={`${page.title} actions`}>
-						<button
-							type="button"
-							class="icon-button"
-							title="Export page"
-							aria-label="Export page"
-							disabled={busy === `export:${page.id}`}
-							onclick={() => void exportPage(page)}
-						>
-							<Icon icon="mdi:package-down" />
-						</button>
-						<button
-							type="button"
-							class="icon-button"
-							title="Duplicate page"
-							aria-label="Duplicate page"
-							disabled={busy === `duplicate:${page.id}`}
-							onclick={() => void duplicate(page)}
-						>
-							<Icon icon="mdi:content-duplicate" />
-						</button>
-						<button
-							type="button"
-							class="icon-button danger"
-							title="Delete page"
-							aria-label="Delete page"
-							disabled={busy === `delete:${page.id}`}
-							onclick={() => void remove(page)}
-						>
-							<Icon icon="mdi:trash-can-outline" />
-						</button>
-					</div>
-				</article>
-			{/each}
-		</div>
+							<span class="row-actions">
+								<button
+									type="button"
+									class="row-action"
+									title="Export page"
+									aria-label={`Export ${page.title}`}
+									disabled={busy === `export:${page.id}`}
+									onclick={() => void exportPage(page)}
+								>
+									<Icon icon="mdi:package-down" />
+								</button>
+								<button
+									type="button"
+									class="row-action"
+									title="Duplicate page"
+									aria-label={`Duplicate ${page.title}`}
+									disabled={busy === `duplicate:${page.id}`}
+									onclick={() => void duplicate(page)}
+								>
+									<Icon icon="mdi:content-duplicate" />
+								</button>
+								<button
+									type="button"
+									class="row-action danger"
+									title="Delete page"
+									aria-label={`Delete ${page.title}`}
+									disabled={busy === `delete:${page.id}`}
+									onclick={() => void remove(page)}
+								>
+									<Icon icon="mdi:trash-can-outline" />
+								</button>
+							</span>
+						</li>
+					{/each}
+				</ul>
+			</div>
+		{/each}
 	{/if}
 
 	{#if toast}
@@ -363,9 +382,8 @@
 	.notes-manager {
 		align-content: start;
 		display: grid;
-		gap: var(--s0);
 		margin-inline: auto;
-		max-width: 58rem;
+		max-width: 44rem;
 		padding: var(--s2) var(--s0) calc(var(--s4) + 5rem);
 		position: relative;
 		width: 100%;
@@ -375,106 +393,228 @@
 		display: none;
 	}
 
-	.manager-toolbar,
-	.search-field,
-	.page-row,
-	.page-main,
-	.page-tags,
-	.row-actions {
-		display: flex;
-	}
-
 	.manager-toolbar {
 		align-items: center;
-		gap: var(--s-1);
+		display: flex;
+		gap: var(--s-3);
 	}
 
 	.search-field {
 		align-items: center;
-		background: var(--base-1);
-		border: 1px solid var(--edge);
-		border-radius: var(--s-2);
-		color: var(--content-1);
+		border-radius: var(--s-3);
+		color: color-mix(in oklch, var(--content-1) 72%, transparent);
+		display: flex;
 		flex: 1;
 		gap: var(--s-3);
-		min-height: 2.75rem;
+		min-height: 2.25rem;
 		min-width: 0;
-		padding: 0 var(--s-1);
+		padding: 0 var(--s-3);
+		transition: color 0.16s ease;
+	}
+
+	.search-field:focus-within {
+		color: var(--content-1);
+	}
+
+	.search-field :global(svg) {
+		flex-shrink: 0;
+		height: 1rem;
+		width: 1rem;
+	}
+
+	input[type='search'] {
+		background: transparent;
+		border: 0;
+		box-shadow: none;
+		color: var(--content);
+		min-height: 2.25rem;
+		min-width: 0;
+		padding-inline: 0;
 		width: 100%;
 	}
 
-	.new-note-button {
-		align-items: center;
-		background: var(--brand);
-		border: 1px solid transparent;
-		border-radius: var(--s-2);
-		color: var(--brand-content);
-		display: inline-flex;
-		flex-shrink: 0;
-		font-weight: 700;
-		gap: var(--s-3);
-		min-height: 2.75rem;
-		padding: 0 var(--s0);
-		transition:
-			filter 0.16s ease,
-			transform 0.16s ease;
-		white-space: nowrap;
-	}
-
-	.new-note-button:hover,
-	.new-note-button:focus-visible {
-		filter: brightness(1.05);
+	input[type='search']:focus {
 		outline: none;
-		transform: translateY(-1px);
 	}
 
-	.new-note-button:disabled {
-		cursor: default;
-		opacity: 0.6;
-		transform: none;
-	}
-
-	.new-note-button :global(svg) {
-		height: 1.1rem;
-		width: 1.1rem;
-	}
-
-	.ghost-button {
+	.quiet-button {
 		align-items: center;
-		background: var(--base-1);
-		border: 1px solid color-mix(in oklch, var(--edge) 82%, transparent);
-		border-radius: var(--s-2);
-		color: var(--content);
+		background: transparent;
+		border: 0;
+		border-radius: var(--s-3);
+		color: var(--content-1);
 		display: inline-flex;
 		flex-shrink: 0;
-		font-weight: 700;
-		gap: var(--s-3);
-		min-height: 2.75rem;
-		padding: 0 var(--s0);
+		font-size: var(--s-1);
+		font-weight: 650;
+		gap: var(--s-4);
+		justify-content: center;
+		min-height: 2.25rem;
+		min-width: 2.25rem;
+		padding: 0 var(--s-3);
 		transition:
 			background-color 0.16s ease,
-			border-color 0.16s ease,
-			transform 0.16s ease;
+			color 0.16s ease;
 		white-space: nowrap;
 	}
 
-	.ghost-button:hover,
-	.ghost-button:focus-visible {
-		background: color-mix(in oklch, var(--brand) 13%, var(--base-1));
-		border-color: color-mix(in oklch, var(--brand) 36%, var(--edge));
+	.quiet-button:hover,
+	.quiet-button:focus-visible {
+		background: color-mix(in oklch, var(--content) 7%, transparent);
+		color: var(--content);
 		outline: none;
-		transform: translateY(-1px);
 	}
 
-	.ghost-button:disabled {
+	.quiet-button:disabled {
 		cursor: default;
-		opacity: 0.6;
-		transform: none;
+		opacity: 0.5;
 	}
 
-	.ghost-button :global(svg) {
-		height: 1.1rem;
-		width: 1.1rem;
+	.quiet-button :global(svg) {
+		height: 1.05rem;
+		width: 1.05rem;
+	}
+
+	.year-group {
+		padding-top: 3.4rem;
+		position: relative;
+	}
+
+	.year-ghost {
+		color: transparent;
+		font-size: clamp(4.6rem, 13vw, 7.5rem);
+		font-weight: 800;
+		left: -0.03em;
+		letter-spacing: -0.02em;
+		line-height: 1;
+		pointer-events: none;
+		position: absolute;
+		top: 0;
+		user-select: none;
+		-webkit-text-stroke: 2px color-mix(in oklch, var(--content) 11%, transparent);
+	}
+
+	@supports not (-webkit-text-stroke: 2px black) {
+		.year-ghost {
+			color: color-mix(in oklch, var(--content) 6%, transparent);
+		}
+	}
+
+	.year-list {
+		display: grid;
+		list-style: none;
+		margin: 0;
+		padding: 1.9rem 0 0;
+		position: relative;
+	}
+
+	.page-row {
+		align-items: baseline;
+		display: flex;
+		gap: var(--s-2);
+	}
+
+	.page-link {
+		align-items: baseline;
+		border-radius: var(--s-4);
+		color: color-mix(in oklch, var(--content) 78%, transparent);
+		display: flex;
+		gap: var(--s-2);
+		min-width: 0;
+		padding: var(--s-3) 0;
+		text-decoration: none;
+		transition: color 0.16s ease;
+	}
+
+	.page-link:hover,
+	.page-link:focus-visible {
+		color: var(--content);
+		outline: none;
+	}
+
+	.page-title {
+		font-size: var(--s0);
+		font-weight: 560;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.page-meta {
+		color: color-mix(in oklch, var(--content-1) 78%, transparent);
+		flex-shrink: 0;
+		font-size: var(--s-1);
+		white-space: nowrap;
+	}
+
+	.meta-dot {
+		opacity: 0.6;
+		padding-inline: 0.1em;
+	}
+
+	.row-actions {
+		align-items: center;
+		align-self: center;
+		display: flex;
+		gap: var(--s-5);
+		margin-left: auto;
+		opacity: 0;
+		transition: opacity 0.16s ease;
+	}
+
+	.page-row:hover .row-actions,
+	.page-row:focus-within .row-actions {
+		opacity: 1;
+	}
+
+	@media (hover: none) {
+		.row-actions {
+			opacity: 1;
+		}
+	}
+
+	.row-action {
+		align-items: center;
+		background: transparent;
+		border: 0;
+		border-radius: var(--s-4);
+		color: color-mix(in oklch, var(--content-1) 82%, transparent);
+		display: inline-flex;
+		height: 1.9rem;
+		justify-content: center;
+		transition:
+			background-color 0.16s ease,
+			color 0.16s ease;
+		width: 1.9rem;
+	}
+
+	.row-action :global(svg) {
+		height: 1rem;
+		width: 1rem;
+	}
+
+	.row-action:hover,
+	.row-action:focus-visible {
+		background: color-mix(in oklch, var(--content) 8%, transparent);
+		color: var(--content);
+		outline: none;
+	}
+
+	.row-action.danger:hover,
+	.row-action.danger:focus-visible {
+		background: color-mix(in oklch, var(--error) 12%, transparent);
+		color: var(--error);
+	}
+
+	.row-action:disabled {
+		cursor: default;
+		opacity: 0.5;
+	}
+
+	.empty-state {
+		color: var(--content-1);
+		margin-top: var(--s2);
+		text-align: center;
 	}
 
 	.drop-overlay {
@@ -510,136 +650,6 @@
 		width: 1.4rem;
 	}
 
-	.search-field :global(svg) {
-		height: 1.1rem;
-		width: 1.1rem;
-	}
-
-	input {
-		background: transparent;
-		border: 0;
-		box-shadow: none;
-		color: var(--content);
-		min-height: 2.5rem;
-		min-width: 0;
-		padding-inline: 0;
-		width: 100%;
-	}
-
-	input:focus {
-		outline: none;
-	}
-
-	.search-field:focus-within {
-		border-color: color-mix(in oklch, var(--brand) 52%, var(--edge));
-		box-shadow: var(--focus-ring);
-	}
-
-	.page-list {
-		display: grid;
-	}
-
-	.page-row {
-		align-items: center;
-		border-bottom: 1px solid color-mix(in oklch, var(--edge) 75%, transparent);
-		gap: var(--s0);
-		justify-content: space-between;
-		padding: var(--s-1) 0;
-	}
-
-	.page-row:first-child {
-		border-top: 1px solid color-mix(in oklch, var(--edge) 75%, transparent);
-	}
-
-	.page-main {
-		border-radius: var(--s-3);
-		color: inherit;
-		flex: 1;
-		flex-direction: column;
-		gap: var(--s-4);
-		min-width: 0;
-		padding: var(--s-3) var(--s-2);
-		text-decoration: none;
-	}
-
-	.page-main:hover,
-	.page-main:focus-visible {
-		background: color-mix(in oklch, var(--brand) 8%, transparent);
-		outline: none;
-	}
-
-	.page-title {
-		font-size: var(--s0);
-		font-weight: 720;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-
-	.page-meta {
-		color: var(--content-1);
-		font-size: var(--s-1);
-	}
-
-	.page-tags {
-		flex-wrap: wrap;
-		gap: var(--s-4);
-	}
-
-	.page-tags span {
-		color: var(--brand);
-		font-size: var(--s-1);
-		font-weight: 650;
-	}
-
-	.row-actions {
-		gap: var(--s-3);
-	}
-
-	.icon-button {
-		align-items: center;
-		background: var(--base-1);
-		border: 1px solid color-mix(in oklch, var(--edge) 82%, transparent);
-		border-radius: var(--s-2);
-		color: var(--content);
-		display: inline-flex;
-		height: 2.25rem;
-		justify-content: center;
-		transition:
-			background-color 0.16s ease,
-			border-color 0.16s ease,
-			color 0.16s ease,
-			transform 0.16s ease;
-		width: 2.25rem;
-	}
-
-	.icon-button :global(svg) {
-		height: 1.1rem;
-		width: 1.1rem;
-	}
-
-	.icon-button:hover,
-	.icon-button:focus-visible {
-		background: color-mix(in oklch, var(--brand) 13%, var(--base-1));
-		border-color: color-mix(in oklch, var(--brand) 36%, var(--edge));
-		color: var(--content);
-		transform: translateY(-1px);
-	}
-
-	.icon-button.danger:hover,
-	.icon-button.danger:focus-visible {
-		background: color-mix(in oklch, var(--error) 12%, var(--base-1));
-		border-color: color-mix(in oklch, var(--error) 38%, var(--edge));
-	}
-
-	.empty-state {
-		border: 1px dashed var(--edge-1);
-		border-radius: var(--s-2);
-		color: var(--content-1);
-		padding: var(--s1);
-		text-align: center;
-	}
-
 	.toast {
 		background: var(--content);
 		border-radius: var(--s-2);
@@ -655,15 +665,9 @@
 	}
 
 	@media (max-width: 42rem) {
-		.page-row {
-			align-items: stretch;
+		.page-link {
 			flex-direction: column;
-			gap: var(--s-2);
-		}
-
-		.row-actions {
-			justify-content: flex-start;
-			padding-inline: var(--s-2);
+			gap: var(--s-5);
 		}
 	}
 </style>

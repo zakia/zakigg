@@ -1,5 +1,13 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import ActionTooltip from './ActionTooltip.svelte';
+	import {
+		getEditorShortcut,
+		isAppleShortcutPlatform,
+		shortcutTitle,
+		type EditorShortcutId
+	} from './keyboard-shortcuts';
 
 	type Props = {
 		title: string;
@@ -7,6 +15,7 @@
 		active?: boolean;
 		disabled?: boolean;
 		pressed?: boolean;
+		shortcutId?: EditorShortcutId;
 		text?: string;
 		variant?: string;
 		onClick: () => void | Promise<void>;
@@ -18,18 +27,28 @@
 		active = false,
 		disabled = false,
 		pressed,
+		shortcutId,
 		text,
 		variant = '',
 		onClick
 	}: Props = $props();
+
+	let useAppleKeys = $state(false);
+
+	const shortcut = $derived(getEditorShortcut(shortcutId));
+	const buttonTitle = $derived(shortcutTitle(title, shortcut, useAppleKeys));
+
+	onMount(() => {
+		useAppleKeys = isAppleShortcutPlatform();
+	});
 </script>
 
 <button
 	type="button"
 	class={`toolbar-button ${variant}`.trim()}
 	class:active
-	{title}
-	aria-label={title}
+	title={buttonTitle}
+	aria-label={buttonTitle}
 	aria-pressed={pressed}
 	onclick={() => void onClick()}
 	{disabled}
@@ -38,6 +57,7 @@
 	{#if text}
 		<span>{text}</span>
 	{/if}
+	<ActionTooltip {title} {shortcut} />
 </button>
 
 <style>
@@ -52,6 +72,7 @@
 		justify-content: center;
 		min-width: var(--toolbar-size);
 		padding: 0 var(--s-3);
+		position: relative;
 		transition:
 			background-color 0.2s,
 			color 0.2s,

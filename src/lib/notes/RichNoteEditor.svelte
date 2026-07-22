@@ -9,6 +9,7 @@
 	import EditorHistoryPanel from './EditorHistoryPanel.svelte';
 	import EditorSurface from './EditorSurface.svelte';
 	import EditorToolbar from './EditorToolbar.svelte';
+	import KeyboardShortcutsPanel from './KeyboardShortcutsPanel.svelte';
 	import LinkPopover from './LinkPopover.svelte';
 	import { createEditorExtensions } from './editor-extensions';
 	import {
@@ -29,12 +30,19 @@
 		openLinkHrefOnce,
 		type LinkPopoverState
 	} from './link-popover';
+	import { isOpenShortcutsShortcut } from './keyboard-shortcuts';
 	import {
-		getEditorMarkdown,
 		getMarkdownFiles,
 		insertEditorMarkdown,
-		looksLikeMarkdown
+		looksLikeMarkdown,
+		serializeNotePageMarkdown
 	} from './markdown';
+	import {
+		METADATA_BLOCK_NODE_NAME,
+		ensureLeadingMetadataBlock,
+		normalizeMetadataEntries,
+		type MetadataProperties
+	} from './metadata-block';
 	import { downloadNotePageExport } from './export';
 	import {
 		createLocalAssetSrc,
@@ -47,7 +55,7 @@
 	import { formatSaveLabel, type SaveState } from './save-state';
 	import { resolveNoteAssetObjectUrl, saveNoteAsset, saveNotePage } from './storage';
 	import { createTimer } from '../editor/timers';
-	import type { NotePageV1 } from './types';
+	import { resolveNotePageMetadata, type NotePageV1 } from './types';
 
 	type SelectionToolbarMode = 'format' | 'link';
 
@@ -89,7 +97,9 @@
 	let activeHistoryId = $state('');
 	let previewHistoryId = $state('');
 	let historyPanelOpen = $state(false);
+	let shortcutsPanelOpen = $state(false);
 	let editorTickQueued = false;
+	let pendingSave = false;
 	let linkPopover = $state<LinkPopoverState>(createHiddenLinkPopover());
 	let selectionToolbar = $state<SelectionToolbarState>(createHiddenSelectionToolbar());
 	let selectionToolbarFrame = 0;
@@ -149,12 +159,14 @@
 		async function setupEditor() {
 			if (destroyed || !editorHost) return;
 
-			const initialContent = page.content;
+			const initialContent = getInitialEditorContent(page);
 			const instance = new Editor({
 				element: editorHost,
 				extensions: createEditorExtensions(craftComponentEmbeds, resolveNoteAssetObjectUrl),
 				content: initialContent,
-				autofocus: 'end',
+				// Position 2 is inside the H1 (the leading metadata block is a
+				// size-1 atom at position 0).
+				autofocus: startsWithEmptyTitle(initialContent) ? 2 : 'end',
 				editorProps: {
 					attributes: {
 						'aria-label': `${page.title} editor`,
@@ -201,7 +213,11 @@
 			document.removeEventListener('pointerdown', handleDocumentPointerdown, true);
 			document.removeEventListener('pointerup', handleDocumentPointerup, true);
 			document.removeEventListener('pointercancel', handleDocumentPointercancel, true);
-			void persistNow();
+			// Flush only when an edit is actually pending. An unconditional
+			// teardown save would rewrite the record (bumping updatedAt) on
+			// every visit, and can persist a transient editor state — e.g. a
+			// mid-HMR or mid-destroy document — over real content.
+			if (pendingSave) void persistNow({ notify: false });
 			editor?.destroy();
 		};
 	});
@@ -227,6 +243,8 @@
 	function createEditorDomHandlers() {
 		return {
 			keydown: (_view: unknown, event: KeyboardEvent) => {
+				if (handleShortcutsKeydown(event)) return true;
+
 				if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
 					event.preventDefault();
 					openLinkEditorFromKeyboard();
@@ -287,6 +305,21 @@
 				return false;
 			}
 		};
+	}
+
+	function handleRichEditorKeydown(event: KeyboardEvent) {
+		if (event.defaultPrevented) return;
+
+		handleShortcutsKeydown(event);
+	}
+
+	function handleShortcutsKeydown(event: KeyboardEvent) {
+		if (!isOpenShortcutsShortcut(event)) return false;
+
+		event.preventDefault();
+		openShortcutsPanel();
+
+		return true;
 	}
 
 	function noteEditorChanged() {
@@ -522,7 +555,36 @@
 	}
 
 	function insertMarkdown(markdown: string) {
-		return insertEditorMarkdown(editor, markdown);
+		const result = insertEditorMarkdown(editor, markdown);
+
+		if (result.properties) mergeLeadingMetadataProperties(result.properties);
+
+		return result.inserted || Boolean(result.frontmatter);
+	}
+
+	// Pasted/dropped frontmatter lands in the document's one metadata block;
+	// incoming values win per key, everything else is kept.
+	function mergeLeadingMetadataProperties(properties: MetadataProperties) {
+		if (!editor) return;
+
+		const block = editor.state.doc.child(0);
+		if (block.type.name !== METADATA_BLOCK_NODE_NAME) return;
+
+		const merged = [...normalizeMetadataEntries(block.attrs.properties)];
+
+		for (const entry of normalizeMetadataEntries(properties)) {
+			const index = merged.findIndex((existing) => existing.key === entry.key);
+
+			if (index >= 0) merged[index] = entry;
+			else merged.push(entry);
+		}
+
+		editor.view.dispatch(
+			editor.state.tr.setNodeMarkup(0, undefined, {
+				...block.attrs,
+				properties: merged
+			})
+		);
 	}
 
 	async function insertMediaFiles(files: File[]) {
@@ -569,20 +631,29 @@
 
 	function scheduleSave() {
 		saveState = 'saving';
+		pendingSave = true;
 		saveTimer.schedule(() => {
 			void persistNow();
 		}, 350);
 	}
 
-	async function persistNow() {
+	async function persistNow({ notify = true }: { notify?: boolean } = {}) {
 		if (!editor) return;
 
+		pendingSave = false;
+
 		try {
+			const content = previewReturnContent ?? editor.getJSON();
+			const metadata = resolveNotePageMetadata(page, content);
 			const nextPage = await saveNotePage({
 				...page,
-				content: previewReturnContent ?? editor.getJSON()
+				...metadata,
+				content
 			});
-			onSaved?.(nextPage);
+			// On teardown we save but must not notify: onSaved -> the page's
+			// slug-change redirect would fire during route transitions and revert
+			// navigation away from the editor.
+			if (notify) onSaved?.(nextPage);
 			lastSavedAt = nextPage.updatedAt;
 			saveState = 'saved';
 		} catch {
@@ -637,6 +708,14 @@
 	function closeHistoryPanel() {
 		clearHistoryPreview();
 		historyPanelOpen = false;
+	}
+
+	function openShortcutsPanel() {
+		shortcutsPanelOpen = true;
+	}
+
+	function closeShortcutsPanel() {
+		shortcutsPanelOpen = false;
 	}
 
 	function restoreHistoryEntry(entry: EditorHistoryEntry) {
@@ -979,7 +1058,11 @@
 	}
 
 	async function copyMarkdown() {
-		const markdown = getEditorMarkdown(editor);
+		if (!editor) return;
+
+		const content = editor.getJSON();
+		const draftPage = getDraftPage(content);
+		const markdown = serializeNotePageMarkdown(draftPage, content);
 		if (!markdown) return;
 
 		await navigator.clipboard.writeText(markdown);
@@ -992,9 +1075,51 @@
 	function downloadMarkdown() {
 		if (!editor) return;
 
-		void downloadNotePageExport(page, editor.getJSON());
+		const content = editor.getJSON();
+
+		void downloadNotePageExport(getDraftPage(content), content);
+	}
+
+	function getDraftPage(content: JSONContent): NotePageV1 {
+		return {
+			...page,
+			...resolveNotePageMetadata(page, content),
+			content
+		};
+	}
+
+	function startsWithEmptyTitle(content: JSONContent) {
+		// content[0] is always the metadata block; the title H1 follows it.
+		const first = content.type === 'doc' ? content.content?.[1] : undefined;
+
+		return (
+			first?.type === 'heading' && Number(first.attrs?.level) === 1 && !(first.content ?? []).length
+		);
+	}
+
+	function getInitialEditorContent(page: NotePageV1): JSONContent {
+		// `page` is a Svelte $state proxy, so its `content` is deeply proxied.
+		// ProseMirror retains proxy references for object-valued node attrs (e.g.
+		// the metadata block's `properties`), and those proxies can't be
+		// structuredClone'd into IndexedDB — which silently breaks every save.
+		// Snapshot to plain objects before the content ever reaches the editor.
+		const content = $state.snapshot(page.content) as JSONContent;
+		const frontmatter = page.frontmatter
+			? ($state.snapshot(page.frontmatter) as NotePageV1['frontmatter'])
+			: undefined;
+
+		// The schema requires a leading metadata block; normalize legacy
+		// content here (seeded from stored frontmatter and tags) rather than
+		// letting ProseMirror drop a mid-document block and synthesize an
+		// empty one.
+		return ensureLeadingMetadataBlock(content, {
+			...frontmatter,
+			...(page.tags.length ? { tags: $state.snapshot(page.tags) } : {})
+		});
 	}
 </script>
+
+<svelte:window onkeydown={handleRichEditorKeydown} />
 
 <div class="rich-editor">
 	<input
@@ -1022,6 +1147,7 @@
 		embeds={embedActions}
 		onCopyMarkdown={copyMarkdown}
 		onDownloadMarkdown={downloadMarkdown}
+		onOpenShortcuts={openShortcutsPanel}
 		onToggleHistory={toggleHistoryPanel}
 		onInsertImage={openImagePicker}
 		onInsertVideo={openVideoPicker}
@@ -1038,6 +1164,8 @@
 		onPreview={previewHistoryEntry}
 		onClearPreview={clearHistoryPreview}
 	/>
+
+	<KeyboardShortcutsPanel visible={shortcutsPanelOpen} onClose={closeShortcutsPanel} />
 
 	{#if selectionToolbar.visible}
 		<div class="selection-anchor" style={selectionAnchorStyle} aria-hidden="true"></div>

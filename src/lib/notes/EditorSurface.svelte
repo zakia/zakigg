@@ -100,4 +100,9 @@
 		border-radius: var(--radius);
 		box-shadow: 0 0 0 2px color-mix(in oklch, var(--brand) 22%, transparent);
 	}
+
+	.editor-surface :global(.ProseMirror .metadata-block-node.ProseMirror-selectednode) {
+		border-radius: var(--s-3);
+		box-shadow: 0 0 0 2px color-mix(in oklch, var(--brand) 22%, transparent);
+	}
 </style>

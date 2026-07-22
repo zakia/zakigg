@@ -171,6 +171,8 @@ export function renderNode(node: JSONContent): string {
 			return renderCodeBlock(node);
 		case 'mediaBlock':
 			return renderMediaBlock(node);
+		case 'metadataBlock':
+			return '';
 		case 'table':
 			return renderTable(node);
 		case 'table_row':

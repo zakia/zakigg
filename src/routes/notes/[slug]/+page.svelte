@@ -3,11 +3,7 @@
 	import { resolve } from '$app/paths';
 	import Icon from '$lib/components/Icon.svelte';
 	import RichNoteEditor from '$lib/notes/RichNoteEditor.svelte';
-	import {
-		createNotePageRecord,
-		loadNotePageBySlug,
-		updateNotePageMetadata
-	} from '$lib/notes/storage';
+	import { createNotePageRecord, loadNotePageBySlug } from '$lib/notes/storage';
 	import { titleFromSlug, type NotePageV1 } from '$lib/notes/types';
 
 	let { data }: { data: { slug: string } } = $props();
@@ -18,7 +14,6 @@
 	let toast = $state('');
 	let loadedSlug = '';
 	let titleInput = $state('');
-	let slugInput = $state('');
 	let tagsInput = $state('');
 
 	$effect(() => {
@@ -43,35 +38,31 @@
 
 	function syncMetadataInputs(page: NotePageV1 | null) {
 		titleInput = page?.title ?? titleFromSlug(data.slug);
-		slugInput = page?.slug ?? data.slug;
 		tagsInput = page?.tags.join(', ') ?? '';
+	}
+
+	function goBack(event: MouseEvent) {
+		// Let modified clicks (new tab, etc.) use the href default.
+		if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) {
+			return;
+		}
+
+		event.preventDefault();
+		void goto(resolve('/notes'));
 	}
 
 	function handleSaved(page: NotePageV1) {
 		note = page;
-	}
 
-	async function saveMetadata() {
-		if (!note) return;
-
-		busy = 'metadata';
-
-		try {
-			const next = await updateNotePageMetadata(note.id, {
-				title: titleInput,
-				slug: slugInput,
-				tags: parseTagsInput(tagsInput)
+		if (page.slug !== data.slug) {
+			// Mark this slug as already loaded so the navigation below doesn't
+			// re-trigger loadPage() and remount the editor mid-edit.
+			loadedSlug = page.slug;
+			void goto(resolve(`/notes/${page.slug}`), {
+				replaceState: true,
+				keepFocus: true,
+				noScroll: true
 			});
-
-			note = next;
-			syncMetadataInputs(next);
-			showToast('Saved page details');
-
-			if (next.slug !== data.slug) {
-				await goto(resolve(`/notes/${next.slug}`), { replaceState: true });
-			}
-		} finally {
-			busy = '';
 		}
 	}
 
@@ -141,42 +132,15 @@
 	</section>
 {:else}
 	<section class="note-edit-page">
-		<form
-			class="edit-meta-bar"
-			aria-label="Page details"
-			onsubmit={(event) => (event.preventDefault(), void saveMetadata())}
+		<a
+			class="back-button"
+			href={resolve('/notes')}
+			aria-label="Back to notes"
+			title="Back to notes"
+			onclick={goBack}
 		>
-			<a
-				class="icon-button"
-				href={resolve('/notes')}
-				title="Back to notes"
-				aria-label="Back to notes"
-			>
-				<Icon icon="mdi:arrow-left" />
-			</a>
-			<label class="title-field">
-				<span>Title</span>
-				<input bind:value={titleInput} />
-			</label>
-			<label>
-				<span>Slug</span>
-				<input bind:value={slugInput} />
-			</label>
-			<label>
-				<span>Tags</span>
-				<input bind:value={tagsInput} />
-			</label>
-			<button
-				type="submit"
-				class="icon-button"
-				title="Save page details"
-				aria-label="Save page details"
-				disabled={busy === 'metadata'}
-			>
-				<Icon icon="mdi:content-save-outline" />
-			</button>
-		</form>
-
+			<Icon icon="mdi:arrow-left" />
+		</a>
 		{#key note.id}
 			<RichNoteEditor page={note} onSaved={handleSaved} />
 		{/key}
@@ -199,8 +163,7 @@
 		width: 100%;
 	}
 
-	.back-link,
-	.edit-meta-bar {
+	.back-link {
 		align-items: center;
 		display: flex;
 	}
@@ -217,7 +180,6 @@
 		width: 1rem;
 	}
 
-	.icon-button,
 	.missing-note button {
 		align-items: center;
 		background: var(--base-1);
@@ -233,13 +195,6 @@
 			transform 0.16s ease;
 	}
 
-	.icon-button {
-		height: 2.25rem;
-		width: 2.25rem;
-	}
-
-	.icon-button:hover,
-	.icon-button:focus-visible,
 	.missing-note button:hover,
 	.missing-note button:focus-visible {
 		background: color-mix(in oklch, var(--brand) 13%, var(--base-1));
@@ -248,7 +203,6 @@
 		transform: translateY(-1px);
 	}
 
-	.icon-button :global(svg),
 	.missing-note button :global(svg) {
 		height: 1.1rem;
 		width: 1.1rem;
@@ -262,34 +216,46 @@
 		width: 100%;
 	}
 
-	.edit-meta-bar {
-		backdrop-filter: blur(18px);
-		background: color-mix(in oklch, var(--base-1) 88%, transparent);
-		border: 1px solid color-mix(in oklch, var(--edge) 80%, transparent);
-		border-radius: var(--s-2);
-		box-shadow: 0 18px 44px rgb(0 0 0 / 0.12);
-		gap: var(--s-3);
+	.back-button {
+		align-items: center;
+		backdrop-filter: blur(16px);
+		background: color-mix(in oklch, var(--base-1) 76%, transparent);
+		border: 1px solid color-mix(in oklch, var(--edge) 72%, transparent);
+		border-radius: 999px;
+		box-shadow: 0 12px 30px rgb(0 0 0 / 0.08);
+		color: var(--content-1);
+		display: flex;
+		height: 2.5rem;
+		justify-content: center;
 		left: calc(var(--s0) + env(safe-area-inset-left));
-		max-width: min(48rem, calc(100vw - var(--s1) * 2));
-		padding: var(--s-3);
 		position: absolute;
 		top: calc(var(--s0) + env(safe-area-inset-top));
+		transition:
+			background-color 0.2s,
+			color 0.2s,
+			transform 0.2s;
+		width: 2.5rem;
 		z-index: 5;
 	}
 
-	.edit-meta-bar label,
+	.back-button:hover,
+	.back-button:focus-visible {
+		background: color-mix(in oklch, var(--brand) 15%, var(--base-1));
+		color: var(--content);
+		outline: none;
+		transform: translateY(-1px);
+	}
+
+	.back-button :global(svg) {
+		height: 1.2rem;
+		pointer-events: none;
+		width: 1.2rem;
+	}
+
 	.missing-note label {
 		display: grid;
 		gap: var(--s-5);
 		min-width: 0;
-	}
-
-	.edit-meta-bar label {
-		width: 10rem;
-	}
-
-	.edit-meta-bar .title-field {
-		width: 14rem;
 	}
 
 	label span {
@@ -313,10 +279,6 @@
 		border-color: color-mix(in oklch, var(--brand) 52%, var(--edge));
 		box-shadow: var(--focus-ring);
 		outline: none;
-	}
-
-	.note-edit-page :global(.editor-surface .ProseMirror) {
-		padding-top: calc(var(--s4) + var(--s2));
 	}
 
 	.missing-note {
@@ -363,26 +325,10 @@
 	}
 
 	@media (max-width: 52rem) {
-		.edit-meta-bar {
-			align-items: stretch;
-			flex-direction: column;
-			right: var(--s0);
-			top: calc(var(--s0) + 5.5rem);
-		}
-
-		.edit-meta-bar label,
-		.edit-meta-bar .title-field {
-			width: 100%;
-		}
-
 		.note-edit-page :global(.document-actions) {
 			right: var(--s0);
 			top: var(--s0);
 			z-index: 6;
-		}
-
-		.note-edit-page :global(.editor-surface .ProseMirror) {
-			padding-top: 26rem;
 		}
 	}
 </style>

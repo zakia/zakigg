@@ -1,7 +1,14 @@
 import { browser } from '$app/environment';
+import type { JSONContent } from '@tiptap/core';
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import {
+	createMetadataBlockContent,
+	ensureLeadingMetadataBlock,
+	normalizeMetadataEntries
+} from './metadata-block';
+import {
 	DEFAULT_NOTE_SLUG,
+	NOTES_STORAGE_KEY_PREFIX,
 	createDefaultNotePage,
 	createNotePage,
 	getNoteStorageKey,
@@ -16,6 +23,7 @@ import {
 } from './types';
 
 const DB_NAME = 'zaki.gg-notes';
+const NOTES_INITIALIZED_FLAG_KEY = `${NOTES_STORAGE_KEY_PREFIX}:initialized`;
 const DB_VERSION = 3;
 const LEGACY_DOCUMENTS_STORE_NAME = 'documents';
 const PAGES_STORE_NAME = 'pages';
@@ -121,14 +129,65 @@ export async function createNotePageRecord(input: Partial<NotePageV1> = {}): Pro
 
 	await initializeNotesDb();
 
-	const page = createNotePage({
-		...input,
-		slug: await getAvailablePageSlug(input.slug || input.title)
-	});
+	// createNotePage re-derives the slug from the title/content, so dedupe the
+	// resolved slug afterwards rather than the input — otherwise two notes that
+	// resolve to the same slug (e.g. two "Untitled" notes) collide on the
+	// unique by-slug index.
+	const base = createNotePage(input);
+	const page: NotePageV1 = { ...base, slug: await getAvailablePageSlug(base.slug, base.id) };
 
 	await putNotePage(page);
 
 	return page;
+}
+
+export type NotesAssetImport = {
+	id: string;
+	blob: Blob;
+	mediaType: string;
+	name: string;
+	size: number;
+	createdAt?: string;
+	updatedAt?: string;
+};
+
+export async function importNotePage(input: Partial<NotePageV1>): Promise<NotePageV1> {
+	if (!browser) throw new Error('Notes are only available in the browser');
+
+	await initializeNotesDb();
+
+	const base = createNotePage({ ...input, id: undefined });
+	const page: NotePageV1 = { ...base, slug: await getAvailablePageSlug(base.slug) };
+
+	await putNotePage(page);
+	await attachAssetsToPage(page.id, getReferencedAssetIds(page.content));
+
+	return page;
+}
+
+export async function importNoteAsset(asset: NotesAssetImport): Promise<void> {
+	if (!browser || !asset.id) return;
+
+	await initializeNotesDb();
+
+	const db = await getDb();
+	const existing = normalizeStoredAsset(await db.get(ASSETS_STORE_NAME, asset.id));
+	const now = new Date().toISOString();
+
+	await db.put(
+		ASSETS_STORE_NAME,
+		{
+			id: asset.id,
+			blob: asset.blob,
+			mediaType: asset.mediaType,
+			name: asset.name,
+			size: asset.size,
+			pageIds: existing?.pageIds ?? [],
+			createdAt: asset.createdAt ?? existing?.createdAt ?? now,
+			updatedAt: asset.updatedAt ?? now
+		},
+		asset.id
+	);
 }
 
 export async function saveNotePage(page: NotePageV1): Promise<NotePageV1> {
@@ -137,14 +196,16 @@ export async function saveNotePage(page: NotePageV1): Promise<NotePageV1> {
 	await initializeNotesDb();
 
 	const current = await loadNotePageById(page.id);
-	const next = createNotePage({
+	const base = createNotePage({
 		...current,
 		...page,
 		id: current?.id ?? page.id,
-		createdAt: current?.createdAt ?? page.createdAt,
-		slug: await getAvailablePageSlug(page.slug, page.id),
+		createdAt: page.createdAt ?? current?.createdAt,
 		updatedAt: new Date().toISOString()
 	});
+	// Dedupe the slug createNotePage resolved (it re-derives from title/content),
+	// excluding this page, so distinct notes never collide on the unique index.
+	const next: NotePageV1 = { ...base, slug: await getAvailablePageSlug(base.slug, base.id) };
 
 	await putNotePage(next);
 	await attachAssetsToPage(next.id, getReferencedAssetIds(next.content));
@@ -152,32 +213,44 @@ export async function saveNotePage(page: NotePageV1): Promise<NotePageV1> {
 	return next;
 }
 
-export async function updateNotePageMetadata(
-	pageId: string,
-	metadata: Pick<Partial<NotePageV1>, 'title' | 'slug' | 'tags'>
-) {
-	const page = await loadNotePageById(pageId);
-
-	if (!page) throw new Error('Note page not found');
-
-	return saveNotePage({
-		...page,
-		...metadata,
-		content: page.content
-	});
-}
-
 export async function duplicateNotePage(pageId: string) {
 	const page = await loadNotePageById(pageId);
 
 	if (!page) throw new Error('Note page not found');
 
+	const copyTitle = `${page.title} Copy`;
+
 	return createNotePageRecord({
-		title: `${page.title} Copy`,
-		slug: `${page.slug}-copy`,
+		title: copyTitle,
 		tags: page.tags,
-		content: page.content
+		content: retitleNoteContent(page.content, copyTitle)
 	});
+}
+
+// Content is the source of truth for metadata, so a duplicate must be
+// retitled inside the content itself: the H1 and the metadata block's
+// `title` property get the copy title, and the `slug` property is dropped so
+// a fresh slug derives from the new title.
+function retitleNoteContent(content: JSONContent, title: string): JSONContent {
+	const ensured = ensureLeadingMetadataBlock(content);
+	const rootContent = [...(ensured.content ?? [])];
+	const entries = normalizeMetadataEntries(rootContent[0]?.attrs?.properties)
+		.filter((entry) => entry.key !== 'slug')
+		.map((entry) => (entry.key === 'title' ? { key: 'title', value: title } : entry));
+	const headingIndex = rootContent.findIndex(
+		(node) => node.type === 'heading' && Number(node.attrs?.level) === 1
+	);
+
+	rootContent[0] = createMetadataBlockContent(entries);
+
+	if (headingIndex >= 0) {
+		rootContent[headingIndex] = {
+			...rootContent[headingIndex],
+			content: [{ type: 'text', text: title }]
+		};
+	}
+
+	return { ...ensured, content: rootContent };
 }
 
 export async function deleteNotePage(pageId: string): Promise<void> {
@@ -272,11 +345,17 @@ export async function getAvailablePageSlug(value: unknown, currentPageId = '') {
 	return slug;
 }
 
+// One-shot: seeds the default page (migrating any legacy single note) only on
+// first ever run. An empty pages store after that means the user deleted
+// their pages — recreating the default here would resurrect deleted content.
 async function ensureDefaultPage() {
 	const db = await getDb();
 	const pages = await db.getAllKeys(PAGES_STORE_NAME);
 
-	if (pages.length) return;
+	if (pages.length || hasInitializedNotesFlag()) {
+		setInitializedNotesFlag();
+		return;
+	}
 
 	const legacyNote = newestNote(
 		await loadLegacyDefaultNoteFromIndexedDb(),
@@ -284,6 +363,24 @@ async function ensureDefaultPage() {
 	);
 
 	await putNotePage(createDefaultNotePage(legacyNote));
+	setInitializedNotesFlag();
+}
+
+function hasInitializedNotesFlag() {
+	try {
+		return window.localStorage.getItem(NOTES_INITIALIZED_FLAG_KEY) === 'true';
+	} catch {
+		return false;
+	}
+}
+
+function setInitializedNotesFlag() {
+	try {
+		window.localStorage.setItem(NOTES_INITIALIZED_FLAG_KEY, 'true');
+	} catch {
+		// Storage may be unavailable (private mode); worst case the default
+		// page is recreated once the store is empty again.
+	}
 }
 
 async function loadLegacyDefaultNoteFromIndexedDb() {

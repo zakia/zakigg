@@ -1,4 +1,5 @@
 import { Markdown } from '@tiptap/markdown';
+import { Document } from '@tiptap/extension-document';
 import { Placeholder } from '@tiptap/extension-placeholder';
 import { StarterKit } from '@tiptap/starter-kit';
 import { ComponentEmbed, type ComponentEmbedRegistry } from '$lib/editor/component-embeds';
@@ -6,6 +7,7 @@ import { CodeBlock } from '../editor/code-block';
 import { MediaBlock, type MediaBlockAssetResolver } from '../editor/media-block';
 import { EditorLink, MarkdownLinkInput } from './links';
 import { ListContinuity, ListMarkerInput } from './lists';
+import { MetadataBlock } from './metadata-block';
 import { Table, TableCell, TableHeader, TableKit, TableRow } from './tables';
 
 export function createEditorExtensions(
@@ -13,7 +15,14 @@ export function createEditorExtensions(
 	resolveMediaAssetSrc?: MediaBlockAssetResolver
 ) {
 	return [
+		// Metadata is structural, not optional: the schema requires a metadata
+		// block as the document's first child, so it always exists and cannot
+		// be deleted.
+		Document.extend({
+			content: `${MetadataBlock.name} block+`
+		}),
 		StarterKit.configure({
+			document: false,
 			codeBlock: false,
 			link: false,
 			heading: {
@@ -24,6 +33,7 @@ export function createEditorExtensions(
 		MediaBlock.configure({
 			resolveAssetSrc: resolveMediaAssetSrc
 		}),
+		MetadataBlock,
 		ComponentEmbed.configure({
 			registry: componentEmbedRegistry
 		}),
@@ -53,7 +63,10 @@ export function createEditorExtensions(
 			}
 		}),
 		Placeholder.configure({
-			placeholder: 'Start writing...'
+			placeholder: ({ node }) =>
+				node.type.name === 'heading' && Number(node.attrs.level) === 1
+					? 'Untitled'
+					: 'Start writing...'
 		})
 	];
 }

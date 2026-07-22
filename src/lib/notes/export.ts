@@ -1,6 +1,6 @@
 import type { JSONContent } from '@tiptap/core';
 import { getReferencedAssetIds, type NotePageV1 } from './types';
-import { serializeNoteMarkdown } from './markdown';
+import { serializeNotePageMarkdown } from './markdown';
 import { listFullNotePages, listNoteAssets, loadNoteAsset, type NotesAssetV1 } from './storage';
 import { createZipBlob, downloadBlob, type ZipEntryInput } from './zip';
 
@@ -56,7 +56,7 @@ export async function createNotePageExportZip(page: NotePageV1) {
 
 	entries.unshift({
 		path: 'page.md',
-		data: serializeNoteMarkdown(page.content, { assetPaths }),
+		data: serializeNotePageMarkdown(page, page.content, { assetPaths }),
 		lastModified: new Date(page.updatedAt)
 	});
 	entries.push({
@@ -102,7 +102,7 @@ export async function createNotesDatabaseExportZip() {
 	for (const page of pages) {
 		entries.push({
 			path: `pages/${safeFileStem(page.slug || page.title)}.md`,
-			data: serializeNoteMarkdown(page.content, { assetPaths }),
+			data: serializeNotePageMarkdown(page, page.content, { assetPaths }),
 			lastModified: new Date(page.updatedAt)
 		});
 		entries.push({

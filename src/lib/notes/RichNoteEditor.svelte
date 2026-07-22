@@ -37,7 +37,12 @@
 		looksLikeMarkdown,
 		serializeNotePageMarkdown
 	} from './markdown';
-	import { hasMetadataBlock, insertMetadataBlockAfterFirstHeading } from './metadata-block';
+	import {
+		METADATA_BLOCK_NODE_NAME,
+		ensureLeadingMetadataBlock,
+		normalizeMetadataEntries,
+		type MetadataProperties
+	} from './metadata-block';
 	import { downloadNotePageExport } from './export';
 	import {
 		createLocalAssetSrc,
@@ -158,7 +163,9 @@
 				element: editorHost,
 				extensions: createEditorExtensions(craftComponentEmbeds, resolveNoteAssetObjectUrl),
 				content: initialContent,
-				autofocus: startsWithEmptyTitle(initialContent) ? 'start' : 'end',
+				// Position 2 is inside the H1 (the leading metadata block is a
+				// size-1 atom at position 0).
+				autofocus: startsWithEmptyTitle(initialContent) ? 2 : 'end',
 				editorProps: {
 					attributes: {
 						'aria-label': `${page.title} editor`,
@@ -169,8 +176,6 @@
 					handleDOMEvents: createEditorDomHandlers()
 				},
 				onUpdate: () => {
-					if (convertHeadingAdjacentRuleToMetadataBlock(instance)) return;
-
 					noteEditorChanged();
 					scheduleSave();
 					scheduleHistorySnapshot();
@@ -322,54 +327,6 @@
 			editorTickQueued = false;
 			editorTick += 1;
 		});
-	}
-
-	function convertHeadingAdjacentRuleToMetadataBlock(instance: Editor) {
-		const metadataType = instance.schema.nodes.metadataBlock;
-		if (!metadataType) return false;
-
-		const { doc } = instance.state;
-		let firstHeadingFound = false;
-		let replaceFrom = -1;
-		let offset = 0;
-
-		for (let index = 0; index < doc.childCount; index += 1) {
-			const node = doc.child(index);
-			const nextOffset = offset + node.nodeSize;
-
-			if (firstHeadingFound && node.type.name === 'paragraph' && !node.textContent.trim()) {
-				offset = nextOffset;
-				continue;
-			}
-
-			if (firstHeadingFound && node.type.name === 'horizontalRule') {
-				const transaction = instance.state.tr
-					.replaceWith(
-						replaceFrom,
-						nextOffset,
-						metadataType.create({
-							properties: [],
-							collapsed: false,
-							adding: true
-						})
-					)
-					.scrollIntoView();
-
-				instance.view.dispatch(transaction);
-				return true;
-			}
-
-			if (firstHeadingFound) return false;
-
-			if (node.type.name === 'heading' && Number(node.attrs.level) === 1) {
-				firstHeadingFound = true;
-				replaceFrom = nextOffset;
-			}
-
-			offset = nextOffset;
-		}
-
-		return false;
 	}
 
 	function scheduleSelectionToolbarSync() {
@@ -595,7 +552,34 @@
 	function insertMarkdown(markdown: string) {
 		const result = insertEditorMarkdown(editor, markdown);
 
+		if (result.properties) mergeLeadingMetadataProperties(result.properties);
+
 		return result.inserted || Boolean(result.frontmatter);
+	}
+
+	// Pasted/dropped frontmatter lands in the document's one metadata block;
+	// incoming values win per key, everything else is kept.
+	function mergeLeadingMetadataProperties(properties: MetadataProperties) {
+		if (!editor) return;
+
+		const block = editor.state.doc.child(0);
+		if (block.type.name !== METADATA_BLOCK_NODE_NAME) return;
+
+		const merged = [...normalizeMetadataEntries(block.attrs.properties)];
+
+		for (const entry of normalizeMetadataEntries(properties)) {
+			const index = merged.findIndex((existing) => existing.key === entry.key);
+
+			if (index >= 0) merged[index] = entry;
+			else merged.push(entry);
+		}
+
+		editor.view.dispatch(
+			editor.state.tr.setNodeMarkup(0, undefined, {
+				...block.attrs,
+				properties: merged
+			})
+		);
 	}
 
 	async function insertMediaFiles(files: File[]) {
@@ -1097,7 +1081,8 @@
 	}
 
 	function startsWithEmptyTitle(content: JSONContent) {
-		const first = content.type === 'doc' ? content.content?.[0] : undefined;
+		// content[0] is always the metadata block; the title H1 follows it.
+		const first = content.type === 'doc' ? content.content?.[1] : undefined;
 
 		return (
 			first?.type === 'heading' && Number(first.attrs?.level) === 1 && !(first.content ?? []).length
@@ -1115,9 +1100,14 @@
 			? ($state.snapshot(page.frontmatter) as NotePageV1['frontmatter'])
 			: undefined;
 
-		if (!frontmatter || hasMetadataBlock(content)) return content;
-
-		return insertMetadataBlockAfterFirstHeading(content, frontmatter);
+		// The schema requires a leading metadata block; normalize legacy
+		// content here (seeded from stored frontmatter and tags) rather than
+		// letting ProseMirror drop a mid-document block and synthesize an
+		// empty one.
+		return ensureLeadingMetadataBlock(content, {
+			...frontmatter,
+			...(page.tags.length ? { tags: $state.snapshot(page.tags) } : {})
+		});
 	}
 </script>
 

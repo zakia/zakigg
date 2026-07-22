@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Icon from '@iconify/svelte';
+	import Icon from '$lib/components/Icon.svelte';
 	import { EDITOR_SHORTCUT_GROUPS } from './keyboard-shortcuts';
 	import ShortcutKeys from './ShortcutKeys.svelte';
 

@@ -1,7 +1,14 @@
 import { browser } from '$app/environment';
+import type { JSONContent } from '@tiptap/core';
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import {
+	createMetadataBlockContent,
+	ensureLeadingMetadataBlock,
+	normalizeMetadataEntries
+} from './metadata-block';
+import {
 	DEFAULT_NOTE_SLUG,
+	NOTES_STORAGE_KEY_PREFIX,
 	createDefaultNotePage,
 	createNotePage,
 	getNoteStorageKey,
@@ -16,6 +23,7 @@ import {
 } from './types';
 
 const DB_NAME = 'zaki.gg-notes';
+const NOTES_INITIALIZED_FLAG_KEY = `${NOTES_STORAGE_KEY_PREFIX}:initialized`;
 const DB_VERSION = 3;
 const LEGACY_DOCUMENTS_STORE_NAME = 'documents';
 const PAGES_STORE_NAME = 'pages';
@@ -205,36 +213,44 @@ export async function saveNotePage(page: NotePageV1): Promise<NotePageV1> {
 	return next;
 }
 
-export async function updateNotePageMetadata(
-	pageId: string,
-	metadata: Pick<Partial<NotePageV1>, 'title' | 'slug' | 'tags'>
-) {
-	const page = await loadNotePageById(pageId);
-
-	if (!page) throw new Error('Note page not found');
-
-	return saveNotePage({
-		...page,
-		...metadata,
-		frontmatter: {
-			...page.frontmatter,
-			...metadata
-		},
-		content: page.content
-	});
-}
-
 export async function duplicateNotePage(pageId: string) {
 	const page = await loadNotePageById(pageId);
 
 	if (!page) throw new Error('Note page not found');
 
+	const copyTitle = `${page.title} Copy`;
+
 	return createNotePageRecord({
-		title: `${page.title} Copy`,
-		slug: `${page.slug}-copy`,
+		title: copyTitle,
 		tags: page.tags,
-		content: page.content
+		content: retitleNoteContent(page.content, copyTitle)
 	});
+}
+
+// Content is the source of truth for metadata, so a duplicate must be
+// retitled inside the content itself: the H1 and the metadata block's
+// `title` property get the copy title, and the `slug` property is dropped so
+// a fresh slug derives from the new title.
+function retitleNoteContent(content: JSONContent, title: string): JSONContent {
+	const ensured = ensureLeadingMetadataBlock(content);
+	const rootContent = [...(ensured.content ?? [])];
+	const entries = normalizeMetadataEntries(rootContent[0]?.attrs?.properties)
+		.filter((entry) => entry.key !== 'slug')
+		.map((entry) => (entry.key === 'title' ? { key: 'title', value: title } : entry));
+	const headingIndex = rootContent.findIndex(
+		(node) => node.type === 'heading' && Number(node.attrs?.level) === 1
+	);
+
+	rootContent[0] = createMetadataBlockContent(entries);
+
+	if (headingIndex >= 0) {
+		rootContent[headingIndex] = {
+			...rootContent[headingIndex],
+			content: [{ type: 'text', text: title }]
+		};
+	}
+
+	return { ...ensured, content: rootContent };
 }
 
 export async function deleteNotePage(pageId: string): Promise<void> {
@@ -329,11 +345,17 @@ export async function getAvailablePageSlug(value: unknown, currentPageId = '') {
 	return slug;
 }
 
+// One-shot: seeds the default page (migrating any legacy single note) only on
+// first ever run. An empty pages store after that means the user deleted
+// their pages — recreating the default here would resurrect deleted content.
 async function ensureDefaultPage() {
 	const db = await getDb();
 	const pages = await db.getAllKeys(PAGES_STORE_NAME);
 
-	if (pages.length) return;
+	if (pages.length || hasInitializedNotesFlag()) {
+		setInitializedNotesFlag();
+		return;
+	}
 
 	const legacyNote = newestNote(
 		await loadLegacyDefaultNoteFromIndexedDb(),
@@ -341,6 +363,24 @@ async function ensureDefaultPage() {
 	);
 
 	await putNotePage(createDefaultNotePage(legacyNote));
+	setInitializedNotesFlag();
+}
+
+function hasInitializedNotesFlag() {
+	try {
+		return window.localStorage.getItem(NOTES_INITIALIZED_FLAG_KEY) === 'true';
+	} catch {
+		return false;
+	}
+}
+
+function setInitializedNotesFlag() {
+	try {
+		window.localStorage.setItem(NOTES_INITIALIZED_FLAG_KEY, 'true');
+	} catch {
+		// Storage may be unavailable (private mode); worst case the default
+		// page is recreated once the store is empty again.
+	}
 }
 
 async function loadLegacyDefaultNoteFromIndexedDb() {

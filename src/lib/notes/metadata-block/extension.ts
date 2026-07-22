@@ -1,37 +1,24 @@
-import { InputRule, mergeAttributes, Node, type Editor, type JSONContent } from '@tiptap/core';
+import { mergeAttributes, Node, type Editor, type JSONContent } from '@tiptap/core';
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 import { NodeSelection, Plugin, TextSelection, type EditorState } from '@tiptap/pm/state';
 import { createMetadataBlockNodeView } from './view';
 import { focusMetadataBlockEdge } from './focus';
 import {
 	METADATA_BLOCK_NODE_NAME,
-	createMetadataBlockContent,
 	normalizeMetadataBlockAttrs,
 	normalizeMetadataEntries,
 	slugifyText,
-	type MetadataBlockAttrs,
-	type MetadataEntry,
-	type MetadataPropertiesInput
+	type MetadataEntry
 } from './config';
 
 type ArrowDirection = 'up' | 'down' | 'left' | 'right';
 
-type MetadataBlockInsertAttrs = Partial<Omit<MetadataBlockAttrs, 'properties'>> & {
-	properties?: MetadataPropertiesInput;
-};
-
-declare module '@tiptap/core' {
-	interface Commands<ReturnType> {
-		metadataBlock: {
-			insertMetadataBlock: (attrs?: MetadataBlockInsertAttrs) => ReturnType;
-		};
-	}
-}
-
+// Deliberately in no group: the document schema (`metadataBlock block+`)
+// admits it only as the required first child, so it can never be inserted
+// elsewhere or deleted.
 export const MetadataBlock = Node.create({
 	name: METADATA_BLOCK_NODE_NAME,
 	priority: 1000,
-	group: 'block',
 	atom: true,
 	selectable: true,
 	isolating: true,
@@ -82,64 +69,21 @@ export const MetadataBlock = Node.create({
 		];
 	},
 
-	addCommands() {
-		return {
-			insertMetadataBlock:
-				(attrs = {}) =>
-				({ commands }) => {
-					const properties = normalizeMetadataEntries(attrs.properties);
-					const shouldOpenPicker = attrs.adding ?? properties.length === 0;
-
-					return commands.insertContent(
-						createMetadataBlockContent(properties, {
-							collapsed: attrs.collapsed === true,
-							adding: shouldOpenPicker
-						})
-					);
-				}
-		};
-	},
-
-	addInputRules() {
-		return [
-			new InputRule({
-				find: /^---$/,
-				handler: ({ state, range }) => {
-					const block = getMetadataTriggerBlock(state.doc, range.from);
-
-					if (!block) return null;
-
-					const metadataBlock = this.type.create({
-						properties: [],
-						collapsed: false,
-						adding: true
-					});
-					const paragraph = state.schema.nodes.paragraph?.create();
-					const transaction = state.tr.delete(block.replaceFrom, block.pos + block.node.nodeSize);
-
-					transaction.insert(
-						block.replaceFrom,
-						paragraph ? [metadataBlock, paragraph] : metadataBlock
-					);
-
-					if (paragraph) {
-						transaction.setSelection(
-							TextSelection.create(transaction.doc, block.replaceFrom + metadataBlock.nodeSize + 1)
-						);
-					}
-
-					transaction.scrollIntoView();
-				}
-			})
-		];
-	},
-
 	addKeyboardShortcuts() {
 		return {
 			ArrowDown: () => focusMetadataBlockFromArrow(this.editor, 'down'),
 			ArrowUp: () => focusMetadataBlockFromArrow(this.editor, 'up'),
 			ArrowRight: () => focusMetadataBlockFromArrow(this.editor, 'right'),
 			ArrowLeft: () => focusMetadataBlockFromArrow(this.editor, 'left'),
+			// The schema keeps a metadata block present, but a delete that spans
+			// it would make ProseMirror synthesize a fresh EMPTY block to
+			// satisfy the schema — silently wiping the properties. Swallow the
+			// deletes that would reach it instead.
+			Backspace: () => preventLeadingMetadataBlockDeletion(this.editor),
+			Delete: () => isMetadataBlockSelection(this.editor.state.selection),
+			// Select-all covers the content below the block; the properties are
+			// metadata, not part of the text selection.
+			'Mod-a': () => selectContentBelowMetadataBlock(this.editor),
 			Enter: () => {
 				const { selection } = this.editor.state;
 
@@ -237,6 +181,40 @@ function findTopLevelMetadataBlock(doc: ProseMirrorNode) {
 	}
 }
 
+// True (= swallow the key) when a backspace would merge into or delete the
+// leading metadata block: either the block itself is node-selected, or the
+// caret sits at the very start of the top-level block right after it.
+function preventLeadingMetadataBlockDeletion(editor: Editor) {
+	const { selection, doc } = editor.state;
+
+	if (isMetadataBlockSelection(selection)) return true;
+	if (!(selection instanceof TextSelection) || !selection.empty) return false;
+
+	const { $head } = selection;
+
+	return (
+		$head.depth === 1 &&
+		$head.index(0) === 1 &&
+		$head.parentOffset === 0 &&
+		doc.child(0).type.name === METADATA_BLOCK_NODE_NAME
+	);
+}
+
+function selectContentBelowMetadataBlock(editor: Editor) {
+	const { state, view } = editor;
+	const { doc } = state;
+
+	if (doc.childCount < 2 || doc.child(0).type.name !== METADATA_BLOCK_NODE_NAME) return false;
+
+	view.dispatch(
+		state.tr.setSelection(
+			TextSelection.between(doc.resolve(doc.child(0).nodeSize), doc.resolve(doc.content.size))
+		)
+	);
+
+	return true;
+}
+
 function isMetadataBlockSelection(selection: EditorState['selection']): selection is NodeSelection {
 	return (
 		selection instanceof NodeSelection && selection.node.type.name === METADATA_BLOCK_NODE_NAME
@@ -291,94 +269,6 @@ function getAdjacentMetadataBlockPos(editor: Editor, direction: ArrowDirection, 
 	if (adjacent?.type.name !== METADATA_BLOCK_NODE_NAME) return;
 
 	return forward ? $head.pos : $head.pos - adjacent.nodeSize;
-}
-
-function getMetadataTriggerBlock(doc: ProseMirrorNode, position: number) {
-	const resolved = doc.resolve(position);
-
-	if (resolved.depth !== 1) return;
-
-	const blockStart = resolved.before(1);
-	const block = getTopLevelBlockAt(doc, blockStart);
-
-	if (!block || block.node.type.name !== 'paragraph') return;
-	if (block.node.textContent !== '--' && block.node.textContent !== '---') return;
-	if (block.index <= 0) return;
-
-	const previous = getPreviousNonEmptyTopLevelBlock(doc, block.index);
-	const previousIsFirstHeading =
-		previous?.node.type.name === 'heading' &&
-		Number(previous.node.attrs.level) === 1 &&
-		!hasLevelOneHeadingBefore(doc, previous.index);
-
-	if (!previousIsFirstHeading) return;
-
-	return {
-		...block,
-		replaceFrom:
-			previous.index + 1 < block.index
-				? (getTopLevelBlockAtIndex(doc, previous.index + 1)?.pos ?? block.pos)
-				: block.pos
-	};
-}
-
-function getTopLevelBlockAt(doc: ProseMirrorNode, position: number) {
-	let offset = 0;
-
-	for (let index = 0; index < doc.childCount; index += 1) {
-		const node = doc.child(index);
-
-		if (offset === position) {
-			return {
-				index,
-				pos: offset,
-				node
-			};
-		}
-
-		offset += node.nodeSize;
-	}
-}
-
-function hasLevelOneHeadingBefore(doc: ProseMirrorNode, endIndex: number) {
-	for (let index = 0; index < endIndex; index += 1) {
-		const node = doc.child(index);
-
-		if (node.type.name === 'heading' && Number(node.attrs.level) === 1) return true;
-	}
-
-	return false;
-}
-
-function getPreviousNonEmptyTopLevelBlock(doc: ProseMirrorNode, beforeIndex: number) {
-	for (let index = beforeIndex - 1; index >= 0; index -= 1) {
-		const node = doc.child(index);
-
-		if (node.type.name === 'paragraph' && !node.textContent.trim()) continue;
-
-		return {
-			index,
-			node
-		};
-	}
-}
-
-function getTopLevelBlockAtIndex(doc: ProseMirrorNode, targetIndex: number) {
-	let offset = 0;
-
-	for (let index = 0; index < doc.childCount; index += 1) {
-		const node = doc.child(index);
-
-		if (index === targetIndex) {
-			return {
-				index,
-				pos: offset,
-				node
-			};
-		}
-
-		offset += node.nodeSize;
-	}
 }
 
 function parseJsonAttribute(value: string | undefined): JSONContent['attrs'] {

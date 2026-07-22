@@ -39,7 +39,7 @@
 	"dependencies": {
 		"@fontsource-variable/inter": "^5.2.8",
 		"@fontsource/inter": "^5.2.8",
-		"@iconify/svelte": "^5.2.1",
+		"@iconify/svelte": "^5.2.2",
 		"@notionhq/client": "^5.7.0",
 		"@poppanator/sveltekit-svg": "^6.0.1",
 		"@speed-highlight/core": "^1.2.14",
@@ -47,6 +47,7 @@
 		"@tailwindcss/postcss": "4.1.18",
 		"@tailwindcss/vite": "4.1.18",
 		"@tiptap/core": "^3.27.1",
+		"@tiptap/extension-document": "^3.27.1",
 		"@tiptap/extension-link": "^3.27.1",
 		"@tiptap/extension-placeholder": "^3.27.1",
 		"@tiptap/markdown": "^3.27.1",

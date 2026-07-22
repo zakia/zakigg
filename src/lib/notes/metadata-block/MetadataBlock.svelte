@@ -73,8 +73,11 @@
 	const filteredAvailableProperties = $derived(
 		getFilteredAvailableProperties(propertyKeyDraft, availableProperties)
 	);
+	// Only user intent (adding/addPropertyActive) opens the picker — every
+	// document now carries this block, so an empty one must render compact
+	// instead of auto-opening and stealing focus on load.
 	const showNewPropertyRow = $derived(
-		availableProperties.length > 0 && (attrs.adding || addPropertyActive || rows.length === 0)
+		availableProperties.length > 0 && (attrs.adding || addPropertyActive)
 	);
 
 	function commitEntries(next: MetadataEntry[]) {
@@ -417,17 +420,14 @@
 		event.preventDefault();
 		propertyKeyDraft = '';
 		propertyComboboxOpen = false;
+		addPropertyActive = false;
+		setAdding(false);
+		// The new-property row unmounts under focus; land on the add button.
+		void tick().then(() => {
+			const keys = getKeyElements();
 
-		if (rows.length > 0) {
-			addPropertyActive = false;
-			setAdding(false);
-			// The new-property row unmounts under focus; land on the add button.
-			void tick().then(() => {
-				const keys = getKeyElements();
-
-				keys[keys.length - 1]?.focus();
-			});
-		}
+			keys[keys.length - 1]?.focus();
+		});
 	}
 
 	function commitPropertyKey() {

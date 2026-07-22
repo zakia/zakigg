@@ -207,10 +207,6 @@ export function createMetadataBlockContent(
 	};
 }
 
-export function hasMetadataBlock(content: JSONContent) {
-	return Boolean(getMetadataBlockProperties(content));
-}
-
 export function getMetadataBlockProperties(content: JSONContent): MetadataProperties | undefined {
 	let properties: MetadataProperties | undefined;
 
@@ -223,33 +219,35 @@ export function getMetadataBlockProperties(content: JSONContent): MetadataProper
 	return properties;
 }
 
-export function insertMetadataBlockAfterFirstHeading(
+// The metadata block is the document's required first child. This moves an
+// existing block (wherever legacy content put it) to the front, or creates one
+// seeded with `fallbackProperties` when the document has none.
+export function ensureLeadingMetadataBlock(
 	content: JSONContent,
-	properties: MetadataPropertiesInput
+	fallbackProperties: MetadataPropertiesInput = DEFAULT_METADATA_PROPERTIES
 ): JSONContent {
-	const block = createMetadataBlockContent(properties);
 	const cloned = cloneContent(content);
 	const rootContent = cloned.type === 'doc' ? (cloned.content ?? []) : [cloned];
 	const existingIndex = rootContent.findIndex((node) => node.type === METADATA_BLOCK_NODE_NAME);
+	// `adding` is transient picker state; never resurrect it from stored content
+	// or the property picker would steal focus on load.
+	const block =
+		existingIndex >= 0
+			? createMetadataBlockContent(
+					normalizeMetadataEntries(rootContent[existingIndex].attrs?.properties),
+					{ collapsed: normalizeMetadataBlockAttrs(rootContent[existingIndex].attrs).collapsed }
+				)
+			: createMetadataBlockContent(fallbackProperties);
 
-	if (existingIndex >= 0) {
-		rootContent[existingIndex] = block;
-	} else {
-		const headingIndex = rootContent.findIndex(
-			(node) => node.type === 'heading' && Number(node.attrs?.level) === 1
-		);
-		rootContent.splice(headingIndex >= 0 ? headingIndex + 1 : 0, 0, block);
-	}
+	if (existingIndex >= 0) rootContent.splice(existingIndex, 1);
+	rootContent.unshift(block);
 
-	return cloned.type === 'doc'
-		? {
-				...cloned,
-				content: rootContent
-			}
-		: {
-				type: 'doc',
-				content: rootContent
-			};
+	if (rootContent.length === 1) rootContent.push({ type: 'paragraph' });
+
+	return {
+		...(cloned.type === 'doc' ? cloned : { type: 'doc' }),
+		content: rootContent
+	};
 }
 
 function cloneContent(content: JSONContent): JSONContent {

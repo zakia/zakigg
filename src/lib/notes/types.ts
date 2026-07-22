@@ -1,5 +1,6 @@
 import type { JSONContent } from '@tiptap/core';
 import {
+	ensureLeadingMetadataBlock,
 	getMetadataBlockProperties,
 	normalizeMetadataProperties,
 	slugifyText,
@@ -77,7 +78,7 @@ export function createNotesDoc(
 export function createNotePage(input: Partial<NotePageV1> = {}): NotePageV1 {
 	const now = new Date().toISOString();
 	const id = input.id || createPageId();
-	const content =
+	const rawContent =
 		input.content && isJSONContent(input.content)
 			? input.content
 			: createInitialNotePageContent(input.title);
@@ -87,15 +88,22 @@ export function createNotePage(input: Partial<NotePageV1> = {}): NotePageV1 {
 			editor: NOTES_EDITOR,
 			id,
 			slug: normalizePageSlug(input.slug || DEFAULT_NOTE_SLUG),
-			title: normalizePageTitle(input.title || getFirstLevelOneHeadingText(content)),
+			title: normalizePageTitle(input.title || getFirstLevelOneHeadingText(rawContent)),
 			tags: normalizePageTags(input.tags),
 			frontmatter: normalizeNotePageFrontmatter(input.frontmatter),
-			content,
+			content: rawContent,
 			createdAt: normalizeDate(input.createdAt) || now,
 			updatedAt: normalizeDate(input.updatedAt) || now
 		},
-		content
+		rawContent
 	);
+	// Metadata is mandatory: every stored page leads with a metadata block.
+	// Legacy content without one gets a block seeded from its resolved
+	// metadata so nothing (tags, frontmatter) is lost in the move.
+	const content = ensureLeadingMetadataBlock(rawContent, {
+		...metadata.frontmatter,
+		...(metadata.tags.length ? { tags: metadata.tags } : {})
+	});
 
 	return {
 		version: NOTES_PAGE_VERSION,

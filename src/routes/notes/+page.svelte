@@ -47,12 +47,12 @@
 		return {
 			type: 'doc',
 			content: [
-				{ type: 'heading', attrs: { level: 1 } },
 				createMetadataBlockContent({
 					title: '',
 					slug: '',
 					date: new Date().toISOString().slice(0, 10)
 				}),
+				{ type: 'heading', attrs: { level: 1 } },
 				{ type: 'paragraph' }
 			]
 		};
@@ -239,7 +239,6 @@
 	ondragover={handleDragOver}
 	ondragleave={handleDragLeave}
 	ondrop={handleDrop}
-	role="region"
 	aria-label="Notes"
 >
 	<input

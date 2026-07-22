@@ -21,20 +21,23 @@ The product principle is: **rich text UX, browser-owned documents, markdown port
 ## Current Scope
 
 - Add a local document manager at `/notes`.
-- Add clean read views at `/notes/<slug>` with an explicit edit button.
-- Add edit mode at `/notes/<slug>?edit=1`.
-- Support page metadata:
-  - Title
-  - Slug
-  - Tags
+- Serve `/notes/<slug>` as an always-editable WYSIWYG page. There is no separate read-only
+  view: documents live in each visitor's own browser, so the author is the only reader.
+- Make metadata structural, not optional: every document begins with a required metadata
+  (properties) block above the first H1, enforced by the editor schema so it cannot be
+  deleted. An empty block renders as a compact "Add property" row.
+- Source page metadata from the content itself:
+  - Title (metadata `title` property, else the first H1)
+  - Slug (metadata `slug` property, else derived from the title)
+  - Tags, description, date, and draft as metadata block properties
   - Created and updated timestamps
+- Round-trip metadata as standard top-of-file YAML frontmatter in markdown.
 - Support local page administration:
   - Create pages
+  - Import pages from note export zips (file picker or drag and drop)
   - Search pages
   - Filter by tag
-  - Open pages for view or edit
-  - Duplicate pages
-  - Delete pages
+  - Open, duplicate, and delete pages
   - See page, word, asset, and orphan-asset counts
   - Delete orphaned assets
 - Persist page content and media assets in IndexedDB.
@@ -58,7 +61,6 @@ The product principle is: **rich text UX, browser-owned documents, markdown port
 - No Craft editing interop from `/notes`.
 - No cloud sync.
 - No collaboration.
-- No import/restore workflow yet.
 
 The app is public but local-only: anyone can visit `/notes`, but their documents live in their own
 browser storage.
@@ -113,7 +115,7 @@ type NoteBlock = {
 
 ## Roadmap
 
-- V2: import/restore from notes export zips.
+- V2 (shipped): import/restore from notes export zips.
 - V3: local-first CRDT persistence with Yjs and y-indexeddb.
 - V4: background cloud sync through Y-Sweet or a similar Yjs sync service.
 - V5: authenticated private notes and explicit sharing.
@@ -140,19 +142,19 @@ type NoteBlock = {
 - Export the database.
 - Confirm orphaned assets are visible and cleanable.
 
-### Reader And Editor
+### Editor
 
-- Open `/notes/<slug>`.
-- Confirm the default view is read-only and clean.
-- Use the edit button and confirm `/notes/<slug>?edit=1` opens the editor.
+- Open `/notes/<slug>` and confirm the editor loads with the metadata block above the H1.
+- Confirm the metadata block cannot be deleted and an empty one stays compact.
 - Edit content and confirm autosave returns to saved state.
-- Change title, slug, and tags, then confirm the URL follows slug changes.
-- Refresh the reader and confirm content and assets return.
+- Edit the H1 or the metadata title/slug properties, then confirm the URL follows slug changes.
+- Paste markdown with YAML frontmatter and confirm properties merge into the metadata block.
+- Refresh and confirm content and assets return.
 
 ### Assets And Export
 
 - Insert an image or video.
-- Refresh the edit and reader views and confirm the asset renders.
+- Refresh the editor and confirm the asset renders.
 - Export the page and confirm markdown asset references point to files under `assets/`.
 - Export the full database and confirm the manifest lists every page and asset.
 

@@ -1,4 +1,5 @@
 import { Markdown } from '@tiptap/markdown';
+import { Document } from '@tiptap/extension-document';
 import { Placeholder } from '@tiptap/extension-placeholder';
 import { StarterKit } from '@tiptap/starter-kit';
 import { ComponentEmbed, type ComponentEmbedRegistry } from '$lib/editor/component-embeds';
@@ -14,7 +15,14 @@ export function createEditorExtensions(
 	resolveMediaAssetSrc?: MediaBlockAssetResolver
 ) {
 	return [
+		// Metadata is structural, not optional: the schema requires a metadata
+		// block as the document's first child, so it always exists and cannot
+		// be deleted.
+		Document.extend({
+			content: `${MetadataBlock.name} block+`
+		}),
 		StarterKit.configure({
+			document: false,
 			codeBlock: false,
 			link: false,
 			heading: {

@@ -3,19 +3,14 @@ import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import { normalizeMediaBlockAttrs } from '$lib/editor/media-block/config';
 import {
 	METADATA_BLOCK_NODE_NAME,
-	createMetadataBlockContent,
-	getMetadataBlockProperties,
-	insertMetadataBlockAfterFirstHeading,
+	ensureLeadingMetadataBlock,
 	normalizeMetadataProperties,
 	type MetadataProperties
 } from './metadata-block';
 import {
 	metadataPropertiesToNotePageFrontmatter,
-	normalizePageSlug,
-	normalizePageTags,
 	resolveNotePageMetadata,
 	type NotePageFrontmatter,
-	type NotePageMetadataPatch,
 	type NotePageV1
 } from './types';
 
@@ -58,6 +53,9 @@ export function getEditorMarkdown(editor?: Editor) {
 	return editor ? (editor as MarkdownEditor).getMarkdown() : '';
 }
 
+// Frontmatter is never inserted as content — the document's leading metadata
+// block is the single home for it, so the caller merges the returned
+// `properties` into that block.
 export function insertEditorMarkdown(
 	editor: Editor | undefined,
 	markdown: string
@@ -68,9 +66,7 @@ export function insertEditorMarkdown(
 
 	if (!parsed.markdown.trim()) {
 		return {
-			inserted: parsed.properties
-				? editor.chain().focus().insertContent(createMetadataBlockContent(parsed.properties)).run()
-				: parsed.hasFrontmatter,
+			inserted: parsed.hasFrontmatter,
 			frontmatter: parsed.frontmatter,
 			properties: parsed.properties
 		};
@@ -86,16 +82,8 @@ export function insertEditorMarkdown(
 		};
 	}
 
-	const normalizedContent: JSONContent = {
-		type: 'doc',
-		content: normalizeMarkdownContent(parsedContent)
-	};
-	const content = parsed.properties
-		? (insertMetadataBlockAfterFirstHeading(normalizedContent, parsed.properties).content ?? [])
-		: (normalizedContent.content ?? []);
-
 	return {
-		inserted: editor.chain().focus().insertContent(content).run(),
+		inserted: editor.chain().focus().insertContent(normalizeMarkdownContent(parsedContent)).run(),
 		frontmatter: parsed.frontmatter,
 		properties: parsed.properties
 	};
@@ -163,16 +151,18 @@ export function serializeNoteMarkdown(
 	return markdown ? `${markdown}\n` : '';
 }
 
+// The metadata block leads the document, so serializing in place yields
+// standard top-of-file YAML frontmatter. Legacy content without a block gets
+// one seeded from the page's resolved metadata first.
 export function serializeNotePageMarkdown(
 	page: NotePageV1,
 	content: JSONContent = page.content,
 	options: { assetPaths?: Map<string, string> } = {}
 ) {
-	const exportContent = getMetadataBlockProperties(content)
-		? content
-		: insertMetadataBlockAfterFirstHeading(content, getNotePageFrontmatter(page, content));
-
-	return serializeNoteMarkdown(exportContent, options);
+	return serializeNoteMarkdown(
+		ensureLeadingMetadataBlock(content, getNotePageFrontmatter(page, content)),
+		options
+	);
 }
 
 export function getNotePageFrontmatter(
@@ -191,92 +181,20 @@ export function getNotePageFrontmatter(
 	};
 }
 
-export function getDefaultNotePageFrontmatter(
-	page: NotePageV1,
-	content: JSONContent = page.content
-): NoteMarkdownFrontmatter {
-	return getNotePageFrontmatter({ ...page, frontmatter: undefined }, content);
-}
-
-export function serializeNoteFrontmatterYaml(frontmatter: NoteMarkdownFrontmatter) {
-	return serializeMetadataPropertiesYaml(frontmatter);
-}
-
+// Only top-of-file frontmatter counts — `---` fences after any content are
+// ordinary horizontal rules, never YAML.
 export function parseMarkdownFrontmatter(markdown: string): ParsedMarkdown {
 	const topMatch = markdown.match(FRONTMATTER_RE);
 
-	if (topMatch) {
-		const parsed = parseNoteFrontmatterYaml(topMatch[1] ?? '');
+	if (!topMatch) return { markdown, hasFrontmatter: false };
 
-		return {
-			markdown: markdown.slice(topMatch[0].length),
-			frontmatter: parsed.frontmatter,
-			properties: parsed.properties,
-			hasFrontmatter: true
-		};
-	}
-
-	const embedded = findHeadingFrontmatter(markdown);
-
-	if (!embedded) return { markdown, hasFrontmatter: false };
-
-	const parsed = parseNoteFrontmatterYaml(embedded.yaml);
+	const parsed = parseNoteFrontmatterYaml(topMatch[1] ?? '');
 
 	return {
-		markdown: embedded.markdown,
+		markdown: markdown.slice(topMatch[0].length),
 		frontmatter: parsed.frontmatter,
 		properties: parsed.properties,
 		hasFrontmatter: true
-	};
-}
-
-export function frontmatterToPageMetadata(
-	frontmatter: NoteMarkdownFrontmatter | undefined,
-	defaults?: NoteMarkdownFrontmatter,
-	clearMissing = false
-): NotePageMetadataPatch {
-	if (!frontmatter) {
-		return clearMissing
-			? {
-					title: undefined,
-					slug: undefined,
-					description: undefined,
-					tags: undefined,
-					date: undefined,
-					draft: undefined
-				}
-			: {};
-	}
-
-	const tags = frontmatter.tags ?? [];
-
-	return {
-		...(frontmatter.title && frontmatter.title !== defaults?.title
-			? { title: frontmatter.title }
-			: clearMissing
-				? { title: undefined }
-				: {}),
-		...(frontmatter.slug && frontmatter.slug !== defaults?.slug
-			? { slug: frontmatter.slug }
-			: clearMissing
-				? { slug: undefined }
-				: {}),
-		...(frontmatter.description && frontmatter.description !== defaults?.description
-			? { description: frontmatter.description }
-			: clearMissing
-				? { description: undefined }
-				: {}),
-		...(frontmatter.tags ? { tags } : clearMissing ? { tags: undefined } : {}),
-		...(frontmatter.date && frontmatter.date !== defaults?.date
-			? { date: frontmatter.date }
-			: clearMissing
-				? { date: undefined }
-				: {}),
-		...(typeof frontmatter.draft === 'boolean' && frontmatter.draft !== defaults?.draft
-			? { draft: frontmatter.draft }
-			: clearMissing
-				? { draft: undefined }
-				: {})
 	};
 }
 
@@ -321,70 +239,6 @@ export function serializeMetadataPropertiesYaml(properties: MetadataProperties) 
 		lineWidth: 0,
 		nullStr: ''
 	}).trimEnd();
-}
-
-function findHeadingFrontmatter(markdown: string) {
-	const lines = markdown.match(/[^\n]*(?:\n|$)/g)?.filter((line) => line.length) ?? [];
-	const offsets: number[] = [];
-	let offset = 0;
-
-	for (const line of lines) {
-		offsets.push(offset);
-		offset += line.length;
-	}
-
-	const headingLine = lines.findIndex((line) => isLevelOneHeadingLine(line));
-	if (headingLine < 0) return;
-
-	let fenceLine = headingLine + 1;
-
-	while (fenceLine < lines.length && isBlankLine(lines[fenceLine])) {
-		fenceLine += 1;
-	}
-
-	const block = getYamlFenceBlock(lines, offsets, fenceLine);
-	if (!block) return;
-
-	return {
-		yaml: block.yaml,
-		markdown: markdown.slice(0, offsets[fenceLine]) + markdown.slice(block.end)
-	};
-}
-
-function getYamlFenceBlock(lines: string[], offsets: number[], startLine: number) {
-	if (!isYamlFenceLine(lines[startLine])) return;
-
-	for (let line = startLine + 1; line < lines.length; line += 1) {
-		if (!isYamlFenceLine(lines[line])) continue;
-
-		return {
-			yaml: lines
-				.slice(startLine + 1, line)
-				.join('')
-				.trimEnd(),
-			end: offsets[line] + lines[line].length
-		};
-	}
-}
-
-function isLevelOneHeadingLine(line: string) {
-	return /^[ \t]{0,3}#[ \t]+\S/.test(stripLineEnding(line).replace(/^\uFEFF/, ''));
-}
-
-function isYamlFenceLine(line: string | undefined) {
-	return (
-		stripLineEnding(line ?? '')
-			.replace(/^\uFEFF/, '')
-			.trim() === '---'
-	);
-}
-
-function isBlankLine(line: string | undefined) {
-	return stripLineEnding(line ?? '').trim() === '';
-}
-
-function stripLineEnding(line: string) {
-	return line.replace(/\r?\n$/, '');
 }
 
 function dateOnly(value: string) {
@@ -469,7 +323,13 @@ function renderInlineChildren(node: JSONContent, context: RenderContext) {
 
 function renderInline(node: JSONContent, context: RenderContext): string {
 	if (node.type === 'text') {
-		return applyMarks(escapeMarkdownText(node.text ?? ''), node.marks ?? []);
+		const marks = node.marks ?? [];
+		// Backslash escapes are literal inside code spans, so code-marked text
+		// must not get markdown-escaped.
+		const hasCodeMark = marks.some((mark) => mark.type === 'code');
+		const text = node.text ?? '';
+
+		return applyMarks(hasCodeMark ? text : escapeMarkdownText(text), marks);
 	}
 
 	if (node.type === 'hardBreak') return '  \n';
@@ -487,8 +347,13 @@ function applyMarks(text: string, marks: Mark[]) {
 				return `_${value}_`;
 			case 'strike':
 				return `~~${value}~~`;
-			case 'code':
-				return `\`${value.replace(/`/g, '\\`')}\``;
+			case 'code': {
+				// Backticks inside a code span need a longer fence, not escaping.
+				const fence = value.includes('`') ? '``' : '`';
+				const pad = value.includes('`') ? ' ' : '';
+
+				return `${fence}${pad}${value}${pad}${fence}`;
+			}
 			case 'link': {
 				const href = String(mark.attrs?.href ?? '').trim();
 

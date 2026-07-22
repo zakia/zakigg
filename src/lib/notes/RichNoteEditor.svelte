@@ -3,7 +3,10 @@
 	import { Editor, posToDOMRect, type JSONContent, type Range } from '@tiptap/core';
 	import type { EditorView } from '@tiptap/pm/view';
 	import { craftComponentEmbeds } from '$lib/crafts/component-embeds';
-	import { insertRegisteredComponentEmbed } from '$lib/editor/component-embeds';
+	import {
+		getSelectedComponentEmbed,
+		insertRegisteredComponentEmbed
+	} from '$lib/editor/component-embeds';
 	import type { MediaBlockAttrs, MediaBlockKind } from '$lib/editor/media-block';
 	import EditorDocumentActions from './EditorDocumentActions.svelte';
 	import EditorHistoryPanel from './EditorHistoryPanel.svelte';
@@ -57,7 +60,7 @@
 	import { createTimer } from '../editor/timers';
 	import { resolveNotePageMetadata, type NotePageV1 } from './types';
 
-	type SelectionToolbarMode = 'format' | 'link';
+	type SelectionToolbarMode = 'format' | 'link' | 'embed';
 
 	type SelectionAnchor = {
 		left: number;
@@ -361,6 +364,34 @@
 		const { from, to, empty } = editor.state.selection;
 		if (empty) {
 			closeSelectionToolbar();
+			return;
+		}
+
+		// A selected component embed gets its own toolbar mode with an
+		// edit-props action instead of text formatting.
+		const selectedEmbed = getSelectedComponentEmbed(editor);
+
+		if (selectedEmbed) {
+			const entry = craftComponentEmbeds.get(String(selectedEmbed.node.attrs.component ?? ''));
+			const anchor = getSelectionAnchor({ from, to });
+
+			if (!entry || !Object.keys(entry.fields ?? {}).length || !anchor) {
+				closeSelectionToolbar();
+				return;
+			}
+
+			selectionToolbar = {
+				visible: true,
+				mode: 'embed',
+				from,
+				to,
+				label: entry.label,
+				href: '',
+				error: '',
+				anchor
+			};
+
+			if (linkPopover.visible) closeLinkPopover();
 			return;
 		}
 
@@ -780,6 +811,13 @@
 		}
 	}
 
+	function editSelectedEmbed() {
+		if (!editor) return;
+
+		editor.chain().focus().editSelectedComponentEmbed().run();
+		closeSelectionToolbar();
+	}
+
 	function showLinkPopover(range: Range, editing = false) {
 		if (!editor || !editorHost) return;
 
@@ -1186,6 +1224,7 @@
 		onClose={closeSelectionToolbar}
 		onLinkHrefChange={updateSelectionLinkHref}
 		onSubmitLink={applySelectionLinkEdit}
+		onEditEmbed={editSelectedEmbed}
 	/>
 
 	<EditorSurface

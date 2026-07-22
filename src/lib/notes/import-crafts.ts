@@ -28,6 +28,13 @@ const assetModules = import.meta.glob<string>(
 	{ query: '?url', import: 'default' }
 );
 
+// Component crafts whose interactive core is registered as a notes embed —
+// they import as a note hosting the live component.
+const COMPONENT_CRAFT_EMBEDS: Record<string, string> = {
+	'tic-tac-toe': 'tic-tac-toe.game',
+	'rock-paper-scissors': 'rock-paper-scissors.game'
+};
+
 const SVELTE_SYNTAX_RE = /<script[\s>]|<[A-Z]/;
 const SCRIPT_BLOCK_RE = /<script[^>]*>[\s\S]*?<\/script>/g;
 const MEDIA_IMPORT_RE = /import\s+(\w+)\s+from\s+['"]\.\/([^'"]+)['"]/g;
@@ -60,8 +67,9 @@ export async function importCraftsToNotes(): Promise<CraftImportResult> {
 		for (const craft of crafts) {
 			const loadDocument = documentPaths.get(craft.slug);
 			const loadMarkdown = markdownPaths.get(craft.slug);
+			const embedId = COMPONENT_CRAFT_EMBEDS[craft.slug];
 
-			if (!loadDocument && !loadMarkdown) continue;
+			if (!loadDocument && !loadMarkdown && !embedId) continue;
 
 			const slug = normalizePageSlug(craft.slug);
 
@@ -72,7 +80,9 @@ export async function importCraftsToNotes(): Promise<CraftImportResult> {
 
 			let content: JSONContent | null = null;
 
-			if (loadDocument) {
+			if (embedId) {
+				content = createEmbedCraftContent(craft, embedId);
+			} else if (loadDocument) {
 				content = (await (loadDocument as () => Promise<{ default: CraftDocument }>)()).default
 					.content;
 			} else if (loadMarkdown) {
@@ -102,6 +112,23 @@ export async function importCraftsToNotes(): Promise<CraftImportResult> {
 	}
 
 	return result;
+}
+
+// An embed craft's note is its description plus the live component.
+function createEmbedCraftContent(meta: CraftMeta, embedId: string): JSONContent | null {
+	const node = craftComponentEmbeds.createNode(embedId);
+
+	if (!node.ok) return null;
+
+	return {
+		type: 'doc',
+		content: [
+			...(meta.description
+				? [{ type: 'paragraph', content: [{ type: 'text', text: meta.description }] }]
+				: []),
+			node.node
+		]
+	};
 }
 
 async function importCraftPage(meta: CraftMeta, slug: string, content: JSONContent) {

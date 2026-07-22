@@ -1,4 +1,5 @@
 import { mergeAttributes, Node, type Editor } from '@tiptap/core';
+import { NodeSelection } from '@tiptap/pm/state';
 import type { ComponentEmbedRegistry } from './registry';
 import { createComponentEmbedNodeView } from './view';
 
@@ -16,8 +17,20 @@ declare module '@tiptap/core' {
 	interface Commands<ReturnType> {
 		componentEmbed: {
 			insertComponentEmbed: (attrs: ComponentEmbedCommandAttrs) => ReturnType;
+			editSelectedComponentEmbed: () => ReturnType;
 		};
 	}
+}
+
+// The selected componentEmbed node, when the selection is one.
+export function getSelectedComponentEmbed(editor: Editor) {
+	const { selection } = editor.state;
+
+	if (!(selection instanceof NodeSelection) || selection.node.type.name !== 'componentEmbed') {
+		return null;
+	}
+
+	return { pos: selection.from, node: selection.node };
 }
 
 export const ComponentEmbed = Node.create<ComponentEmbedOptions>({
@@ -122,7 +135,33 @@ export const ComponentEmbed = Node.create<ComponentEmbedOptions>({
 							props: attrs.props ?? {},
 							editing: attrs.editing ?? false
 						}
-					})
+					}),
+			editSelectedComponentEmbed:
+				() =>
+				({ editor, tr, dispatch }) => {
+					const selected = getSelectedComponentEmbed(editor);
+
+					if (!selected) return false;
+
+					const entry = this.options.registry?.get(String(selected.node.attrs.component ?? ''));
+					if (!entry || !Object.keys(entry.fields ?? {}).length) return false;
+
+					if (dispatch) {
+						tr.setNodeMarkup(selected.pos, undefined, {
+							...selected.node.attrs,
+							editing: true
+						});
+					}
+
+					return true;
+				}
+		};
+	},
+
+	addKeyboardShortcuts() {
+		return {
+			// Enter on a selected embed reopens its props for editing.
+			Enter: () => this.editor.commands.editSelectedComponentEmbed()
 		};
 	},
 

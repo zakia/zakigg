@@ -14,7 +14,7 @@
 		shortcutId?: EditorShortcutId;
 	};
 
-	type ToolbarMode = 'format' | 'link';
+	type ToolbarMode = 'format' | 'link' | 'embed';
 
 	type Props = {
 		editor?: Editor;
@@ -31,6 +31,7 @@
 		onClose: () => void;
 		onLinkHrefChange: (href: string) => void;
 		onSubmitLink: (event: SubmitEvent) => void;
+		onEditEmbed?: () => void;
 	};
 
 	let {
@@ -47,7 +48,8 @@
 		onCancelLink,
 		onClose,
 		onLinkHrefChange,
-		onSubmitLink
+		onSubmitLink,
+		onEditEmbed
 	}: Props = $props();
 
 	let popoverElement = $state<HTMLDivElement>();
@@ -237,7 +239,16 @@
 	onpointerdown={keepEditorSelection}
 	onkeydown={handleKeydown}
 >
-	{#if mode === 'link'}
+	{#if mode === 'embed'}
+		<div class="toolbar-row">
+			<ToolbarButton
+				title="Edit props"
+				icon="mdi:pencil-box-outline"
+				text="Edit props"
+				onClick={() => onEditEmbed?.()}
+			/>
+		</div>
+	{:else if mode === 'link'}
 		<form class="link-form" onsubmit={onSubmitLink}>
 			<input
 				bind:this={hrefInput}

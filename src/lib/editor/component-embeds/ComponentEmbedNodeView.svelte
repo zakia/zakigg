@@ -4,6 +4,7 @@
 	import type {
 		ComponentEmbedField,
 		ComponentEmbedRegistry,
+		EmbedComponent,
 		RegisteredComponentEmbed
 	} from './registry';
 
@@ -18,10 +19,38 @@
 
 	let { node, registry, updateProps, setEditing }: Props = $props();
 	let editError = $state('');
+	let LoadedComponent = $state<EmbedComponent | null>(null);
+	let loadError = $state('');
 
 	const embed = $derived(registry.parseAttrs($node.attrs));
 	const fields = $derived(embed.ok ? getFieldEntries(embed.entry) : []);
 	const editing = $derived(Boolean($node.attrs.editing));
+	// Track by id so prop edits don't re-trigger resolution.
+	const embedId = $derived(embed.ok ? embed.entry.id : '');
+
+	$effect(() => {
+		if (!embedId) {
+			LoadedComponent = null;
+			return;
+		}
+
+		let cancelled = false;
+
+		LoadedComponent = null;
+		loadError = '';
+		registry.resolveComponent(embedId).then(
+			(component) => {
+				if (!cancelled) LoadedComponent = component;
+			},
+			(error: unknown) => {
+				if (!cancelled) loadError = error instanceof Error ? error.message : 'Failed to load.';
+			}
+		);
+
+		return () => {
+			cancelled = true;
+		};
+	});
 
 	function getFieldEntries(entry: RegisteredComponentEmbed) {
 		return Object.entries(entry.fields ?? {});
@@ -86,6 +115,13 @@
 	}
 
 	function handleSetupKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape') {
+			event.preventDefault();
+			editError = '';
+			setEditing(false);
+			return;
+		}
+
 		if (event.key !== 'Enter' || event.shiftKey) return;
 
 		event.preventDefault();
@@ -141,8 +177,6 @@
 
 <div class:editing class="component-embed-shell" data-component-embed-controls>
 	{#if embed.ok}
-		{@const Component = embed.entry.component}
-
 		{#if editing && fields.length}
 			<form class="component-embed-setup" onsubmit={(event) => event.preventDefault()}>
 				{#each fields as [name, field] (name)}
@@ -194,7 +228,16 @@
 			{/if}
 		{:else}
 			<div class="component-embed-output">
-				<Component {...embed.props} />
+				{#if LoadedComponent}
+					<LoadedComponent {...embed.props} />
+				{:else if loadError}
+					<div class="component-embed-missing">
+						<span>Component failed to load</span>
+						<small>{loadError}</small>
+					</div>
+				{:else}
+					<span class="component-embed-loading" aria-busy="true">Loading {embed.entry.label}…</span>
+				{/if}
 				{#if fields.length}
 					<button type="button" class="component-embed-edit" onclick={editAgain}> Edit </button>
 				{/if}
@@ -297,6 +340,11 @@
 		color: var(--content);
 		opacity: 1;
 		outline: none;
+	}
+
+	.component-embed-loading {
+		color: color-mix(in oklch, var(--content-1) 78%, transparent);
+		font-size: var(--s-1);
 	}
 
 	.component-embed-error,

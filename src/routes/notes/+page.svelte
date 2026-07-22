@@ -7,6 +7,7 @@
 	import { createMetadataBlockContent } from '$lib/notes/metadata-block';
 	import { downloadNotePageExport } from '$lib/notes/export';
 	import { importNotesFromZip, isNotesArchiveFile } from '$lib/notes/import';
+	import { importCraftsToNotes } from '$lib/notes/import-crafts';
 	import {
 		createNotePageRecord,
 		deleteNotePage,
@@ -152,6 +153,27 @@
 			if (archives.length === 1 && importedPages === 1 && lastSlug) {
 				await goto(resolve(`/notes/${lastSlug}`));
 			}
+		} finally {
+			busy = '';
+		}
+	}
+
+	async function importCrafts() {
+		busy = 'import-crafts';
+
+		try {
+			const result = await importCraftsToNotes();
+
+			if (result.imported.length) await refresh();
+
+			showToast(
+				result.imported.length
+					? `Imported ${result.imported.length} craft${result.imported.length === 1 ? '' : 's'}`
+					: 'No new crafts to import'
+			);
+		} catch (error) {
+			console.error(error);
+			showToast('Could not import crafts');
 		} finally {
 			busy = '';
 		}
@@ -306,6 +328,16 @@
 			onclick={openImportPicker}
 		>
 			<Icon icon="mdi:package-up" />
+		</button>
+		<button
+			type="button"
+			class="quiet-button"
+			title="Import craft posts"
+			aria-label="Import craft posts"
+			disabled={busy === 'import-crafts'}
+			onclick={() => void importCrafts()}
+		>
+			<Icon icon="mdi:script-text-outline" />
 		</button>
 		<button
 			type="button"

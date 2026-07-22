@@ -249,6 +249,15 @@ function dateOnly(value: string) {
 		: new Date().toISOString().slice(0, 10);
 }
 
+// Fixes up parser output for the editor schema (list items must lead with a
+// paragraph). Shared by paste and the craft importer.
+export function normalizeMarkdownDoc(doc: JSONContent): JSONContent {
+	return {
+		...doc,
+		content: normalizeMarkdownContent(doc.content ?? [])
+	};
+}
+
 function normalizeMarkdownContent(content: JSONContent[]) {
 	return content.map(normalizeMarkdownNode);
 }

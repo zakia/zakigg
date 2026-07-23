@@ -63,10 +63,40 @@ export function canTurnBlockInto(node: ProseMirrorNode) {
 	return TURN_INTO_SOURCES.has(node.type.name);
 }
 
-// Finds the top-level block whose rendered box contains the given viewport Y.
-// Working from geometry (rather than posAtCoords) keeps the answer stable
-// while the pointer sits in the left gutter next to a block.
+// Resolves the top-level block that contains an event target — the precise,
+// per-node signal used when the pointer is over document content.
+export function findTopLevelBlockByTarget(
+	view: EditorView,
+	target: EventTarget | null
+): HoveredBlock | null {
+	if (!(target instanceof Element) || target === view.dom || !view.dom.contains(target)) {
+		return null;
+	}
+
+	let element: Element = target;
+
+	while (element.parentElement && element.parentElement !== view.dom) {
+		element = element.parentElement;
+	}
+
+	return findTopLevelBlock(view, (_node, dom) => dom === element);
+}
+
+// Finds the top-level block whose rendered box contains the given viewport Y —
+// the geometric fallback for when the pointer sits in the left gutter, where
+// no node can receive events.
 export function findTopLevelBlockAtY(view: EditorView, clientY: number): HoveredBlock | null {
+	return findTopLevelBlock(view, (_node, dom) => {
+		const rect = dom.getBoundingClientRect();
+
+		return clientY >= rect.top && clientY <= rect.bottom;
+	});
+}
+
+function findTopLevelBlock(
+	view: EditorView,
+	matches: (node: ProseMirrorNode, dom: HTMLElement) => boolean
+): HoveredBlock | null {
 	const { doc } = view.state;
 	let offset = 0;
 
@@ -81,11 +111,7 @@ export function findTopLevelBlockAtY(view: EditorView, clientY: number): Hovered
 		const dom = view.nodeDOM(pos);
 		if (!(dom instanceof HTMLElement)) continue;
 
-		const rect = dom.getBoundingClientRect();
-
-		if (clientY >= rect.top && clientY <= rect.bottom) {
-			return { pos, index, node, dom };
-		}
+		if (matches(node, dom)) return { pos, index, node, dom };
 	}
 
 	return null;

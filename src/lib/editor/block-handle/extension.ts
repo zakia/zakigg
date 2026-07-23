@@ -6,7 +6,9 @@ import {
 	canTurnBlockInto,
 	describeBlockNode,
 	findTopLevelBlockAtY,
-	type BlockDescriptor
+	findTopLevelBlockByTarget,
+	type BlockDescriptor,
+	type HoveredBlock
 } from './blocks';
 
 export type BlockHandleTarget = BlockDescriptor & {
@@ -58,15 +60,50 @@ export const BlockHandle = Extension.create<BlockHandleOptions>({
 	}
 });
 
+// Two complementary signals drive the handle:
+// - retargeting is event-driven per node: crossing a block boundary fires
+//   mouseover exactly once, so tracking is precise with no sampling;
+// - a trailing-throttled document mousemove covers only what node events
+//   cannot see — the left gutter (no node under the pointer) and leaving
+//   the editor entirely.
 function createBlockHandleWatcher(view: EditorView, options: BlockHandleOptions) {
-	let lastRun = 0;
 	let lastTarget: BlockHandleTarget | null = null;
+	let pendingMove: MouseEvent | null = null;
+	let moveTimer = 0;
 
 	const publish = (target: BlockHandleTarget | null) => {
 		if (!target && !lastTarget) return;
+		if (
+			target &&
+			lastTarget &&
+			target.pos === lastTarget.pos &&
+			target.rect.top === lastTarget.rect.top
+		) {
+			return;
+		}
 
 		lastTarget = target;
 		options.onTargetChange?.(target);
+	};
+
+	const publishBlock = (block: HoveredBlock) => {
+		const rect = block.dom.getBoundingClientRect();
+
+		publish({
+			...describeBlockNode(block.node, options.registry),
+			pos: block.pos,
+			nodeTypeName: block.node.type.name,
+			turnable: canTurnBlockInto(block.node),
+			rect: { top: rect.top, left: rect.left, width: rect.width, height: rect.height }
+		});
+	};
+
+	const handleMouseOver = (event: MouseEvent) => {
+		if (!view.editable) return;
+
+		const block = findTopLevelBlockByTarget(view, event.target);
+
+		if (block) publishBlock(block);
 	};
 
 	const locate = (event: MouseEvent) => {
@@ -92,38 +129,37 @@ function createBlockHandleWatcher(view: EditorView, options: BlockHandleOptions)
 			return;
 		}
 
-		const block = findTopLevelBlockAtY(view, event.clientY);
+		const block =
+			findTopLevelBlockByTarget(view, event.target) ?? findTopLevelBlockAtY(view, event.clientY);
 
-		if (!block) {
-			publish(null);
-			return;
-		}
-
-		const rect = block.dom.getBoundingClientRect();
-
-		publish({
-			...describeBlockNode(block.node, options.registry),
-			pos: block.pos,
-			nodeTypeName: block.node.type.name,
-			turnable: canTurnBlockInto(block.node),
-			rect: { top: rect.top, left: rect.left, width: rect.width, height: rect.height }
-		});
+		// In the gaps between blocks, keep the current handle rather than
+		// flickering it away.
+		if (block) publishBlock(block);
 	};
 
-	// Leading-edge time throttle: cheap enough to run synchronously, and
-	// unlike requestAnimationFrame it cannot stall when the tab is not
-	// actively rendering.
+	// Trailing-edge throttle: the LAST pointer position is always processed,
+	// so the handle can never stick on a stale block. setTimeout (not rAF)
+	// because rAF stalls in non-rendering tabs.
 	const handleMouseMove = (event: MouseEvent) => {
-		const now = performance.now();
+		pendingMove = event;
 
-		if (now - lastRun < 40) return;
+		if (moveTimer) return;
 
-		lastRun = now;
-		locate(event);
+		moveTimer = window.setTimeout(() => {
+			moveTimer = 0;
+
+			if (!pendingMove) return;
+
+			const moveEvent = pendingMove;
+
+			pendingMove = null;
+			locate(moveEvent);
+		}, 32);
 	};
 
 	const hide = () => publish(null);
 
+	view.dom.addEventListener('mouseover', handleMouseOver);
 	document.addEventListener('mousemove', handleMouseMove);
 	document.addEventListener('scroll', hide, true);
 	document.addEventListener('dragend', hide);
@@ -134,6 +170,8 @@ function createBlockHandleWatcher(view: EditorView, options: BlockHandleOptions)
 			if (view.state.doc !== previousState.doc) hide();
 		},
 		destroy() {
+			if (moveTimer) window.clearTimeout(moveTimer);
+			view.dom.removeEventListener('mouseover', handleMouseOver);
 			document.removeEventListener('mousemove', handleMouseMove);
 			document.removeEventListener('scroll', hide, true);
 			document.removeEventListener('dragend', hide);

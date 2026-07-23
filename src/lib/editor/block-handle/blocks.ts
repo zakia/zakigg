@@ -1,17 +1,9 @@
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
-import type { EditorView } from '@tiptap/pm/view';
 import type { ComponentEmbedRegistry } from '$lib/editor/component-embeds';
 
 export type BlockDescriptor = {
 	label: string;
 	icon: string;
-};
-
-export type HoveredBlock = {
-	pos: number;
-	index: number;
-	node: ProseMirrorNode;
-	dom: HTMLElement;
 };
 
 // Node types the gutter handle never appears on. The metadata block is the
@@ -20,6 +12,10 @@ const EXCLUDED_BLOCKS = new Set(['metadataBlock']);
 
 // Textblock types that can safely be converted in place.
 const TURN_INTO_SOURCES = new Set(['paragraph', 'heading', 'codeBlock']);
+
+export function isExcludedBlock(node: ProseMirrorNode) {
+	return EXCLUDED_BLOCKS.has(node.type.name);
+}
 
 export function describeBlockNode(
 	node: ProseMirrorNode,
@@ -61,58 +57,4 @@ export function describeBlockNode(
 
 export function canTurnBlockInto(node: ProseMirrorNode) {
 	return TURN_INTO_SOURCES.has(node.type.name);
-}
-
-// Resolves the top-level block that contains an event target — the precise,
-// per-node signal used when the pointer is over document content.
-export function findTopLevelBlockByTarget(
-	view: EditorView,
-	target: EventTarget | null
-): HoveredBlock | null {
-	if (!(target instanceof Element) || target === view.dom || !view.dom.contains(target)) {
-		return null;
-	}
-
-	let element: Element = target;
-
-	while (element.parentElement && element.parentElement !== view.dom) {
-		element = element.parentElement;
-	}
-
-	return findTopLevelBlock(view, (_node, dom) => dom === element);
-}
-
-// Finds the top-level block whose rendered box contains the given viewport Y —
-// the geometric fallback for when the pointer sits in the left gutter, where
-// no node can receive events.
-export function findTopLevelBlockAtY(view: EditorView, clientY: number): HoveredBlock | null {
-	return findTopLevelBlock(view, (_node, dom) => {
-		const rect = dom.getBoundingClientRect();
-
-		return clientY >= rect.top && clientY <= rect.bottom;
-	});
-}
-
-function findTopLevelBlock(
-	view: EditorView,
-	matches: (node: ProseMirrorNode, dom: HTMLElement) => boolean
-): HoveredBlock | null {
-	const { doc } = view.state;
-	let offset = 0;
-
-	for (let index = 0; index < doc.childCount; index += 1) {
-		const node = doc.child(index);
-		const pos = offset;
-
-		offset += node.nodeSize;
-
-		if (EXCLUDED_BLOCKS.has(node.type.name)) continue;
-
-		const dom = view.nodeDOM(pos);
-		if (!(dom instanceof HTMLElement)) continue;
-
-		if (matches(node, dom)) return { pos, index, node, dom };
-	}
-
-	return null;
 }

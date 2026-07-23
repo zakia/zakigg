@@ -5,8 +5,9 @@
 		deleteBlock,
 		duplicateBlock,
 		insertParagraphBelow,
-		startBlockDrag,
+		lockBlockHandle,
 		turnBlockInto,
+		unlockBlockHandle,
 		type BlockHandleTarget,
 		type BlockTurnTarget
 	} from '$lib/editor/block-handle';
@@ -14,22 +15,25 @@
 	type Props = {
 		editor?: Editor;
 		target: BlockHandleTarget | null;
+		// Hands the handle's root element to the editor so the drag-handle
+		// extension can position it and bind native drag to it.
+		onElement?: (element?: HTMLElement) => void;
 	};
 
-	let { editor, target }: Props = $props();
+	let { editor, target, onElement }: Props = $props();
+	let root = $state<HTMLElement>();
 	let menuOpen = $state(false);
-	// The menu pins the handle to the block it opened on, so pointer moves
-	// while choosing an action don't re-target it.
+	// While the menu is open the drag-handle is locked in place, so freeze the
+	// block it points at too — pointer moves must not re-target it.
 	let pinnedTarget = $state<BlockHandleTarget | null>(null);
 
 	const active = $derived(menuOpen ? pinnedTarget : target);
-	// Content-space coordinates: the handle is absolutely positioned inside
-	// the editor surface, so it scrolls with the document natively.
-	const handleStyle = $derived(
-		active
-			? `left: ${Math.max(4, active.position.left - 52)}px; top: ${active.position.top + 1}px;`
-			: ''
-	);
+
+	$effect(() => {
+		onElement?.(root);
+
+		return () => onElement?.(undefined);
+	});
 
 	const TURN_TARGETS: { id: BlockTurnTarget; label: string; icon: string }[] = [
 		{ id: 'text', label: 'Text', icon: 'mdi:format-text' },
@@ -43,23 +47,19 @@
 	];
 
 	function openMenu() {
-		if (!active) return;
+		if (!target || !editor) return;
 
-		pinnedTarget = active;
+		pinnedTarget = target;
 		menuOpen = true;
+		lockBlockHandle(editor);
 	}
 
 	function closeMenu() {
+		if (!menuOpen) return;
+
 		menuOpen = false;
 		pinnedTarget = null;
-	}
-
-	function handleDragStart(event: DragEvent) {
-		if (!editor || !active) return;
-
-		closeMenu();
-
-		if (!startBlockDrag(editor, active.pos, event)) event.preventDefault();
+		if (editor) unlockBlockHandle(editor);
 	}
 
 	function runAction(action: (editor: Editor, pos: number) => void) {
@@ -96,8 +96,10 @@
 
 <svelte:window onpointerdown={handleWindowPointerDown} onkeydown={handleWindowKeydown} />
 
-{#if active}
-	<div class="block-handle" data-block-handle-ui style={handleStyle}>
+<!-- Always rendered: the drag-handle extension holds a reference to this
+     element and toggles its visibility; it must not be conditionally removed. -->
+<div class="block-handle" bind:this={root} data-block-handle-ui>
+	{#if active}
 		<span class="handle-chip" title={active.label} aria-hidden="true">
 			<Icon icon={active.icon} />
 		</span>
@@ -105,10 +107,8 @@
 			type="button"
 			class="handle-grip"
 			class:active={menuOpen}
-			draggable="true"
 			title={`${active.label} — drag to move, click for options`}
 			aria-label={`${active.label} block options`}
-			ondragstart={handleDragStart}
 			onclick={() => (menuOpen ? closeMenu() : openMenu())}
 		>
 			<svg viewBox="0 0 16 16" aria-hidden="true">
@@ -122,7 +122,14 @@
 		</button>
 
 		{#if menuOpen && pinnedTarget}
-			<div class="handle-menu" role="menu" aria-label={`${pinnedTarget.label} options`}>
+			<!-- draggable=false so interacting with the menu never starts a drag
+			     from the (draggable) handle root. -->
+			<div
+				class="handle-menu"
+				role="menu"
+				draggable="false"
+				aria-label={`${pinnedTarget.label} options`}
+			>
 				<div class="menu-header">
 					<Icon icon={pinnedTarget.icon} />
 					<span>{pinnedTarget.label}</span>
@@ -174,15 +181,20 @@
 				</button>
 			</div>
 		{/if}
-	</div>
-{/if}
+	{/if}
+</div>
 
 <style>
 	.block-handle {
 		align-items: center;
 		display: flex;
 		gap: 2px;
+		/* position/left/top and visibility are written by the drag-handle
+		   extension (floating-ui). Before the first hover `target` is null, so
+		   the element renders empty (zero-size) and nothing shows. */
 		position: absolute;
+		top: 0;
+		left: 0;
 		z-index: 7;
 	}
 
@@ -219,7 +231,9 @@
 		width: 1.15rem;
 	}
 
-	.handle-grip:active {
+	/* data-dragging is set on the root by the drag-handle extension, so the
+	   attribute selector must be global for Svelte not to prune it. */
+	:global(.block-handle[data-dragging='true']) .handle-grip {
 		cursor: grabbing;
 	}
 

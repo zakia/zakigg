@@ -1,25 +1,22 @@
 import { Extension, type Editor } from '@tiptap/core';
-import { NodeSelection, Plugin, PluginKey, TextSelection } from '@tiptap/pm/state';
-import type { EditorView } from '@tiptap/pm/view';
+import { TextSelection } from '@tiptap/pm/state';
+import { DragHandlePlugin, normalizeNestedOptions } from '@tiptap/extension-drag-handle';
+import { offset, shift } from '@floating-ui/dom';
 import type { ComponentEmbedRegistry } from '$lib/editor/component-embeds';
 import {
 	canTurnBlockInto,
 	describeBlockNode,
-	findTopLevelBlockAtY,
-	findTopLevelBlockByTarget,
-	type BlockDescriptor,
-	type HoveredBlock
+	isExcludedBlock,
+	type BlockDescriptor
 } from './blocks';
 
-// Position of the hovered block in the coordinate space of the editor host
-// (the scroll content). The handle UI renders absolutely inside that same
-// element, so content and handle share one coordinate space and scrolling
-// needs no handling at all.
+// The hovered block, described for the handle UI. Positioning is owned by the
+// drag-handle extension (floating-ui), so no coordinates travel with the
+// target — the handle element is placed in the gutter for us.
 export type BlockHandleTarget = BlockDescriptor & {
 	pos: number;
 	nodeTypeName: string;
 	turnable: boolean;
-	position: { top: number; left: number; width: number; height: number };
 };
 
 export type BlockTurnTarget =
@@ -34,193 +31,76 @@ export type BlockTurnTarget =
 
 type BlockHandleOptions = {
 	registry?: ComponentEmbedRegistry;
+	// The DOM element the drag-handle positions and makes draggable. It is
+	// owned by the Svelte layer (BlockHandle.svelte) and handed in here so the
+	// extension can bind ProseMirror's native drag to the visible grip.
+	getElement?: () => HTMLElement | null;
 	onTargetChange?: (target: BlockHandleTarget | null) => void;
 };
 
+// The block handle is now built on @tiptap/extension-drag-handle: it owns hover
+// detection, gutter positioning (floating-ui) and native drag-to-reorder. We
+// only translate its node-change signal into a describe-able target for our
+// own chip + menu UI, and keep the in-place block operations the menu invokes.
 export const BlockHandle = Extension.create<BlockHandleOptions>({
 	name: 'blockHandle',
 
 	addOptions() {
 		return {
 			registry: undefined,
+			getElement: undefined,
 			onTargetChange: undefined
 		};
 	},
 
 	addProseMirrorPlugins() {
-		const options = this.options;
+		const element = this.options.getElement?.();
 
-		return [
-			new Plugin({
-				key: new PluginKey('blockHandle'),
-				view(view) {
-					return createBlockHandleWatcher(view, options);
+		// No handle element yet (e.g. server render) — run without the plugin.
+		if (!element) return [];
+
+		const { registry, onTargetChange } = this.options;
+
+		const { plugin } = DragHandlePlugin({
+			editor: this.editor,
+			element,
+			pluginKey: 'blockHandle',
+			// Top-level blocks only — no drag handles for nested list items etc.
+			nestedOptions: normalizeNestedOptions(false),
+			computePositionConfig: {
+				placement: 'left-start',
+				// offset sits the handle in the gutter; shift with crossAxis:true
+				// nudges it back horizontally (the cross axis for a left placement)
+				// when the gutter is too narrow, instead of clipping off-screen.
+				middleware: [offset({ mainAxis: 8, crossAxis: 1 }), shift({ padding: 4, crossAxis: true })]
+			},
+			onNodeChange: ({ node, pos }) => {
+				if (!node || isExcludedBlock(node)) {
+					onTargetChange?.(null);
+					return;
 				}
-			})
-		];
+
+				onTargetChange?.({
+					...describeBlockNode(node, registry),
+					pos,
+					nodeTypeName: node.type.name,
+					turnable: canTurnBlockInto(node)
+				});
+			}
+		});
+
+		return [plugin];
 	}
 });
 
-// The watcher's entire event surface: mousemove over the editor host (which
-// spans the gutter) retargets, mouseleave hides, document edits hide. The
-// pointer is resolved per node from the event target, with a geometric
-// fallback for the gutter where no node can receive events.
-function createBlockHandleWatcher(view: EditorView, options: BlockHandleOptions) {
-	const host = view.dom.parentElement ?? view.dom;
-	// The event boundary must be the element the handle UI is mounted in
-	// (the positioned scroll container) — if it were an inner element, moving
-	// the pointer onto the handle would fire mouseleave, hide the handle,
-	// re-enter, re-show, and oscillate.
-	const boundary = (view.dom.offsetParent as HTMLElement | null) ?? host;
-	let lastTarget: BlockHandleTarget | null = null;
-	let pendingMove: MouseEvent | null = null;
-	let moveTimer = 0;
-
-	const publish = (target: BlockHandleTarget | null) => {
-		if (!target && !lastTarget) return;
-		if (target && lastTarget && target.pos === lastTarget.pos) {
-			const samePlace =
-				target.position.top === lastTarget.position.top &&
-				target.position.left === lastTarget.position.left;
-
-			if (samePlace) return;
-		}
-
-		lastTarget = target;
-		options.onTargetChange?.(target);
-	};
-
-	const publishBlock = (block: HoveredBlock) => {
-		const hostRect = host.getBoundingClientRect();
-		const rect = block.dom.getBoundingClientRect();
-
-		publish({
-			...describeBlockNode(block.node, options.registry),
-			pos: block.pos,
-			nodeTypeName: block.node.type.name,
-			turnable: canTurnBlockInto(block.node),
-			position: {
-				top: rect.top - hostRect.top,
-				left: rect.left - hostRect.left,
-				width: rect.width,
-				height: rect.height
-			}
-		});
-	};
-
-	const locate = (event: MouseEvent) => {
-		// Interacting with the handle UI itself must not re-target it.
-		if (event.target instanceof Element && event.target.closest('[data-block-handle-ui]')) {
-			return;
-		}
-
-		if (!view.editable) {
-			publish(null);
-			return;
-		}
-
-		const block =
-			findTopLevelBlockByTarget(view, event.target) ?? findTopLevelBlockAtY(view, event.clientY);
-
-		// In the gaps between blocks, keep the current handle rather than
-		// flickering it away.
-		if (block) publishBlock(block);
-	};
-
-	// Trailing-edge throttle: the LAST pointer position is always processed.
-	// setTimeout (not rAF) because rAF stalls in non-rendering tabs.
-	const handleMouseMove = (event: MouseEvent) => {
-		pendingMove = event;
-
-		if (moveTimer) return;
-
-		moveTimer = window.setTimeout(() => {
-			moveTimer = 0;
-
-			if (!pendingMove) return;
-
-			const moveEvent = pendingMove;
-
-			pendingMove = null;
-			locate(moveEvent);
-		}, 24);
-	};
-
-	const handleMouseLeave = (event: MouseEvent) => {
-		// Defense in depth: never hide because the pointer moved onto the
-		// handle itself, wherever it happens to be mounted.
-		if (
-			event.relatedTarget instanceof Element &&
-			event.relatedTarget.closest('[data-block-handle-ui]')
-		) {
-			return;
-		}
-
-		pendingMove = null;
-		publish(null);
-	};
-
-	boundary.addEventListener('mousemove', handleMouseMove);
-	boundary.addEventListener('mouseleave', handleMouseLeave);
-
-	return {
-		update(_view: EditorView, previousState: { doc: unknown }) {
-			// Document edits shift block positions; hide until the pointer
-			// signals where it is again.
-			if (view.state.doc !== previousState.doc) publish(null);
-		},
-		destroy() {
-			if (moveTimer) window.clearTimeout(moveTimer);
-			boundary.removeEventListener('mousemove', handleMouseMove);
-			boundary.removeEventListener('mouseleave', handleMouseLeave);
-			publish(null);
-		}
-	};
+// The drag-handle repositions/hides itself on hover; locking freezes it in
+// place so the block menu doesn't slip to another block while it is open.
+export function lockBlockHandle(editor: Editor) {
+	editor.view.dispatch(editor.state.tr.setMeta('lockDragHandle', true));
 }
 
-// Starts a ProseMirror-native drag of the block at `pos`: node-selects it,
-// serializes the slice for cross-app drops, uses the block's real DOM as the
-// drag preview, and registers the move with the editor view so dropping
-// relocates rather than copies.
-export function startBlockDrag(editor: Editor, pos: number, event: DragEvent) {
-	const view = editor.view;
-	const node = view.state.doc.nodeAt(pos);
-
-	if (!node || !event.dataTransfer) return false;
-
-	view.focus();
-
-	const selection = NodeSelection.create(view.state.doc, pos);
-
-	view.dispatch(view.state.tr.setSelection(selection));
-
-	const slice = selection.content();
-	const serialize = (
-		view as EditorView & {
-			serializeForClipboard?: (content: typeof slice) => { dom: HTMLElement; text: string };
-		}
-	).serializeForClipboard?.bind(view);
-
-	event.dataTransfer.clearData();
-
-	if (serialize) {
-		const { dom, text } = serialize(slice);
-
-		event.dataTransfer.setData('text/html', dom.innerHTML);
-		event.dataTransfer.setData('text/plain', text);
-	}
-
-	event.dataTransfer.effectAllowed = 'copyMove';
-
-	const dom = view.nodeDOM(pos);
-
-	if (dom instanceof HTMLElement) {
-		event.dataTransfer.setDragImage(dom, 0, dom.offsetHeight / 2);
-	}
-
-	(view as { dragging: unknown }).dragging = { slice, move: true };
-
-	return true;
+export function unlockBlockHandle(editor: Editor) {
+	editor.view.dispatch(editor.state.tr.setMeta('lockDragHandle', false));
 }
 
 export function duplicateBlock(editor: Editor, pos: number) {

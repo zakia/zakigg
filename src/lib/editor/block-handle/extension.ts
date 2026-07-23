@@ -70,6 +70,12 @@ function createBlockHandleWatcher(view: EditorView, options: BlockHandleOptions)
 	let lastTarget: BlockHandleTarget | null = null;
 	let pendingMove: MouseEvent | null = null;
 	let moveTimer = 0;
+	// The last known pointer position. When the world moves under a
+	// stationary pointer (scroll, document edits), the handle relocates from
+	// here instead of hiding — a hidden handle would otherwise stay hidden
+	// until the pointer happens to move again.
+	let lastPointer: { x: number; y: number } | null = null;
+	let relocateTimer = 0;
 
 	const publish = (target: BlockHandleTarget | null) => {
 		if (!target && !lastTarget) return;
@@ -101,8 +107,35 @@ function createBlockHandleWatcher(view: EditorView, options: BlockHandleOptions)
 	const handleMouseOver = (event: MouseEvent) => {
 		if (!view.editable) return;
 
+		lastPointer = { x: event.clientX, y: event.clientY };
+
 		const block = findTopLevelBlockByTarget(view, event.target);
 
+		if (block) publishBlock(block);
+	};
+
+	const locateAt = (x: number, y: number, target: EventTarget | null) => {
+		if (!view.editable) {
+			publish(null);
+			return;
+		}
+
+		const editorRect = view.dom.getBoundingClientRect();
+		const withinBand =
+			x >= editorRect.left - GUTTER_REACH &&
+			x <= editorRect.right &&
+			y >= editorRect.top &&
+			y <= editorRect.bottom;
+
+		if (!withinBand) {
+			publish(null);
+			return;
+		}
+
+		const block = findTopLevelBlockByTarget(view, target) ?? findTopLevelBlockAtY(view, y);
+
+		// In the gaps between blocks, keep the current handle rather than
+		// flickering it away.
 		if (block) publishBlock(block);
 	};
 
@@ -112,35 +145,27 @@ function createBlockHandleWatcher(view: EditorView, options: BlockHandleOptions)
 			return;
 		}
 
-		if (!view.editable) {
-			publish(null);
-			return;
-		}
+		locateAt(event.clientX, event.clientY, event.target);
+	};
 
-		const editorRect = view.dom.getBoundingClientRect();
-		const withinBand =
-			event.clientX >= editorRect.left - GUTTER_REACH &&
-			event.clientX <= editorRect.right &&
-			event.clientY >= editorRect.top &&
-			event.clientY <= editorRect.bottom;
+	// Scroll and document edits shift block geometry under a stationary
+	// pointer: recompute from the remembered position (trailing-throttled,
+	// since scroll events arrive in bursts).
+	const relocateFromPointer = () => {
+		if (relocateTimer) return;
 
-		if (!withinBand) {
-			publish(null);
-			return;
-		}
+		relocateTimer = window.setTimeout(() => {
+			relocateTimer = 0;
 
-		const block =
-			findTopLevelBlockByTarget(view, event.target) ?? findTopLevelBlockAtY(view, event.clientY);
-
-		// In the gaps between blocks, keep the current handle rather than
-		// flickering it away.
-		if (block) publishBlock(block);
+			if (lastPointer) locateAt(lastPointer.x, lastPointer.y, null);
+		}, 48);
 	};
 
 	// Trailing-edge throttle: the LAST pointer position is always processed,
 	// so the handle can never stick on a stale block. setTimeout (not rAF)
 	// because rAF stalls in non-rendering tabs.
 	const handleMouseMove = (event: MouseEvent) => {
+		lastPointer = { x: event.clientX, y: event.clientY };
 		pendingMove = event;
 
 		if (moveTimer) return;
@@ -161,19 +186,20 @@ function createBlockHandleWatcher(view: EditorView, options: BlockHandleOptions)
 
 	view.dom.addEventListener('mouseover', handleMouseOver);
 	document.addEventListener('mousemove', handleMouseMove);
-	document.addEventListener('scroll', hide, true);
+	document.addEventListener('scroll', relocateFromPointer, true);
 	document.addEventListener('dragend', hide);
 
 	return {
 		update(_view: EditorView, previousState: { doc: unknown }) {
-			// Document edits invalidate the cached position and rect.
-			if (view.state.doc !== previousState.doc) hide();
+			// Document edits shift block geometry; recompute rather than hide.
+			if (view.state.doc !== previousState.doc) relocateFromPointer();
 		},
 		destroy() {
 			if (moveTimer) window.clearTimeout(moveTimer);
+			if (relocateTimer) window.clearTimeout(relocateTimer);
 			view.dom.removeEventListener('mouseover', handleMouseOver);
 			document.removeEventListener('mousemove', handleMouseMove);
-			document.removeEventListener('scroll', hide, true);
+			document.removeEventListener('scroll', relocateFromPointer, true);
 			document.removeEventListener('dragend', hide);
 			publish(null);
 		}

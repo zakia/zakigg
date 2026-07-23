@@ -1173,8 +1173,6 @@
 
 	<KeyboardShortcutsPanel visible={shortcutsPanelOpen} onClose={closeShortcutsPanel} />
 
-	<BlockHandle {editor} target={blockHandleTarget} />
-
 	{#if selectionToolbar.visible}
 		<div class="selection-anchor" style={selectionAnchorStyle} aria-hidden="true"></div>
 	{/if}
@@ -1200,7 +1198,9 @@
 		onHost={updateEditorHost}
 		onDragOver={handleSurfaceDragOver}
 		onDrop={handleSurfaceDrop}
-	/>
+	>
+		<BlockHandle {editor} target={blockHandleTarget} />
+	</EditorSurface>
 
 	{#if linkPopover.visible}
 		<LinkPopover

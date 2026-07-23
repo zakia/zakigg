@@ -1,14 +1,18 @@
 <script lang="ts">
-	import { onDestroy } from 'svelte';
+	import { onDestroy, type Snippet } from 'svelte';
 
 	let {
 		onHost,
 		onDragOver,
-		onDrop
+		onDrop,
+		children
 	}: {
 		onHost: (host?: HTMLDivElement) => void;
 		onDragOver?: (event: DragEvent) => void;
 		onDrop?: (event: DragEvent) => void;
+		// Overlays that must live in content coordinate space (they scroll
+		// with the document), e.g. the block handle.
+		children?: Snippet;
 	} = $props();
 	let host = $state<HTMLDivElement>();
 
@@ -23,6 +27,7 @@
 
 <div class="editor-surface" role="presentation" ondragover={onDragOver} ondrop={onDrop}>
 	<div class="editor-host" bind:this={host}></div>
+	{@render children?.()}
 </div>
 
 <style>
@@ -32,6 +37,7 @@
 		flex: 1;
 		min-height: 0;
 		overflow: auto;
+		position: relative;
 	}
 
 	.editor-host {

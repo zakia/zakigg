@@ -11,11 +11,15 @@ import {
 	type HoveredBlock
 } from './blocks';
 
+// Position of the hovered block in the coordinate space of the editor host
+// (the scroll content). The handle UI renders absolutely inside that same
+// element, so content and handle share one coordinate space and scrolling
+// needs no handling at all.
 export type BlockHandleTarget = BlockDescriptor & {
 	pos: number;
 	nodeTypeName: string;
 	turnable: boolean;
-	rect: { top: number; left: number; width: number; height: number };
+	position: { top: number; left: number; width: number; height: number };
 };
 
 export type BlockTurnTarget =
@@ -32,9 +36,6 @@ type BlockHandleOptions = {
 	registry?: ComponentEmbedRegistry;
 	onTargetChange?: (target: BlockHandleTarget | null) => void;
 };
-
-// How far left of the content the pointer still counts as "in the gutter".
-const GUTTER_REACH = 64;
 
 export const BlockHandle = Extension.create<BlockHandleOptions>({
 	name: 'blockHandle',
@@ -60,32 +61,24 @@ export const BlockHandle = Extension.create<BlockHandleOptions>({
 	}
 });
 
-// Two complementary signals drive the handle:
-// - retargeting is event-driven per node: crossing a block boundary fires
-//   mouseover exactly once, so tracking is precise with no sampling;
-// - a trailing-throttled document mousemove covers only what node events
-//   cannot see — the left gutter (no node under the pointer) and leaving
-//   the editor entirely.
+// The watcher's entire event surface: mousemove over the editor host (which
+// spans the gutter) retargets, mouseleave hides, document edits hide. The
+// pointer is resolved per node from the event target, with a geometric
+// fallback for the gutter where no node can receive events.
 function createBlockHandleWatcher(view: EditorView, options: BlockHandleOptions) {
+	const host = view.dom.parentElement ?? view.dom;
 	let lastTarget: BlockHandleTarget | null = null;
 	let pendingMove: MouseEvent | null = null;
 	let moveTimer = 0;
-	// The last known pointer position. When the world moves under a
-	// stationary pointer (scroll, document edits), the handle relocates from
-	// here instead of hiding — a hidden handle would otherwise stay hidden
-	// until the pointer happens to move again.
-	let lastPointer: { x: number; y: number } | null = null;
-	let relocateTimer = 0;
 
 	const publish = (target: BlockHandleTarget | null) => {
 		if (!target && !lastTarget) return;
-		if (
-			target &&
-			lastTarget &&
-			target.pos === lastTarget.pos &&
-			target.rect.top === lastTarget.rect.top
-		) {
-			return;
+		if (target && lastTarget && target.pos === lastTarget.pos) {
+			const samePlace =
+				target.position.top === lastTarget.position.top &&
+				target.position.left === lastTarget.position.left;
+
+			if (samePlace) return;
 		}
 
 		lastTarget = target;
@@ -93,6 +86,7 @@ function createBlockHandleWatcher(view: EditorView, options: BlockHandleOptions)
 	};
 
 	const publishBlock = (block: HoveredBlock) => {
+		const hostRect = host.getBoundingClientRect();
 		const rect = block.dom.getBoundingClientRect();
 
 		publish({
@@ -100,72 +94,37 @@ function createBlockHandleWatcher(view: EditorView, options: BlockHandleOptions)
 			pos: block.pos,
 			nodeTypeName: block.node.type.name,
 			turnable: canTurnBlockInto(block.node),
-			rect: { top: rect.top, left: rect.left, width: rect.width, height: rect.height }
+			position: {
+				top: rect.top - hostRect.top,
+				left: rect.left - hostRect.left,
+				width: rect.width,
+				height: rect.height
+			}
 		});
 	};
 
-	const handleMouseOver = (event: MouseEvent) => {
-		if (!view.editable) return;
+	const locate = (event: MouseEvent) => {
+		// Interacting with the handle UI itself must not re-target it.
+		if (event.target instanceof Element && event.target.closest('[data-block-handle-ui]')) {
+			return;
+		}
 
-		lastPointer = { x: event.clientX, y: event.clientY };
-
-		const block = findTopLevelBlockByTarget(view, event.target);
-
-		if (block) publishBlock(block);
-	};
-
-	const locateAt = (x: number, y: number, target: EventTarget | null) => {
 		if (!view.editable) {
 			publish(null);
 			return;
 		}
 
-		const editorRect = view.dom.getBoundingClientRect();
-		const withinBand =
-			x >= editorRect.left - GUTTER_REACH &&
-			x <= editorRect.right &&
-			y >= editorRect.top &&
-			y <= editorRect.bottom;
-
-		if (!withinBand) {
-			publish(null);
-			return;
-		}
-
-		const block = findTopLevelBlockByTarget(view, target) ?? findTopLevelBlockAtY(view, y);
+		const block =
+			findTopLevelBlockByTarget(view, event.target) ?? findTopLevelBlockAtY(view, event.clientY);
 
 		// In the gaps between blocks, keep the current handle rather than
 		// flickering it away.
 		if (block) publishBlock(block);
 	};
 
-	const locate = (event: MouseEvent) => {
-		// Interacting with the handle UI itself must not re-target or hide it.
-		if (event.target instanceof Element && event.target.closest('[data-block-handle-ui]')) {
-			return;
-		}
-
-		locateAt(event.clientX, event.clientY, event.target);
-	};
-
-	// Scroll and document edits shift block geometry under a stationary
-	// pointer: recompute from the remembered position (trailing-throttled,
-	// since scroll events arrive in bursts).
-	const relocateFromPointer = () => {
-		if (relocateTimer) return;
-
-		relocateTimer = window.setTimeout(() => {
-			relocateTimer = 0;
-
-			if (lastPointer) locateAt(lastPointer.x, lastPointer.y, null);
-		}, 48);
-	};
-
-	// Trailing-edge throttle: the LAST pointer position is always processed,
-	// so the handle can never stick on a stale block. setTimeout (not rAF)
-	// because rAF stalls in non-rendering tabs.
+	// Trailing-edge throttle: the LAST pointer position is always processed.
+	// setTimeout (not rAF) because rAF stalls in non-rendering tabs.
 	const handleMouseMove = (event: MouseEvent) => {
-		lastPointer = { x: event.clientX, y: event.clientY };
 		pendingMove = event;
 
 		if (moveTimer) return;
@@ -179,28 +138,27 @@ function createBlockHandleWatcher(view: EditorView, options: BlockHandleOptions)
 
 			pendingMove = null;
 			locate(moveEvent);
-		}, 32);
+		}, 24);
 	};
 
-	const hide = () => publish(null);
+	const handleMouseLeave = () => {
+		pendingMove = null;
+		publish(null);
+	};
 
-	view.dom.addEventListener('mouseover', handleMouseOver);
-	document.addEventListener('mousemove', handleMouseMove);
-	document.addEventListener('scroll', relocateFromPointer, true);
-	document.addEventListener('dragend', hide);
+	host.addEventListener('mousemove', handleMouseMove);
+	host.addEventListener('mouseleave', handleMouseLeave);
 
 	return {
 		update(_view: EditorView, previousState: { doc: unknown }) {
-			// Document edits shift block geometry; recompute rather than hide.
-			if (view.state.doc !== previousState.doc) relocateFromPointer();
+			// Document edits shift block positions; hide until the pointer
+			// signals where it is again.
+			if (view.state.doc !== previousState.doc) publish(null);
 		},
 		destroy() {
 			if (moveTimer) window.clearTimeout(moveTimer);
-			if (relocateTimer) window.clearTimeout(relocateTimer);
-			view.dom.removeEventListener('mouseover', handleMouseOver);
-			document.removeEventListener('mousemove', handleMouseMove);
-			document.removeEventListener('scroll', relocateFromPointer, true);
-			document.removeEventListener('dragend', hide);
+			host.removeEventListener('mousemove', handleMouseMove);
+			host.removeEventListener('mouseleave', handleMouseLeave);
 			publish(null);
 		}
 	};

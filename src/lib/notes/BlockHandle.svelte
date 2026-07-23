@@ -23,8 +23,12 @@
 	let pinnedTarget = $state<BlockHandleTarget | null>(null);
 
 	const active = $derived(menuOpen ? pinnedTarget : target);
+	// Content-space coordinates: the handle is absolutely positioned inside
+	// the editor surface, so it scrolls with the document natively.
 	const handleStyle = $derived(
-		active ? `left: ${Math.max(8, active.rect.left - 52)}px; top: ${active.rect.top + 1}px;` : ''
+		active
+			? `left: ${Math.max(4, active.position.left - 52)}px; top: ${active.position.top + 1}px;`
+			: ''
 	);
 
 	const TURN_TARGETS: { id: BlockTurnTarget; label: string; icon: string }[] = [
@@ -178,7 +182,7 @@
 		align-items: center;
 		display: flex;
 		gap: 2px;
-		position: fixed;
+		position: absolute;
 		z-index: 7;
 	}
 

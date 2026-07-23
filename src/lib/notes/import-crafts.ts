@@ -184,6 +184,15 @@ function prepareCraftMarkdown(source: string): { markdown: string; media: CraftM
 		.replace(/!\[([^\]]*)\]\(([^)\s]+)[^)]*\)(\{[^}]*\})?/g, (_, alt: string, src: string) =>
 			placeholder({ alt, src })
 		)
+		// <kbd> keys have no markdown equivalent; represent them as inline code
+		// rather than raw HTML. As a standard tag, raw <kbd> would otherwise be
+		// parsed via generateJSON — dragging a schema-filled metadata block into
+		// the content (see normalizeMarkdownDoc).
+		.replace(/<kbd[^>]*>([\s\S]*?)<\/kbd>/gi, (_, key: string) => {
+			const label = key.trim();
+
+			return label ? `\`${label}\`` : '';
+		})
 		// Presentational wrappers: keep span text, drop layout-only div lines.
 		.replace(/<span[^>]*>([\s\S]*?)<\/span>/g, '$1')
 		.replace(/^[ \t]*<\/?div[^>]*>[ \t]*$/gm, '')

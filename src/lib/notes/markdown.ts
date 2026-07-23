@@ -251,24 +251,28 @@ function dateOnly(value: string) {
 
 // Fixes up parser output for the editor schema: list items must lead with a
 // paragraph, and any metadata block is dropped — the schema's required
-// leading block makes the parser synthesize an empty one, which is a
-// schema-fill artifact, never content. Shared by paste and the craft
-// importer, which manage metadata separately from parsed markdown.
+// leading block makes the parser synthesize one, which is a schema-fill
+// artifact, never content. Shared by paste and the craft importer, which
+// manage metadata separately from parsed markdown.
 export function normalizeMarkdownDoc(doc: JSONContent): JSONContent {
 	return {
 		...doc,
-		content: normalizeMarkdownContent(
-			(doc.content ?? []).filter((node) => node.type !== METADATA_BLOCK_NODE_NAME)
-		)
+		content: normalizeMarkdownContent(doc.content ?? [])
 	};
 }
 
+// Strip metadata blocks at EVERY depth, not just the top level: parsing an
+// inline HTML fragment (e.g. <kbd>) runs generateJSON, whose full-document
+// parse synthesizes the required leading metadata block and splices it into the
+// surrounding content — so the artifacts surface nested inside list items too.
 function normalizeMarkdownContent(content: JSONContent[]) {
-	return content.map(normalizeMarkdownNode);
+	return content
+		.filter((node) => node.type !== METADATA_BLOCK_NODE_NAME)
+		.map(normalizeMarkdownNode);
 }
 
 function normalizeMarkdownNode(node: JSONContent): JSONContent {
-	const content = node.content?.map(normalizeMarkdownNode);
+	const content = node.content ? normalizeMarkdownContent(node.content) : undefined;
 
 	if (node.type === 'listItem' && content?.[0]?.type !== 'paragraph') {
 		return {

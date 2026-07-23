@@ -16,18 +16,21 @@ export const craftComponentEmbeds = createComponentEmbedRegistry([
 	registerComponentEmbed(ScrollingTabs, scrollingTabsEmbed),
 	registerComponentEmbed(ScrollingTabsAnchors, scrollingTabsAnchorsEmbed),
 	registerComponentEmbed(OverflowToggle, overflowToggleEmbed),
-	// Games register lazily: their code downloads only when a document
-	// actually renders them.
+	// Lazy embeds: their code downloads only when a document actually
+	// renders them.
+	registerLazyComponentEmbed(() => import('./embeds/ImageCarousel.svelte'), {
+		id: 'core.ImageCarousel',
+		label: 'Image Carousel',
+		icon: 'mdi:view-carousel-outline',
+		props: v.object({
+			images: v.optional(v.array(v.string()), [])
+		})
+	}),
 	registerLazyComponentEmbed(() => import('./tic-tac-toe/TicTacToeGame.svelte'), {
 		id: 'tic-tac-toe.game',
 		label: 'Tic Tac Toe',
 		icon: 'mdi:grid',
-		props: v.object({
-			mode: v.optional(v.picklist(['ai', 'two-player']), 'ai')
-		}),
-		fields: {
-			mode: { label: 'Mode', description: 'Play against the AI or another person.' }
-		}
+		props: v.object({})
 	}),
 	registerLazyComponentEmbed(() => import('./rock-paper-scissors/RockPaperScissorsGame.svelte'), {
 		id: 'rock-paper-scissors.game',

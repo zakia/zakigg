@@ -2,20 +2,12 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import { AI, bestMove, checkWinner, EMPTY, HUMAN } from './minimax';
 
-	let { mode = 'ai' }: { mode?: 'ai' | 'two-player' } = $props();
-
 	let board = $state<number[]>(Array(9).fill(EMPTY));
 	let winner = $state(-1);
 	let step = $state(0);
 	let winPattern = $state<number[]>([]);
 	let disabled = $state(false);
 	let is2Player = $state(false);
-
-	// The prop seeds the mode (and re-seeds when embed props are edited);
-	// the in-game toggle still works independently afterwards.
-	$effect(() => {
-		is2Player = mode === 'two-player';
-	});
 
 	function playMove(index: number) {
 		if (board[index] === 0 && winner === -1) {

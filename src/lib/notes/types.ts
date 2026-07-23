@@ -1,4 +1,5 @@
 import type { JSONContent } from '@tiptap/core';
+import { getLocalAssetId } from './media';
 import {
 	ensureLeadingMetadataBlock,
 	getMetadataBlockProperties,
@@ -231,13 +232,37 @@ export function getReferencedAssetIds(content: JSONContent) {
 	const ids = new Set<string>();
 
 	visitContent(content, (node) => {
-		if (node.type !== 'mediaBlock') return;
+		if (node.type === 'mediaBlock') {
+			const assetId = typeof node.attrs?.assetId === 'string' ? node.attrs.assetId.trim() : '';
+			if (assetId) ids.add(assetId);
+			return;
+		}
 
-		const assetId = typeof node.attrs?.assetId === 'string' ? node.attrs.assetId.trim() : '';
-		if (assetId) ids.add(assetId);
+		// Component embeds may reference stored assets anywhere in their
+		// props (e.g. the image carousel's slides).
+		if (node.type === 'componentEmbed') {
+			collectLocalAssetIds(node.attrs?.props, ids);
+		}
 	});
 
 	return [...ids];
+}
+
+function collectLocalAssetIds(value: unknown, ids: Set<string>) {
+	if (typeof value === 'string') {
+		const assetId = getLocalAssetId(value);
+		if (assetId) ids.add(assetId);
+		return;
+	}
+
+	if (Array.isArray(value)) {
+		for (const item of value) collectLocalAssetIds(item, ids);
+		return;
+	}
+
+	if (value && typeof value === 'object') {
+		for (const item of Object.values(value)) collectLocalAssetIds(item, ids);
+	}
 }
 
 export function getContentText(content: JSONContent) {

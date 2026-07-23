@@ -48,12 +48,6 @@ export function createComponentEmbedNodeView(editor: Editor, registry: Component
 			});
 		};
 
-		const setEditing = (editing: boolean, props?: Record<string, unknown>) =>
-			updateAttributes({
-				...(props ? { props } : {}),
-				editing
-			});
-
 		root.className = 'component-embed-node';
 		root.setAttribute('data-component-embed', String(currentNode.attrs.component ?? ''));
 		root.contentEditable = 'false';
@@ -63,8 +57,7 @@ export function createComponentEmbedNodeView(editor: Editor, registry: Component
 			props: {
 				node: nodeStore,
 				registry,
-				updateProps,
-				setEditing
+				updateProps
 			}
 		});
 		flushSync();

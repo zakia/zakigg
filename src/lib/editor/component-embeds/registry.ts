@@ -9,19 +9,15 @@ export type ComponentEmbedAttrs = {
 	props: Record<string, unknown>;
 };
 
-export type ComponentEmbedField = {
-	label?: string;
-	control?: 'text' | 'textarea' | 'number' | 'toggle' | 'select' | 'datetime-local' | 'json';
-	description?: string;
-	options?: readonly string[];
-};
-
+// The embed contract: a component plus a valibot props schema. The schema
+// validates persisted props; components are always live and own any editing
+// UI, persisting changes through the `updateProps` callback they receive
+// when rendered inside an editor.
 export type ComponentEmbedConfig<TSchema extends v.GenericSchema = v.GenericSchema> = {
 	id: string;
 	label: string;
 	icon?: string;
 	props: TSchema;
-	fields?: Record<string, ComponentEmbedField>;
 	initialProps?: () => v.InferInput<TSchema>;
 	insertable?: boolean;
 	crafts?: readonly string[];
@@ -63,7 +59,6 @@ export function registerComponentEmbed<
 ): RegisteredComponentEmbed<TSchema> {
 	return {
 		...config,
-		fields: deriveEmbedFields(config),
 		load: () => Promise.resolve(component as unknown as EmbedComponent)
 	};
 }
@@ -76,7 +71,6 @@ export function registerLazyComponentEmbed<TSchema extends v.GenericSchema>(
 ): RegisteredComponentEmbed<TSchema> {
 	return {
 		...config,
-		fields: deriveEmbedFields(config),
 		load: async () => (await load()).default as EmbedComponent
 	};
 }
@@ -118,76 +112,6 @@ function resolveEmbedComponent(
 	}
 
 	return pending;
-}
-
-// The valibot props schema IS the embed contract: edit-mode form controls are
-// derived from it (string -> text, number -> number, boolean -> toggle,
-// picklist -> select), and `config.fields` only refines labels/controls.
-function deriveEmbedFields(
-	config: ComponentEmbedConfig<v.GenericSchema>
-): Record<string, ComponentEmbedField> {
-	const schema = config.props as { type?: string; entries?: Record<string, unknown> };
-
-	if (schema.type !== 'object' || !schema.entries) return config.fields ?? {};
-
-	const derived: Record<string, ComponentEmbedField> = {};
-
-	for (const [name, entrySchema] of Object.entries(schema.entries)) {
-		derived[name] = {
-			control: deriveFieldControl(unwrapSchema(entrySchema)),
-			...deriveFieldOptions(unwrapSchema(entrySchema)),
-			...config.fields?.[name]
-		};
-	}
-
-	// Keep any extra field definitions that have no schema entry.
-	for (const [name, field] of Object.entries(config.fields ?? {})) {
-		derived[name] ??= field;
-	}
-
-	return derived;
-}
-
-function unwrapSchema(schema: unknown): { type?: string; options?: readonly string[] } {
-	let current = schema as { type?: string; wrapped?: unknown; options?: readonly string[] };
-
-	while (
-		current &&
-		(current.type === 'optional' ||
-			current.type === 'nullable' ||
-			current.type === 'nullish' ||
-			current.type === 'exact_optional' ||
-			current.type === 'fallback')
-	) {
-		current = current.wrapped as typeof current;
-	}
-
-	return current ?? {};
-}
-
-function deriveFieldControl(schema: {
-	type?: string;
-	options?: readonly string[];
-}): NonNullable<ComponentEmbedField['control']> {
-	switch (schema.type) {
-		case 'string':
-			return 'text';
-		case 'number':
-			return 'number';
-		case 'boolean':
-			return 'toggle';
-		case 'picklist':
-		case 'enum':
-			return 'select';
-		default:
-			return 'json';
-	}
-}
-
-function deriveFieldOptions(schema: { type?: string; options?: readonly unknown[] }) {
-	if ((schema.type !== 'picklist' && schema.type !== 'enum') || !schema.options) return {};
-
-	return { options: schema.options.map(String) };
 }
 
 function isInsertableEntry(entry: RegisteredComponentEmbed, context: ComponentEmbedInsertContext) {

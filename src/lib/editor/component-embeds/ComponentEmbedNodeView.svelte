@@ -63,25 +63,6 @@
 </script>
 
 <div class="component-embed-shell" data-component-embed-controls>
-	<span
-		class="embed-drag-handle"
-		data-embed-drag-handle
-		draggable="true"
-		role="button"
-		tabindex={-1}
-		aria-label="Drag to move"
-		title="Drag to move"
-	>
-		<svg viewBox="0 0 16 16" aria-hidden="true">
-			<circle cx="5" cy="3" r="1.3" />
-			<circle cx="11" cy="3" r="1.3" />
-			<circle cx="5" cy="8" r="1.3" />
-			<circle cx="11" cy="8" r="1.3" />
-			<circle cx="5" cy="13" r="1.3" />
-			<circle cx="11" cy="13" r="1.3" />
-		</svg>
-	</span>
-
 	{#if embed.ok}
 		{#if LoadedComponent}
 			<LoadedComponent {...embed.props} updateProps={handlePropsChange} />
@@ -110,48 +91,8 @@
 		display: inline-grid;
 		margin-block: var(--s-3);
 		max-width: 100%;
-		position: relative;
 		vertical-align: middle;
 		width: fit-content;
-	}
-
-	.embed-drag-handle {
-		align-items: center;
-		border-radius: var(--s-5);
-		color: color-mix(in oklch, var(--content-1) 72%, transparent);
-		cursor: grab;
-		display: flex;
-		height: 1.9rem;
-		justify-content: center;
-		left: -1.7rem;
-		opacity: 0;
-		position: absolute;
-		top: 0.15rem;
-		transition:
-			background-color 0.16s ease,
-			color 0.16s ease,
-			opacity 0.16s ease;
-		user-select: none;
-		width: 1.4rem;
-	}
-
-	.embed-drag-handle:active {
-		cursor: grabbing;
-	}
-
-	.component-embed-shell:hover .embed-drag-handle {
-		opacity: 1;
-	}
-
-	.embed-drag-handle:hover {
-		background: color-mix(in oklch, var(--content) 8%, transparent);
-		color: var(--content);
-	}
-
-	.embed-drag-handle svg {
-		fill: currentColor;
-		height: 1rem;
-		width: 1rem;
 	}
 
 	.component-embed-loading {

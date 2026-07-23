@@ -2,6 +2,7 @@ import { Markdown } from '@tiptap/markdown';
 import { Document } from '@tiptap/extension-document';
 import { Placeholder } from '@tiptap/extension-placeholder';
 import { StarterKit } from '@tiptap/starter-kit';
+import { BlockHandle, type BlockHandleTarget } from '$lib/editor/block-handle';
 import { ComponentEmbed, type ComponentEmbedRegistry } from '$lib/editor/component-embeds';
 import { CodeBlock } from '../editor/code-block';
 import { MediaBlock, type MediaBlockAssetResolver } from '../editor/media-block';
@@ -10,9 +11,14 @@ import { ListContinuity, ListMarkerInput } from './lists';
 import { MetadataBlock } from './metadata-block';
 import { Table, TableCell, TableHeader, TableKit, TableRow } from './tables';
 
+export type EditorExtensionOptions = {
+	onBlockHandleTargetChange?: (target: BlockHandleTarget | null) => void;
+};
+
 export function createEditorExtensions(
 	componentEmbedRegistry?: ComponentEmbedRegistry,
-	resolveMediaAssetSrc?: MediaBlockAssetResolver
+	resolveMediaAssetSrc?: MediaBlockAssetResolver,
+	options: EditorExtensionOptions = {}
 ) {
 	return [
 		// Metadata is structural, not optional: the schema requires a metadata
@@ -36,6 +42,10 @@ export function createEditorExtensions(
 		MetadataBlock,
 		ComponentEmbed.configure({
 			registry: componentEmbedRegistry
+		}),
+		BlockHandle.configure({
+			registry: componentEmbedRegistry,
+			onTargetChange: options.onBlockHandleTargetChange
 		}),
 		Table,
 		TableRow,

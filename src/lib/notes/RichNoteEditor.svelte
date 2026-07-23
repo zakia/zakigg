@@ -9,6 +9,7 @@
 	import EditorHistoryPanel from './EditorHistoryPanel.svelte';
 	import EditorSurface from './EditorSurface.svelte';
 	import EditorToolbar from './EditorToolbar.svelte';
+	import BlockHandle from './BlockHandle.svelte';
 	import KeyboardShortcutsPanel from './KeyboardShortcutsPanel.svelte';
 	import LinkPopover from './LinkPopover.svelte';
 	import { createEditorExtensions } from './editor-extensions';
@@ -98,6 +99,7 @@
 	let previewHistoryId = $state('');
 	let historyPanelOpen = $state(false);
 	let shortcutsPanelOpen = $state(false);
+	let blockHandleTarget = $state<import('$lib/editor/block-handle').BlockHandleTarget | null>(null);
 	let editorTickQueued = false;
 	let pendingSave = false;
 	let linkPopover = $state<LinkPopoverState>(createHiddenLinkPopover());
@@ -162,7 +164,11 @@
 			const initialContent = getInitialEditorContent(page);
 			const instance = new Editor({
 				element: editorHost,
-				extensions: createEditorExtensions(craftComponentEmbeds, resolveNoteAssetObjectUrl),
+				extensions: createEditorExtensions(craftComponentEmbeds, resolveNoteAssetObjectUrl, {
+					onBlockHandleTargetChange: (nextTarget) => {
+						blockHandleTarget = nextTarget;
+					}
+				}),
 				content: initialContent,
 				// Position 2 is inside the H1 (the leading metadata block is a
 				// size-1 atom at position 0).
@@ -1166,6 +1172,8 @@
 	/>
 
 	<KeyboardShortcutsPanel visible={shortcutsPanelOpen} onClose={closeShortcutsPanel} />
+
+	<BlockHandle {editor} target={blockHandleTarget} />
 
 	{#if selectionToolbar.visible}
 		<div class="selection-anchor" style={selectionAnchorStyle} aria-hidden="true"></div>

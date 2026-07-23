@@ -80,12 +80,9 @@ export function createComponentEmbedNodeView(editor: Editor, registry: Component
 
 				if (!target) return false;
 
-				// ProseMirror must see the drag lifecycle for draggable nodes
-				// to move (rather than the browser half-performing a native
-				// HTML drag), and events on the drag handle are how a drag or
-				// node selection starts.
+				// ProseMirror must see the drag lifecycle so gutter-handle
+				// drags can move and drop across embeds.
 				if (event.type.startsWith('drag') || event.type === 'drop') return false;
-				if (target.closest?.('[data-embed-drag-handle]')) return false;
 
 				// Everything else inside the embed belongs to the component
 				// (game clicks, form inputs), not the editor.

@@ -249,6 +249,20 @@ function dateOnly(value: string) {
 		: new Date().toISOString().slice(0, 10);
 }
 
+// Fixes up parser output for the editor schema: list items must lead with a
+// paragraph, and any metadata block is dropped — the schema's required
+// leading block makes the parser synthesize an empty one, which is a
+// schema-fill artifact, never content. Shared by paste and the craft
+// importer, which manage metadata separately from parsed markdown.
+export function normalizeMarkdownDoc(doc: JSONContent): JSONContent {
+	return {
+		...doc,
+		content: normalizeMarkdownContent(
+			(doc.content ?? []).filter((node) => node.type !== METADATA_BLOCK_NODE_NAME)
+		)
+	};
+}
+
 function normalizeMarkdownContent(content: JSONContent[]) {
 	return content.map(normalizeMarkdownNode);
 }

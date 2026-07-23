@@ -48,12 +48,6 @@ export function createComponentEmbedNodeView(editor: Editor, registry: Component
 			});
 		};
 
-		const setEditing = (editing: boolean, props?: Record<string, unknown>) =>
-			updateAttributes({
-				...(props ? { props } : {}),
-				editing
-			});
-
 		root.className = 'component-embed-node';
 		root.setAttribute('data-component-embed', String(currentNode.attrs.component ?? ''));
 		root.contentEditable = 'false';
@@ -63,8 +57,7 @@ export function createComponentEmbedNodeView(editor: Editor, registry: Component
 			props: {
 				node: nodeStore,
 				registry,
-				updateProps,
-				setEditing
+				updateProps
 			}
 		});
 		flushSync();
@@ -83,9 +76,17 @@ export function createComponentEmbedNodeView(editor: Editor, registry: Component
 			},
 
 			stopEvent(event) {
-				const target = event.target as globalThis.Node | null;
+				const target = event.target as Element | null;
 
-				return !!target && root.contains(target);
+				if (!target) return false;
+
+				// ProseMirror must see the drag lifecycle so gutter-handle
+				// drags can move and drop across embeds.
+				if (event.type.startsWith('drag') || event.type === 'drop') return false;
+
+				// Everything else inside the embed belongs to the component
+				// (game clicks, form inputs), not the editor.
+				return root.contains(target);
 			},
 
 			destroy() {

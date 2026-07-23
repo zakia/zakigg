@@ -86,8 +86,8 @@
 		appearance: none;
 		background: transparent;
 		border: 0;
-		border-radius: var(--s-5);
-		color: var(--content-1);
+		border-radius: 999px;
+		color: var(--brand);
 		cursor: pointer;
 		display: grid;
 		height: 1.25rem;
@@ -97,8 +97,7 @@
 	}
 
 	.chip button:hover {
-		background: color-mix(in oklch, var(--base-1) 82%, var(--content) 8%);
-		color: var(--content);
+		background: color-mix(in oklch, var(--brand) 24%, transparent);
 	}
 
 	.chip button:focus-visible {

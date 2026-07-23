@@ -1,14 +1,35 @@
 <script lang="ts">
+	import type { EmbedComponent } from '$lib/editor/component-embeds';
 	import { craftComponentEmbeds } from './component-embeds';
 
 	let { attrs }: { attrs: unknown } = $props();
+	let LoadedComponent = $state<EmbedComponent | null>(null);
 
 	const embed = $derived(craftComponentEmbeds.parseAttrs(attrs));
+	const embedId = $derived(embed.ok ? embed.entry.id : '');
+
+	$effect(() => {
+		if (!embedId) {
+			LoadedComponent = null;
+			return;
+		}
+
+		let cancelled = false;
+
+		craftComponentEmbeds.resolveComponent(embedId).then((component) => {
+			if (!cancelled) LoadedComponent = component;
+		});
+
+		return () => {
+			cancelled = true;
+		};
+	});
 </script>
 
 {#if embed.ok}
-	{@const Component = embed.entry.component}
-	<Component {...embed.props} />
+	{#if LoadedComponent}
+		<LoadedComponent {...embed.props} />
+	{/if}
 {:else}
 	<div class="component-embed-error" role="note">
 		<strong>Component embed unavailable</strong>

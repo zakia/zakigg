@@ -5,7 +5,6 @@ import { createComponentEmbedNodeView } from './view';
 type ComponentEmbedCommandAttrs = {
 	component: string;
 	props?: Record<string, unknown>;
-	editing?: boolean;
 };
 
 type ComponentEmbedOptions = {
@@ -40,10 +39,6 @@ export const ComponentEmbed = Node.create<ComponentEmbedOptions>({
 			},
 			props: {
 				default: {}
-			},
-			editing: {
-				default: false,
-				rendered: false
 			}
 		};
 	},
@@ -119,8 +114,7 @@ export const ComponentEmbed = Node.create<ComponentEmbedOptions>({
 						type: this.name,
 						attrs: {
 							component: attrs.component,
-							props: attrs.props ?? {},
-							editing: attrs.editing ?? false
+							props: attrs.props ?? {}
 						}
 					})
 		};
@@ -143,20 +137,7 @@ export function insertRegisteredComponentEmbed(
 
 	if (!result.ok) return result;
 
-	const entry = registry.get(componentId);
-	const hasFields = Boolean(entry && Object.keys(entry.fields ?? {}).length);
-
-	editor
-		.chain()
-		.focus()
-		.insertContent({
-			...result.node,
-			attrs: {
-				...result.node.attrs,
-				editing: hasFields
-			}
-		})
-		.run();
+	editor.chain().focus().insertContent(result.node).run();
 
 	return {
 		ok: true as const,

@@ -22,7 +22,6 @@
 	type Props = {
 		node: Readable<ProseMirrorNode>;
 		updateProperties: (properties: MetadataEntry[]) => void;
-		setCollapsed: (collapsed: boolean) => void;
 		setAdding: (adding: boolean) => void;
 		exitBlock: (side: 'before' | 'after') => void;
 	};
@@ -41,8 +40,11 @@
 
 	const ROW_FLIP_DURATION = 150;
 
-	let { node, updateProperties, setCollapsed, setAdding, exitBlock }: Props = $props();
+	let { node, updateProperties, setAdding, exitBlock }: Props = $props();
 	let shell = $state<HTMLElement>();
+	// Session-only view state: properties always start closed, and toggling
+	// must not dirty the document (a persisted attr would bump updatedAt).
+	let collapsed = $state(true);
 	let addPropertyActive = $state(false);
 	let propertyKeyDraft = $state('');
 	let propertyComboboxOpen = $state(false);
@@ -520,21 +522,21 @@
 	});
 </script>
 
-<div class="metadata-shell" class:collapsed={attrs.collapsed} bind:this={shell}>
+<div class="metadata-shell" class:collapsed bind:this={shell}>
 	<header class="metadata-header">
 		<button
 			type="button"
 			class="collapse-button"
 			data-metadata-collapse
-			aria-label={attrs.collapsed ? 'Show properties' : 'Hide properties'}
-			onclick={() => setCollapsed(!attrs.collapsed)}
+			aria-label={collapsed ? 'Show properties' : 'Hide properties'}
+			onclick={() => (collapsed = !collapsed)}
 		>
-			<Icon icon={attrs.collapsed ? 'mdi:chevron-right' : 'mdi:chevron-down'} />
+			<Icon icon={collapsed ? 'mdi:chevron-right' : 'mdi:chevron-down'} />
 		</button>
 		<strong>Properties</strong>
 	</header>
 
-	{#if !attrs.collapsed}
+	{#if !collapsed}
 		<div class="metadata-rows">
 			<div
 				class="metadata-dnd-rows"

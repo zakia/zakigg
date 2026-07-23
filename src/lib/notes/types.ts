@@ -1,10 +1,11 @@
 import type { JSONContent } from '@tiptap/core';
 import { getLocalAssetId } from './media';
 import {
-	ensureLeadingMetadataBlock,
-	getMetadataBlockProperties,
+	metadataEntriesToRecord,
+	normalizeMetadataEntries,
 	normalizeMetadataProperties,
 	slugifyText,
+	type MetadataEntry,
 	type MetadataProperties
 } from './metadata-block';
 
@@ -48,6 +49,9 @@ export type NotePageV1 = {
 	slug: string;
 	title: string;
 	tags: string[];
+	// Canonical, ordered page metadata edited by the properties panel. `title`,
+	// `slug`, `tags` and `frontmatter` are derived from this on save.
+	properties: MetadataEntry[];
 	frontmatter?: NotePageFrontmatter;
 	content: JSONContent;
 	createdAt: string;
@@ -83,44 +87,39 @@ export function createNotesDoc(
 export function createNotePage(input: Partial<NotePageV1> = {}): NotePageV1 {
 	const now = new Date().toISOString();
 	const id = input.id || createPageId();
-	const rawContent =
+	const content =
 		input.content && isJSONContent(input.content)
-			? input.content
+			? stripLegacyMetadataBlocks(input.content)
 			: createInitialNotePageContent(input.title);
-	const metadata = resolveNotePageMetadata(
-		{
-			version: NOTES_PAGE_VERSION,
-			editor: NOTES_EDITOR,
-			id,
-			slug: normalizePageSlug(input.slug || DEFAULT_NOTE_SLUG),
-			title: normalizePageTitle(input.title || getFirstLevelOneHeadingText(rawContent)),
-			tags: normalizePageTags(input.tags),
-			frontmatter: normalizeNotePageFrontmatter(input.frontmatter),
-			content: rawContent,
-			createdAt: normalizeDate(input.createdAt) || now,
-			updatedAt: normalizeDate(input.updatedAt) || now
-		},
-		rawContent
+	// Seed the ordered metadata from explicit properties, else from a
+	// frontmatter/tags record (imports, legacy notes carry these instead).
+	const properties = normalizeMetadataEntries(
+		input.properties ?? {
+			...(input.frontmatter ?? {}),
+			...(input.tags && input.tags.length ? { tags: input.tags } : {})
+		}
 	);
-	// Metadata is mandatory: every stored page leads with a metadata block.
-	// Legacy content without one gets a block seeded from its resolved
-	// metadata so nothing (tags, frontmatter) is lost in the move.
-	const content = ensureLeadingMetadataBlock(rawContent, {
-		...metadata.frontmatter,
-		...(metadata.tags.length ? { tags: metadata.tags } : {})
-	});
-
-	return {
+	const base: NotePageV1 = {
 		version: NOTES_PAGE_VERSION,
 		editor: NOTES_EDITOR,
 		id,
+		slug: normalizePageSlug(input.slug || DEFAULT_NOTE_SLUG),
+		title: normalizePageTitle(input.title || getFirstLevelOneHeadingText(content)),
+		tags: normalizePageTags(input.tags),
+		properties,
+		content,
+		createdAt: normalizeDate(input.createdAt) || now,
+		updatedAt: normalizeDate(input.updatedAt) || now
+	};
+	const metadata = resolveNotePageMetadata(base, content);
+
+	return {
+		...base,
 		slug: metadata.slug,
 		title: metadata.title,
 		tags: metadata.tags,
 		...(metadata.frontmatter ? { frontmatter: metadata.frontmatter } : {}),
-		content,
-		createdAt: metadata.createdAt,
-		updatedAt: normalizeDate(input.updatedAt) || now
+		createdAt: metadata.createdAt
 	};
 }
 
@@ -213,6 +212,19 @@ export function parseStoredPage(value: unknown): NotePageV1 | null {
 	}
 
 	const frontmatter = normalizeNotePageFrontmatter(page.frontmatter);
+	// Migrate legacy records that stored metadata as a leading `metadataBlock`
+	// node: lift its properties to page state and strip it from the content.
+	// New records already carry `properties`; fall back to stored frontmatter/
+	// tags when neither is present.
+	const legacyEntries = extractLegacyMetadataEntries(page.content);
+	const properties = Array.isArray(page.properties)
+		? normalizeMetadataEntries(page.properties)
+		: legacyEntries && legacyEntries.length
+			? legacyEntries
+			: normalizeMetadataEntries({
+					...(frontmatter ?? {}),
+					...(page.tags && page.tags.length ? { tags: normalizePageTags(page.tags) } : {})
+				});
 
 	return {
 		version: NOTES_PAGE_VERSION,
@@ -221,8 +233,9 @@ export function parseStoredPage(value: unknown): NotePageV1 | null {
 		slug: normalizePageSlug(page.slug),
 		title: normalizePageTitle(page.title),
 		tags: normalizePageTags(page.tags),
+		properties,
 		...(frontmatter ? { frontmatter } : {}),
-		content: page.content,
+		content: stripLegacyMetadataBlocks(page.content),
 		createdAt: page.createdAt,
 		updatedAt: page.updatedAt
 	};
@@ -294,41 +307,55 @@ export function resolveNotePageMetadata(
 ): Pick<NotePageV1, 'title' | 'slug' | 'tags' | 'createdAt'> & {
 	frontmatter?: NotePageFrontmatter;
 } {
-	const metadataBlockFrontmatter = getNotePageMetadataBlockFrontmatter(content);
-	// A block with zero properties carries no metadata — treat it as absent
-	// (e.g. a schema-synthesized empty block) rather than letting it wipe the
-	// page's stored frontmatter.
-	const metadataBlockIsSource =
-		metadataBlockFrontmatter.hasMetadataBlock && Boolean(metadataBlockFrontmatter.frontmatter);
-	const frontmatter = normalizeNotePageFrontmatter({
-		...(metadataBlockIsSource ? metadataBlockFrontmatter.frontmatter : page.frontmatter),
-		...patch
-	});
+	// Page-level `properties` are the single source of truth; the first H1 is
+	// the title fallback when no `title` property is set.
+	const propertiesFrontmatter = metadataPropertiesToNotePageFrontmatter(
+		metadataEntriesToRecord(normalizeMetadataEntries(page.properties))
+	);
+	const frontmatter = normalizeNotePageFrontmatter({ ...propertiesFrontmatter, ...patch });
 	const firstHeadingTitle = getFirstLevelOneHeadingText(content);
 	const title = normalizePageTitle(frontmatter?.title || firstHeadingTitle || page.title);
 	const slug = normalizePageSlug(frontmatter?.slug || title || page.slug);
 	const createdAt = frontmatter?.date ? normalizeDate(frontmatter.date) : page.createdAt;
-	const tags = metadataBlockIsSource ? (frontmatter?.tags ?? []) : (frontmatter?.tags ?? page.tags);
+	const tags = normalizePageTags(frontmatter?.tags ?? page.tags);
 
 	return {
 		title,
 		slug,
-		tags: normalizePageTags(tags),
+		tags,
 		createdAt: createdAt || page.createdAt,
 		...(frontmatter ? { frontmatter } : {})
 	};
 }
 
-export function getNotePageMetadataBlockFrontmatter(content: JSONContent): {
-	hasMetadataBlock: boolean;
-	frontmatter?: NotePageFrontmatter;
-} {
-	const properties = getMetadataBlockProperties(content);
+const LEGACY_METADATA_BLOCK_NAME = 'metadataBlock';
 
-	return {
-		hasMetadataBlock: Boolean(properties),
-		frontmatter: properties ? metadataPropertiesToNotePageFrontmatter(properties) : undefined
-	};
+// Legacy notes stored metadata as a leading `metadataBlock` node in the doc.
+// Lift its properties out to page state (the first non-empty one wins).
+function extractLegacyMetadataEntries(content: JSONContent): MetadataEntry[] | undefined {
+	let entries: MetadataEntry[] | undefined;
+
+	visitContent(content, (node) => {
+		if ((entries && entries.length) || node.type !== LEGACY_METADATA_BLOCK_NAME) return;
+
+		entries = normalizeMetadataEntries(node.attrs?.properties);
+	});
+
+	return entries;
+}
+
+// Remove any `metadataBlock` node from the document at every depth. The doc
+// must not be left empty once the (formerly required) leading block is gone.
+function stripLegacyMetadataBlocks(content: JSONContent): JSONContent {
+	if (!Array.isArray(content.content)) return content;
+
+	const filtered = content.content
+		.filter((node) => node.type !== LEGACY_METADATA_BLOCK_NAME)
+		.map(stripLegacyMetadataBlocks);
+
+	if (content.type === 'doc' && filtered.length === 0) filtered.push({ type: 'paragraph' });
+
+	return { ...content, content: filtered };
 }
 
 export function metadataPropertiesToNotePageFrontmatter(

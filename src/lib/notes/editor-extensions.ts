@@ -8,7 +8,6 @@ import { CodeBlock } from '../editor/code-block';
 import { MediaBlock, type MediaBlockAssetResolver } from '../editor/media-block';
 import { EditorLink, MarkdownLinkInput } from './links';
 import { ListContinuity, ListMarkerInput } from './lists';
-import { MetadataBlock } from './metadata-block';
 import { Table, TableCell, TableHeader, TableKit, TableRow } from './tables';
 
 export type EditorExtensionOptions = {
@@ -21,12 +20,9 @@ export function createEditorExtensions(
 	options: EditorExtensionOptions = {}
 ) {
 	return [
-		// Metadata is structural, not optional: the schema requires a metadata
-		// block as the document's first child, so it always exists and cannot
-		// be deleted.
-		Document.extend({
-			content: `${MetadataBlock.name} block+`
-		}),
+		// Metadata lives alongside the document as page state (see
+		// MetadataPanel), not as a node, so the document schema is plain block+.
+		Document,
 		StarterKit.configure({
 			document: false,
 			codeBlock: false,
@@ -39,7 +35,6 @@ export function createEditorExtensions(
 		MediaBlock.configure({
 			resolveAssetSrc: resolveMediaAssetSrc
 		}),
-		MetadataBlock,
 		ComponentEmbed.configure({
 			registry: componentEmbedRegistry
 		}),

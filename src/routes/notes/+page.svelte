@@ -4,7 +4,6 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import Icon from '$lib/components/Icon.svelte';
-	import { createMetadataBlockContent } from '$lib/notes/metadata-block';
 	import { downloadNotePageExport } from '$lib/notes/export';
 	import { importNotesFromZip, isNotesArchiveFile } from '$lib/notes/import';
 	import { importCraftsToNotes } from '$lib/notes/import-crafts';
@@ -45,7 +44,10 @@
 		busy = 'create';
 
 		try {
-			const page = await createNotePageRecord({ content: createNoteContent() });
+			const page = await createNotePageRecord({
+				content: createNoteContent(),
+				properties: [{ key: 'date', value: new Date().toISOString().slice(0, 10) }]
+			});
 			await goto(resolve(`/notes/${page.slug}`));
 		} finally {
 			busy = '';
@@ -55,15 +57,7 @@
 	function createNoteContent(): JSONContent {
 		return {
 			type: 'doc',
-			content: [
-				createMetadataBlockContent({
-					title: '',
-					slug: '',
-					date: new Date().toISOString().slice(0, 10)
-				}),
-				{ type: 'heading', attrs: { level: 1 } },
-				{ type: 'paragraph' }
-			]
+			content: [{ type: 'heading', attrs: { level: 1 } }, { type: 'paragraph' }]
 		};
 	}
 

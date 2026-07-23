@@ -2,16 +2,12 @@
 	import { tick } from 'svelte';
 	import { flip } from 'svelte/animate';
 	import { dragHandleZone, type DndEvent } from 'svelte-dnd-action';
-	import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
-	import type { Readable } from 'svelte/store';
 	import ComboboxInput from '$lib/components/ComboboxInput.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import MetadataPropertyRow from './MetadataPropertyRow.svelte';
-	import { focusMetadataField, getMetadataFieldElements } from './focus';
 	import {
 		METADATA_PROPERTY_DEFINITIONS,
 		getMetadataPropertyDefinition,
-		normalizeMetadataBlockAttrs,
 		normalizeMetadataEntries,
 		normalizeMetadataList,
 		type MetadataEntry,
@@ -20,10 +16,10 @@
 	} from './config';
 
 	type Props = {
-		node: Readable<ProseMirrorNode>;
-		updateProperties: (properties: MetadataEntry[]) => void;
-		setAdding: (adding: boolean) => void;
-		exitBlock: (side: 'before' | 'after') => void;
+		// Ordered page-level metadata; the editable source of truth lives on the
+		// note record, not in the document.
+		properties: MetadataEntry[];
+		onChange: (properties: MetadataEntry[]) => void;
 	};
 
 	type PropertyRow = {
@@ -32,18 +28,9 @@
 		value: MetadataPropertyValue;
 	};
 
-	type ValueFieldOptions = {
-		key: string;
-		arrows?: boolean;
-		enter?: boolean;
-	};
-
 	const ROW_FLIP_DURATION = 150;
 
-	let { node, updateProperties, setAdding, exitBlock }: Props = $props();
-	let shell = $state<HTMLElement>();
-	// Session-only view state: properties always start closed, and toggling
-	// must not dirty the document (a persisted attr would bump updatedAt).
+	let { properties, onChange }: Props = $props();
 	let collapsed = $state(true);
 	let addPropertyActive = $state(false);
 	let propertyKeyDraft = $state('');
@@ -52,11 +39,9 @@
 	let propertyKeyInput = $state<HTMLInputElement>();
 	let listDrafts = $state<Record<string, string>>({});
 	let textDrafts = $state<Record<string, string>>({});
-	let newPropertyRowWasVisible = false;
 	const propertyOptionsId = `metadata-property-options-${Math.random().toString(36).slice(2)}`;
 
-	const attrs = $derived(normalizeMetadataBlockAttrs($node.attrs));
-	const entries = $derived(attrs.properties);
+	const entries = $derived(normalizeMetadataEntries(properties));
 	const rows = $derived(
 		entries.map(
 			(entry): PropertyRow => ({
@@ -66,8 +51,8 @@
 			})
 		)
 	);
-	// Writable derived: dnd consider/finalize events reassign it mid-drag, and
-	// it snaps back to the committed entry order whenever the node attrs change.
+	// Writable derived: dnd consider/finalize events reassign it mid-drag, and it
+	// snaps back to the committed entry order whenever the properties change.
 	let dndRows = $derived(rows.map((row) => ({ ...row })));
 	const availableProperties = $derived(
 		METADATA_PROPERTY_DEFINITIONS.filter(
@@ -77,15 +62,10 @@
 	const filteredAvailableProperties = $derived(
 		getFilteredAvailableProperties(propertyKeyDraft, availableProperties)
 	);
-	// Only user intent (adding/addPropertyActive) opens the picker — every
-	// document now carries this block, so an empty one must render compact
-	// instead of auto-opening and stealing focus on load.
-	const showNewPropertyRow = $derived(
-		availableProperties.length > 0 && (attrs.adding || addPropertyActive)
-	);
+	const showNewPropertyRow = $derived(availableProperties.length > 0 && addPropertyActive);
 
 	function commitEntries(next: MetadataEntry[]) {
-		updateProperties(normalizeMetadataEntries(next));
+		onChange(normalizeMetadataEntries(next));
 	}
 
 	function getEntryValue(key: string) {
@@ -130,7 +110,6 @@
 		propertyComboboxOpen = false;
 		propertyKeyDraft = '';
 		highlightedPropertyIndex = 0;
-		setAdding(false);
 		void tick().then(() => focusValueField(definition.key));
 	}
 
@@ -145,6 +124,12 @@
 		if (definition.type === 'boolean') return false;
 
 		return '';
+	}
+
+	function focusValueField(key: string) {
+		document
+			.querySelector<HTMLElement>(`.metadata-row[data-property-key="${key}"] [data-metadata-field]`)
+			?.focus();
 	}
 
 	function getFilteredAvailableProperties(
@@ -162,175 +147,31 @@
 		);
 	}
 
-	// --- Two-level keyboard model (modeled after Obsidian's properties panel).
-	// Property level: key cells (and the add-property button) are the selectable
-	// units — Tab/arrows move between them, Enter opens the value for editing,
-	// Cmd/Ctrl+Backspace removes the selected property.
-	// Edit level: Tab returns to property selection (next property), Shift+Tab
-	// selects this property's key, Escape steps back up to the key.
-
-	function getKeyElements() {
-		return shell ? [...shell.querySelectorAll<HTMLElement>('[data-metadata-key]')] : [];
-	}
-
-	function getValueFields() {
-		return shell ? getMetadataFieldElements(shell) : [];
-	}
-
-	function focusValueField(key: string) {
-		const field = shell?.querySelector<HTMLElement>(
-			`.metadata-row[data-property-key="${key}"] [data-metadata-field]`
-		);
-
-		if (field) focusMetadataField(field);
-	}
-
-	function focusRowKey(key: string) {
-		shell?.querySelector<HTMLElement>(`[data-metadata-key][data-key="${key}"]`)?.focus();
-	}
-
-	function focusKeyByOffset(from: HTMLElement, direction: 1 | -1) {
-		const keys = getKeyElements();
-		const index = keys.indexOf(from);
-		const next = index >= 0 ? keys[index + direction] : undefined;
-
-		if (next) {
-			next.focus();
-			return;
-		}
-
-		exitBlock(direction === 1 ? 'after' : 'before');
-	}
-
-	function focusKeyAfterRow(key: string) {
-		const keys = getKeyElements();
-		const index = keys.findIndex((element) => element.dataset.key === key);
-		const next = keys[index + 1];
-
-		if (next) {
-			next.focus();
-			return;
-		}
-
-		exitBlock('after');
-	}
-
-	function focusValueByOffset(from: HTMLElement, direction: 1 | -1) {
-		const fields = getValueFields();
-		const index = fields.indexOf(from);
-		const next = index >= 0 ? fields[index + direction] : undefined;
-
-		if (next) {
-			focusMetadataField(next);
-			return;
-		}
-
-		exitBlock(direction === 1 ? 'after' : 'before');
-	}
-
-	function removePropertyAndFocusNeighbor(key: string) {
-		const keys = getKeyElements();
-		const index = keys.findIndex((element) => element.dataset.key === key);
-
-		removeProperty(key);
-		void tick().then(() => {
-			const nextKeys = getKeyElements();
-			const next = nextKeys[Math.min(Math.max(index, 0), nextKeys.length - 1)];
-
-			if (next) {
-				next.focus();
-				return;
-			}
-
-			exitBlock('after');
-		});
-	}
-
+	// Alt+Arrow reorders a property; plain arrows are left to native behavior.
 	function handleKeyCellKeydown(event: KeyboardEvent, key: string) {
-		const target = event.currentTarget as HTMLElement;
-
 		if (event.key === 'Enter' || event.key === ' ') {
 			event.preventDefault();
 			focusValueField(key);
 			return;
 		}
 
-		if (event.key === 'Tab') {
+		if ((event.key === 'Backspace' || event.key === 'Delete') && (event.metaKey || event.ctrlKey)) {
 			event.preventDefault();
-			focusKeyByOffset(target, event.shiftKey ? -1 : 1);
+			removeProperty(key);
 			return;
 		}
 
-		if (event.key === 'Backspace' && (event.metaKey || event.ctrlKey)) {
-			event.preventDefault();
-			removePropertyAndFocusNeighbor(key);
-			return;
-		}
-
-		if (event.key === 'Escape') {
-			event.preventDefault();
-			exitBlock('after');
-			return;
-		}
-
-		if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+		if ((event.key !== 'ArrowDown' && event.key !== 'ArrowUp') || !event.altKey) return;
 
 		event.preventDefault();
-
-		const direction = event.key === 'ArrowDown' ? 1 : -1;
-
-		if (event.altKey) {
-			moveProperty(key, direction);
-			void tick().then(() => focusRowKey(key));
-			return;
-		}
-
-		focusKeyByOffset(target, direction);
+		moveProperty(key, event.key === 'ArrowDown' ? 1 : -1);
 	}
 
-	function handleValueKeydown(event: KeyboardEvent, options: ValueFieldOptions) {
-		const { key, arrows = true, enter = true } = options;
-		const target = event.currentTarget as HTMLElement;
-
-		if (event.key === 'Tab') {
-			event.preventDefault();
-
-			if (event.shiftKey) {
-				focusRowKey(key);
-				return;
-			}
-
-			focusKeyAfterRow(key);
-			return;
-		}
-
-		if (event.key === 'Escape') {
-			event.preventDefault();
-			focusRowKey(key);
-			return;
-		}
-
-		if (enter && event.key === 'Enter') {
-			event.preventDefault();
-			focusKeyAfterRow(key);
-			return;
-		}
-
-		if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
-
-		const direction = event.key === 'ArrowDown' ? 1 : -1;
-
-		if (event.altKey) {
-			event.preventDefault();
-			moveProperty(key, direction);
-			void tick().then(() => target.focus());
-			return;
-		}
-
-		if (!arrows || event.metaKey || event.ctrlKey) return;
+	function handleValueKeydown(event: KeyboardEvent, key: string) {
+		if ((event.key !== 'ArrowDown' && event.key !== 'ArrowUp') || !event.altKey) return;
 
 		event.preventDefault();
-		focusValueByOffset(target, direction);
+		moveProperty(key, event.key === 'ArrowDown' ? 1 : -1);
 	}
 
 	function handleListValueKeydown(event: KeyboardEvent, key: string) {
@@ -338,25 +179,7 @@
 
 		if (event.defaultPrevented) return;
 
-		handleValueKeydown(event, { key });
-	}
-
-	function handleAddButtonKeydown(event: KeyboardEvent) {
-		const target = event.currentTarget as HTMLElement;
-
-		if (event.key === 'Tab' || event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-			event.preventDefault();
-
-			const direction = event.key === 'ArrowUp' || (event.key === 'Tab' && event.shiftKey) ? -1 : 1;
-
-			focusKeyByOffset(target, direction);
-			return;
-		}
-
-		if (event.key !== 'Escape') return;
-
-		event.preventDefault();
-		exitBlock('after');
+		handleValueKeydown(event, key);
 	}
 
 	function handlePropertyKeyInput(value: string) {
@@ -372,26 +195,6 @@
 	}
 
 	function handlePropertyKeydown(event: KeyboardEvent) {
-		if (event.key === 'Tab') {
-			event.preventDefault();
-
-			if (event.shiftKey) {
-				const keys = getKeyElements();
-				const previous = keys[keys.length - 1];
-
-				if (previous) {
-					previous.focus();
-					return;
-				}
-
-				exitBlock('before');
-				return;
-			}
-
-			exitBlock('after');
-			return;
-		}
-
 		if (event.key === 'ArrowDown') {
 			event.preventDefault();
 			propertyComboboxOpen = true;
@@ -421,13 +224,6 @@
 		propertyKeyDraft = '';
 		propertyComboboxOpen = false;
 		addPropertyActive = false;
-		setAdding(false);
-		// The new-property row unmounts under focus; land on the add button.
-		void tick().then(() => {
-			const keys = getKeyElements();
-
-			keys[keys.length - 1]?.focus();
-		});
 	}
 
 	function commitPropertyKey() {
@@ -504,31 +300,15 @@
 
 		highlightedPropertyIndex = Math.max(0, filteredAvailableProperties.length - 1);
 	});
-
-	$effect(() => {
-		if (!showNewPropertyRow) {
-			newPropertyRowWasVisible = false;
-			return;
-		}
-
-		propertyComboboxOpen = true;
-
-		if (newPropertyRowWasVisible) return;
-
-		newPropertyRowWasVisible = true;
-		void tick().then(() => {
-			if (showNewPropertyRow) propertyKeyInput?.focus();
-		});
-	});
 </script>
 
-<div class="metadata-shell" class:collapsed bind:this={shell}>
+<div class="metadata-shell" class:collapsed>
 	<header class="metadata-header">
 		<button
 			type="button"
 			class="collapse-button"
-			data-metadata-collapse
 			aria-label={collapsed ? 'Show properties' : 'Hide properties'}
+			aria-expanded={!collapsed}
 			onclick={() => (collapsed = !collapsed)}
 		>
 			<Icon icon={collapsed ? 'mdi:chevron-right' : 'mdi:chevron-down'} />
@@ -563,8 +343,7 @@
 							listDraft={listDrafts[row.definition.key] ?? ''}
 							textDraft={textDrafts[row.definition.key]}
 							onKeyCellKeydown={(event) => handleKeyCellKeydown(event, row.definition.key)}
-							onValueKeydown={(event, options) =>
-								handleValueKeydown(event, { key: row.definition.key, ...options })}
+							onValueKeydown={(event) => handleValueKeydown(event, row.definition.key)}
 							onListKeydown={(event) => handleListValueKeydown(event, row.definition.key)}
 							onListDraft={(value) => (listDrafts[row.definition.key] = value)}
 							onListCommit={() => commitListDraft(row.definition.key)}
@@ -572,7 +351,7 @@
 							onToggle={(checked) => updateProperty(row.definition.key, checked)}
 							onTextInput={(value) => updateTextProperty(row.definition.key, value)}
 							onTextBlur={() => clearTextDraft(row.definition.key)}
-							onRemove={() => removePropertyAndFocusNeighbor(row.definition.key)}
+							onRemove={() => removeProperty(row.definition.key)}
 						/>
 					</div>
 				{/each}
@@ -619,13 +398,7 @@
 					</div>
 				{:else}
 					<div class="add-property">
-						<button
-							type="button"
-							class="add-property-button"
-							data-metadata-key
-							onclick={beginAddProperty}
-							onkeydown={handleAddButtonKeydown}
-						>
+						<button type="button" class="add-property-button" onclick={beginAddProperty}>
 							<Icon icon="mdi:plus" />
 							<span>Add property</span>
 						</button>

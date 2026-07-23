@@ -1,7 +1,3 @@
-import type { JSONContent } from '@tiptap/core';
-
-export const METADATA_BLOCK_NODE_NAME = 'metadataBlock';
-
 export type MetadataPrimitiveValue = string | boolean;
 export type MetadataPropertyValue = MetadataPrimitiveValue | string[];
 export type MetadataProperties = Record<string, MetadataPropertyValue>;
@@ -12,12 +8,6 @@ export type MetadataProperties = Record<string, MetadataPropertyValue>;
 // change would be invisible to the view, the update event, and undo history.
 export type MetadataEntry = { key: string; value: MetadataPropertyValue };
 export type MetadataPropertiesInput = MetadataProperties | MetadataEntry[];
-
-export type MetadataBlockAttrs = {
-	properties: MetadataEntry[];
-	collapsed: boolean;
-	adding: boolean;
-};
 
 export type MetadataPropertyType = 'text' | 'list' | 'date' | 'boolean';
 
@@ -102,18 +92,6 @@ export function inferMetadataPropertyType(key: string): MetadataPropertyType {
 	return 'text';
 }
 
-export function normalizeMetadataBlockAttrs(value: unknown): MetadataBlockAttrs {
-	const attrs = value && typeof value === 'object' ? (value as Partial<MetadataBlockAttrs>) : {};
-
-	return {
-		properties: normalizeMetadataEntries(attrs.properties),
-		// Collapsed unless explicitly opened — properties stay out of the way
-		// by default. Stored documents carry an explicit boolean either way.
-		collapsed: attrs.collapsed !== false,
-		adding: attrs.adding === true
-	};
-}
-
 // Accepts the canonical entries array or a legacy/interchange record (stored
 // notes predating the entries format, parsed YAML frontmatter, ...).
 export function normalizeMetadataEntries(value: unknown): MetadataEntry[] {
@@ -193,70 +171,4 @@ export function normalizeMetadataList(value: unknown) {
 
 export function metadataPropertiesAreEmpty(properties: MetadataPropertiesInput) {
 	return normalizeMetadataEntries(properties).length === 0;
-}
-
-export function createMetadataBlockContent(
-	properties: MetadataPropertiesInput = DEFAULT_METADATA_PROPERTIES,
-	attrs: Partial<Omit<MetadataBlockAttrs, 'properties'>> = {}
-): JSONContent {
-	return {
-		type: METADATA_BLOCK_NODE_NAME,
-		attrs: {
-			properties: normalizeMetadataEntries(properties),
-			collapsed: attrs.collapsed !== false,
-			adding: attrs.adding === true
-		}
-	};
-}
-
-export function getMetadataBlockProperties(content: JSONContent): MetadataProperties | undefined {
-	let properties: MetadataProperties | undefined;
-
-	visitContent(content, (node) => {
-		if (properties || node.type !== METADATA_BLOCK_NODE_NAME) return;
-
-		properties = normalizeMetadataProperties(node.attrs?.properties);
-	});
-
-	return properties;
-}
-
-// The metadata block is the document's required first child. This moves an
-// existing block (wherever legacy content put it) to the front, or creates one
-// seeded with `fallbackProperties` when the document has none.
-export function ensureLeadingMetadataBlock(
-	content: JSONContent,
-	fallbackProperties: MetadataPropertiesInput = DEFAULT_METADATA_PROPERTIES
-): JSONContent {
-	const cloned = cloneContent(content);
-	const rootContent = cloned.type === 'doc' ? (cloned.content ?? []) : [cloned];
-	const existingIndex = rootContent.findIndex((node) => node.type === METADATA_BLOCK_NODE_NAME);
-	// `adding` is transient picker state; never resurrect it from stored content
-	// or the property picker would steal focus on load.
-	const block =
-		existingIndex >= 0
-			? createMetadataBlockContent(
-					normalizeMetadataEntries(rootContent[existingIndex].attrs?.properties),
-					{ collapsed: normalizeMetadataBlockAttrs(rootContent[existingIndex].attrs).collapsed }
-				)
-			: createMetadataBlockContent(fallbackProperties);
-
-	if (existingIndex >= 0) rootContent.splice(existingIndex, 1);
-	rootContent.unshift(block);
-
-	if (rootContent.length === 1) rootContent.push({ type: 'paragraph' });
-
-	return {
-		...(cloned.type === 'doc' ? cloned : { type: 'doc' }),
-		content: rootContent
-	};
-}
-
-function cloneContent(content: JSONContent): JSONContent {
-	return JSON.parse(JSON.stringify(content)) as JSONContent;
-}
-
-function visitContent(node: JSONContent, visit: (node: JSONContent) => void) {
-	visit(node);
-	node.content?.forEach((child) => visitContent(child, visit));
 }

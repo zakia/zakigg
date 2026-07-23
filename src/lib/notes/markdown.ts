@@ -1,12 +1,7 @@
 import type { Editor, JSONContent } from '@tiptap/core';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import { normalizeMediaBlockAttrs } from '$lib/editor/media-block/config';
-import {
-	METADATA_BLOCK_NODE_NAME,
-	ensureLeadingMetadataBlock,
-	normalizeMetadataProperties,
-	type MetadataProperties
-} from './metadata-block';
+import { normalizeMetadataProperties, type MetadataProperties } from './metadata-block';
 import {
 	metadataPropertiesToNotePageFrontmatter,
 	resolveNotePageMetadata,
@@ -53,9 +48,8 @@ export function getEditorMarkdown(editor?: Editor) {
 	return editor ? (editor as MarkdownEditor).getMarkdown() : '';
 }
 
-// Frontmatter is never inserted as content — the document's leading metadata
-// block is the single home for it, so the caller merges the returned
-// `properties` into that block.
+// Frontmatter is never inserted as content — metadata is page state, so the
+// caller merges the returned `properties` into the page.
 export function insertEditorMarkdown(
 	editor: Editor | undefined,
 	markdown: string
@@ -151,18 +145,17 @@ export function serializeNoteMarkdown(
 	return markdown ? `${markdown}\n` : '';
 }
 
-// The metadata block leads the document, so serializing in place yields
-// standard top-of-file YAML frontmatter. Legacy content without a block gets
-// one seeded from the page's resolved metadata first.
+// Metadata is page state, so serialization prepends it as top-of-file YAML
+// frontmatter derived from the page, then the document body.
 export function serializeNotePageMarkdown(
 	page: NotePageV1,
 	content: JSONContent = page.content,
 	options: { assetPaths?: Map<string, string> } = {}
 ) {
-	return serializeNoteMarkdown(
-		ensureLeadingMetadataBlock(content, getNotePageFrontmatter(page, content)),
-		options
-	);
+	const yaml = serializeMetadataPropertiesYaml(getNotePageFrontmatter(page, content));
+	const body = serializeNoteMarkdown(content, options);
+
+	return yaml ? `---\n${yaml}\n---\n\n${body}` : body;
 }
 
 export function getNotePageFrontmatter(
@@ -224,7 +217,7 @@ export function parseNoteFrontmatterYaml(source: string): ParsedFrontmatterSourc
 	}
 }
 
-export function serializeMetadataPropertiesYaml(properties: MetadataProperties) {
+export function serializeMetadataPropertiesYaml(properties: unknown) {
 	const normalized = normalizeMetadataProperties(properties);
 	if (!Object.keys(normalized).length) return '';
 
@@ -250,10 +243,8 @@ function dateOnly(value: string) {
 }
 
 // Fixes up parser output for the editor schema: list items must lead with a
-// paragraph, and any metadata block is dropped — the schema's required
-// leading block makes the parser synthesize one, which is a schema-fill
-// artifact, never content. Shared by paste and the craft importer, which
-// manage metadata separately from parsed markdown.
+// paragraph. Shared by paste and the craft importer, which manage metadata
+// (frontmatter) separately from the parsed markdown body.
 export function normalizeMarkdownDoc(doc: JSONContent): JSONContent {
 	return {
 		...doc,
@@ -261,14 +252,8 @@ export function normalizeMarkdownDoc(doc: JSONContent): JSONContent {
 	};
 }
 
-// Strip metadata blocks at EVERY depth, not just the top level: parsing an
-// inline HTML fragment (e.g. <kbd>) runs generateJSON, whose full-document
-// parse synthesizes the required leading metadata block and splices it into the
-// surrounding content — so the artifacts surface nested inside list items too.
 function normalizeMarkdownContent(content: JSONContent[]) {
-	return content
-		.filter((node) => node.type !== METADATA_BLOCK_NODE_NAME)
-		.map(normalizeMarkdownNode);
+	return content.map(normalizeMarkdownNode);
 }
 
 function normalizeMarkdownNode(node: JSONContent): JSONContent {
@@ -315,8 +300,6 @@ function renderBlock(node: JSONContent, context: RenderContext): string {
 			return renderCodeBlock(node);
 		case 'mediaBlock':
 			return renderMediaBlock(node, context);
-		case METADATA_BLOCK_NODE_NAME:
-			return renderMetadataBlock(node);
 		case 'componentEmbed':
 			return renderComponentEmbed(node);
 		case 'table':
@@ -439,13 +422,6 @@ function renderMediaBlock(node: JSONContent, context: RenderContext) {
 		: '';
 
 	return `<figure data-media-block data-media-kind="${attrs.kind}">\n${media}${caption}\n</figure>`;
-}
-
-function renderMetadataBlock(node: JSONContent) {
-	const properties = normalizeMetadataProperties(node.attrs?.properties);
-	const yaml = serializeMetadataPropertiesYaml(properties);
-
-	return yaml ? `---\n${yaml}\n---` : '---\n---';
 }
 
 function renderComponentEmbed(node: JSONContent) {

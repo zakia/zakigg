@@ -38,10 +38,10 @@
 		looksLikeMarkdown,
 		serializeNotePageMarkdown
 	} from './markdown';
+	import MetadataPanel from './metadata-block/MetadataPanel.svelte';
 	import {
-		METADATA_BLOCK_NODE_NAME,
-		ensureLeadingMetadataBlock,
 		normalizeMetadataEntries,
+		type MetadataEntry,
 		type MetadataProperties
 	} from './metadata-block';
 	import { downloadNotePageExport } from './export';
@@ -87,6 +87,12 @@
 	} = $props();
 
 	let editorHost = $state<HTMLDivElement>();
+	// Ordered page metadata, edited by the properties panel (source of truth).
+	// Seeded once — the route remounts this component per note ({#key note.id}).
+	// svelte-ignore state_referenced_locally
+	let properties = $state<MetadataEntry[]>(
+		normalizeMetadataEntries($state.snapshot(page.properties))
+	);
 	let imageInput = $state<HTMLInputElement>();
 	let videoInput = $state<HTMLInputElement>();
 	let editor = $state<Editor>();
@@ -170,9 +176,9 @@
 					}
 				}),
 				content: initialContent,
-				// Position 2 is inside the H1 (the leading metadata block is a
-				// size-1 atom at position 0).
-				autofocus: startsWithEmptyTitle(initialContent) ? 2 : 'end',
+				// Position 1 is inside the leading H1 — land there on a fresh,
+				// untitled note so the user starts typing the title.
+				autofocus: startsWithEmptyTitle(initialContent) ? 1 : 'end',
 				editorProps: {
 					attributes: {
 						'aria-label': `${page.title} editor`,
@@ -560,37 +566,34 @@
 		}
 	}
 
+	// Panel edits and pasted/imported frontmatter both flow through here.
+	function updateProperties(next: MetadataEntry[]) {
+		properties = normalizeMetadataEntries(next);
+		noteEditorChanged();
+		scheduleSave();
+	}
+
 	function insertMarkdown(markdown: string) {
 		const result = insertEditorMarkdown(editor, markdown);
 
-		if (result.properties) mergeLeadingMetadataProperties(result.properties);
+		if (result.properties) mergePageProperties(result.properties);
 
 		return result.inserted || Boolean(result.frontmatter);
 	}
 
-	// Pasted/dropped frontmatter lands in the document's one metadata block;
-	// incoming values win per key, everything else is kept.
-	function mergeLeadingMetadataProperties(properties: MetadataProperties) {
-		if (!editor) return;
+	// Pasted/dropped frontmatter merges into page properties; incoming values
+	// win per key, everything else is kept.
+	function mergePageProperties(incoming: MetadataProperties) {
+		const merged = [...normalizeMetadataEntries(properties)];
 
-		const block = editor.state.doc.child(0);
-		if (block.type.name !== METADATA_BLOCK_NODE_NAME) return;
-
-		const merged = [...normalizeMetadataEntries(block.attrs.properties)];
-
-		for (const entry of normalizeMetadataEntries(properties)) {
+		for (const entry of normalizeMetadataEntries(incoming)) {
 			const index = merged.findIndex((existing) => existing.key === entry.key);
 
 			if (index >= 0) merged[index] = entry;
 			else merged.push(entry);
 		}
 
-		editor.view.dispatch(
-			editor.state.tr.setNodeMarkup(0, undefined, {
-				...block.attrs,
-				properties: merged
-			})
-		);
+		updateProperties(merged);
 	}
 
 	async function insertMediaFiles(files: File[]) {
@@ -650,10 +653,11 @@
 
 		try {
 			const content = previewReturnContent ?? editor.getJSON();
-			const metadata = resolveNotePageMetadata(page, content);
+			// saveNotePage re-derives title/slug/tags/frontmatter from properties
+			// and the document's first H1.
 			const nextPage = await saveNotePage({
 				...page,
-				...metadata,
+				properties: $state.snapshot(properties) as MetadataEntry[],
 				content
 			});
 			// On teardown we save but must not notify: onSaved -> the page's
@@ -1087,16 +1091,18 @@
 	}
 
 	function getDraftPage(content: JSONContent): NotePageV1 {
-		return {
+		const draft: NotePageV1 = {
 			...page,
-			...resolveNotePageMetadata(page, content),
+			properties: $state.snapshot(properties) as MetadataEntry[],
 			content
 		};
+
+		return { ...draft, ...resolveNotePageMetadata(draft, content) };
 	}
 
 	function startsWithEmptyTitle(content: JSONContent) {
-		// content[0] is always the metadata block; the title H1 follows it.
-		const first = content.type === 'doc' ? content.content?.[1] : undefined;
+		// The document now leads with the title H1 (metadata lives on the page).
+		const first = content.type === 'doc' ? content.content?.[0] : undefined;
 
 		return (
 			first?.type === 'heading' && Number(first.attrs?.level) === 1 && !(first.content ?? []).length
@@ -1106,22 +1112,10 @@
 	function getInitialEditorContent(page: NotePageV1): JSONContent {
 		// `page` is a Svelte $state proxy, so its `content` is deeply proxied.
 		// ProseMirror retains proxy references for object-valued node attrs (e.g.
-		// the metadata block's `properties`), and those proxies can't be
-		// structuredClone'd into IndexedDB — which silently breaks every save.
-		// Snapshot to plain objects before the content ever reaches the editor.
-		const content = $state.snapshot(page.content) as JSONContent;
-		const frontmatter = page.frontmatter
-			? ($state.snapshot(page.frontmatter) as NotePageV1['frontmatter'])
-			: undefined;
-
-		// The schema requires a leading metadata block; normalize legacy
-		// content here (seeded from stored frontmatter and tags) rather than
-		// letting ProseMirror drop a mid-document block and synthesize an
-		// empty one.
-		return ensureLeadingMetadataBlock(content, {
-			...frontmatter,
-			...(page.tags.length ? { tags: $state.snapshot(page.tags) } : {})
-		});
+		// component embed props), and those proxies can't be structuredClone'd
+		// into IndexedDB — which silently breaks every save. Snapshot to plain
+		// objects before the content ever reaches the editor.
+		return $state.snapshot(page.content) as JSONContent;
 	}
 </script>
 
@@ -1199,6 +1193,9 @@
 		onDragOver={handleSurfaceDragOver}
 		onDrop={handleSurfaceDrop}
 	>
+		{#snippet header()}
+			<MetadataPanel {properties} onChange={updateProperties} />
+		{/snippet}
 		<BlockHandle {editor} target={blockHandleTarget} />
 	</EditorSurface>
 

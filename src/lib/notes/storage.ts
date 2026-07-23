@@ -2,11 +2,6 @@ import { browser } from '$app/environment';
 import type { JSONContent } from '@tiptap/core';
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import {
-	createMetadataBlockContent,
-	ensureLeadingMetadataBlock,
-	normalizeMetadataEntries
-} from './metadata-block';
-import {
 	DEFAULT_NOTE_SLUG,
 	NOTES_STORAGE_KEY_PREFIX,
 	createDefaultNotePage,
@@ -219,29 +214,27 @@ export async function duplicateNotePage(pageId: string) {
 	if (!page) throw new Error('Note page not found');
 
 	const copyTitle = `${page.title} Copy`;
+	// Drop any `slug` property so a fresh slug derives from the copy title;
+	// retitle a `title` property if the note carries one.
+	const properties = page.properties
+		.filter((entry) => entry.key !== 'slug')
+		.map((entry) => (entry.key === 'title' ? { key: 'title', value: copyTitle } : entry));
 
 	return createNotePageRecord({
 		title: copyTitle,
 		tags: page.tags,
+		properties,
 		content: retitleNoteContent(page.content, copyTitle)
 	});
 }
 
-// Content is the source of truth for metadata, so a duplicate must be
-// retitled inside the content itself: the H1 and the metadata block's
-// `title` property get the copy title, and the `slug` property is dropped so
-// a fresh slug derives from the new title.
+// Metadata lives on the page now, so a duplicate only needs its H1 retitled
+// inside the content.
 function retitleNoteContent(content: JSONContent, title: string): JSONContent {
-	const ensured = ensureLeadingMetadataBlock(content);
-	const rootContent = [...(ensured.content ?? [])];
-	const entries = normalizeMetadataEntries(rootContent[0]?.attrs?.properties)
-		.filter((entry) => entry.key !== 'slug')
-		.map((entry) => (entry.key === 'title' ? { key: 'title', value: title } : entry));
+	const rootContent = [...(content.content ?? [])];
 	const headingIndex = rootContent.findIndex(
 		(node) => node.type === 'heading' && Number(node.attrs?.level) === 1
 	);
-
-	rootContent[0] = createMetadataBlockContent(entries);
 
 	if (headingIndex >= 0) {
 		rootContent[headingIndex] = {
@@ -250,7 +243,7 @@ function retitleNoteContent(content: JSONContent, title: string): JSONContent {
 		};
 	}
 
-	return { ...ensured, content: rootContent };
+	return { ...content, content: rootContent };
 }
 
 export async function deleteNotePage(pageId: string): Promise<void> {

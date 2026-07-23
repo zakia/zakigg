@@ -67,6 +67,11 @@ export const BlockHandle = Extension.create<BlockHandleOptions>({
 // fallback for the gutter where no node can receive events.
 function createBlockHandleWatcher(view: EditorView, options: BlockHandleOptions) {
 	const host = view.dom.parentElement ?? view.dom;
+	// The event boundary must be the element the handle UI is mounted in
+	// (the positioned scroll container) — if it were an inner element, moving
+	// the pointer onto the handle would fire mouseleave, hide the handle,
+	// re-enter, re-show, and oscillate.
+	const boundary = (view.dom.offsetParent as HTMLElement | null) ?? host;
 	let lastTarget: BlockHandleTarget | null = null;
 	let pendingMove: MouseEvent | null = null;
 	let moveTimer = 0;
@@ -141,13 +146,22 @@ function createBlockHandleWatcher(view: EditorView, options: BlockHandleOptions)
 		}, 24);
 	};
 
-	const handleMouseLeave = () => {
+	const handleMouseLeave = (event: MouseEvent) => {
+		// Defense in depth: never hide because the pointer moved onto the
+		// handle itself, wherever it happens to be mounted.
+		if (
+			event.relatedTarget instanceof Element &&
+			event.relatedTarget.closest('[data-block-handle-ui]')
+		) {
+			return;
+		}
+
 		pendingMove = null;
 		publish(null);
 	};
 
-	host.addEventListener('mousemove', handleMouseMove);
-	host.addEventListener('mouseleave', handleMouseLeave);
+	boundary.addEventListener('mousemove', handleMouseMove);
+	boundary.addEventListener('mouseleave', handleMouseLeave);
 
 	return {
 		update(_view: EditorView, previousState: { doc: unknown }) {
@@ -157,8 +171,8 @@ function createBlockHandleWatcher(view: EditorView, options: BlockHandleOptions)
 		},
 		destroy() {
 			if (moveTimer) window.clearTimeout(moveTimer);
-			host.removeEventListener('mousemove', handleMouseMove);
-			host.removeEventListener('mouseleave', handleMouseLeave);
+			boundary.removeEventListener('mousemove', handleMouseMove);
+			boundary.removeEventListener('mouseleave', handleMouseLeave);
 			publish(null);
 		}
 	};

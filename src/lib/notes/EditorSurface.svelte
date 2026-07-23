@@ -5,11 +5,15 @@
 		onHost,
 		onDragOver,
 		onDrop,
+		header,
 		children
 	}: {
 		onHost: (host?: HTMLDivElement) => void;
 		onDragOver?: (event: DragEvent) => void;
 		onDrop?: (event: DragEvent) => void;
+		// Content that scrolls above the document within the same column
+		// (aligned to the text width), e.g. the metadata panel.
+		header?: Snippet;
 		// Overlays that must live in content coordinate space (they scroll
 		// with the document), e.g. the block handle.
 		children?: Snippet;
@@ -26,6 +30,9 @@
 </script>
 
 <div class="editor-surface" role="presentation" ondragover={onDragOver} ondrop={onDrop}>
+	{#if header}
+		<div class="editor-header">{@render header()}</div>
+	{/if}
 	<div class="editor-host" bind:this={host}></div>
 	{@render children?.()}
 </div>
@@ -45,6 +52,22 @@
 		flex-direction: column;
 		flex: 1;
 		min-height: 0;
+	}
+
+	/* Align the metadata panel with the document's text column, and give it the
+	   editor's top padding so it sits where content begins. The document's own
+	   top padding is zeroed (below) so the two don't stack. */
+	.editor-header {
+		box-sizing: border-box;
+		flex: 0 0 auto;
+		margin-inline: auto;
+		max-width: 46rem;
+		padding: clamp(var(--s1), 6vw, var(--s3)) clamp(var(--s0), 5vw, var(--s2)) 0;
+		width: min(100%, 46rem);
+	}
+
+	.editor-surface:has(.editor-header) :global(.ProseMirror) {
+		padding-top: var(--s-1);
 	}
 
 	.editor-surface :global(.ProseMirror) {

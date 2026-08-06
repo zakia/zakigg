@@ -5,6 +5,7 @@
 	import { resolve } from '$app/paths';
 	import Icon from '$lib/components/Icon.svelte';
 	import { createMetadataBlockContent } from '$lib/notes/metadata-block';
+	import SyncControls from '$lib/notes/sync/SyncControls.svelte';
 	import { downloadNotePageExport } from '$lib/notes/export';
 	import { importNotesFromZip, isNotesArchiveFile } from '$lib/notes/import';
 	import {
@@ -316,6 +317,7 @@
 			<Icon icon="mdi:plus" />
 			New
 		</button>
+		<SyncControls onToast={showToast} />
 	</div>
 
 	{#if loading}

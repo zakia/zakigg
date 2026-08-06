@@ -1,0 +1,8 @@
+project_id       = "my-gcp-project"
+region           = "us-central1"
+github_repo      = "zaki/zakigg"
+origin           = "https://zaki.gg"
+allowed_email    = "azakica@gmail.com"
+google_client_id = "1234567890-abc.apps.googleusercontent.com"
+# Set after verifying the domain (gcloud domains verify zaki.gg); empty skips the mapping
+custom_domain = ""

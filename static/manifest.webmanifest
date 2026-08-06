@@ -26,5 +26,13 @@
 			"type": "image/png",
 			"purpose": "maskable"
 		}
+	],
+	"shortcuts": [
+		{
+			"name": "Notes",
+			"short_name": "Notes",
+			"description": "Open notes",
+			"url": "/notes"
+		}
 	]
 }

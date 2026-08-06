@@ -9,7 +9,7 @@
 		type EditorShortcut
 	} from './keyboard-shortcuts';
 	import SaveStatus from './SaveStatus.svelte';
-	import type { SaveState } from './save-state';
+	import type { SaveState, SyncLabelStatus } from './save-state';
 
 	type DocumentAction = {
 		title: string;
@@ -29,6 +29,7 @@
 		copied: boolean;
 		saveState: SaveState;
 		saveLabel: string;
+		syncStatus?: SyncLabelStatus;
 		historyOpen: boolean;
 		embeds?: EmbedAction[];
 		onCopyMarkdown: () => void | Promise<void>;
@@ -44,6 +45,7 @@
 		copied,
 		saveState,
 		saveLabel,
+		syncStatus = 'disabled',
 		historyOpen,
 		embeds = [],
 		onCopyMarkdown,
@@ -122,7 +124,7 @@
 </script>
 
 <div class="document-actions" aria-label="Document actions">
-	<SaveStatus state={saveState} label={saveLabel} />
+	<SaveStatus state={saveState} label={saveLabel} sync={syncStatus} />
 
 	<div class="action-buttons" role="toolbar" aria-label="Markdown and publishing actions">
 		{#each actions() as item (item.title)}

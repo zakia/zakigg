@@ -2,6 +2,16 @@
 	"name": "zaki.gg",
 	"version": "0.0.1",
 	"packageManager": "pnpm@10.12.1",
+	"engines": {
+		"node": ">=22"
+	},
+	"pnpm": {
+		"onlyBuiltDependencies": [
+			"esbuild",
+			"sharp",
+			"protobufjs"
+		]
+	},
 	"scripts": {
 		"dev": "vite dev --open",
 		"build": "vite build",
@@ -16,7 +26,7 @@
 		"@eslint/js": "^10.0.1",
 		"@fontsource/fira-mono": "^5.2.7",
 		"@svelte-put/inline-svg": "4.0.2",
-		"@sveltejs/adapter-auto": "^7.0.0",
+		"@sveltejs/adapter-node": "^5.5.7",
 		"@sveltejs/kit": "^2.50.0",
 		"@sveltejs/vite-plugin-svelte": "^6.2.4",
 		"@types/eslint": "^9.6.1",
@@ -28,7 +38,6 @@
 		"prettier": "^3.8.1",
 		"prettier-plugin-svelte": "^3.4.1",
 		"proper-tags": "^2.0.2",
-		"puppeteer-core": "^25.3.0",
 		"svelte": "^5.48.0",
 		"svelte-check": "^4.3.5",
 		"typescript": "^5.9.3",
@@ -39,6 +48,8 @@
 	"dependencies": {
 		"@fontsource-variable/inter": "^5.2.8",
 		"@fontsource/inter": "^5.2.8",
+		"@google-cloud/firestore": "^8.7.0",
+		"@google-cloud/storage": "^7.21.0",
 		"@iconify/svelte": "^5.2.2",
 		"@notionhq/client": "^5.7.0",
 		"@poppanator/sveltekit-svg": "^6.0.1",
@@ -64,6 +75,7 @@
 		"culori": "^4.0.2",
 		"embla-carousel-svelte": "^8.6.0",
 		"fflate": "^0.8.3",
+		"google-auth-library": "^10.9.0",
 		"highlight.js": "^11.11.1",
 		"iconify-icon": "^3.0.2",
 		"idb": "^8.0.3",

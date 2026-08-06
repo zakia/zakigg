@@ -1,6 +1,7 @@
 import { browser } from '$app/environment';
 import type { JSONContent } from '@tiptap/core';
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
+import { emitLocalMutation } from './sync/signals';
 import {
 	DEFAULT_NOTE_SLUG,
 	NOTES_STORAGE_KEY_PREFIX,
@@ -19,10 +20,14 @@ import {
 
 const DB_NAME = 'zaki.gg-notes';
 const NOTES_INITIALIZED_FLAG_KEY = `${NOTES_STORAGE_KEY_PREFIX}:initialized`;
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 const LEGACY_DOCUMENTS_STORE_NAME = 'documents';
 const PAGES_STORE_NAME = 'pages';
 const ASSETS_STORE_NAME = 'assets';
+const SYNC_STATE_STORE_NAME = 'syncState';
+const TOMBSTONES_STORE_NAME = 'tombstones';
+const SYNC_META_STORE_NAME = 'syncMeta';
+const SYNC_CHECKPOINT_KEY = 'checkpoint';
 
 export type NotesAssetV1 = {
 	id: string;
@@ -33,6 +38,25 @@ export type NotesAssetV1 = {
 	pageIds?: string[];
 	createdAt: string;
 	updatedAt: string;
+};
+
+export type SyncKind = 'page' | 'asset';
+
+// Sync bookkeeping lives in sidecar stores rather than on the records
+// themselves: parseStoredPage/normalizeStoredAsset whitelist fields, so any
+// extra fields written onto records would be stripped on the next round-trip.
+export type SyncStateRow = {
+	id: string;
+	kind: SyncKind;
+	dirty: boolean;
+	// The record's updatedAt at the moment the server last acknowledged it.
+	lastSyncedAt?: string;
+};
+
+export type SyncTombstone = {
+	id: string;
+	kind: SyncKind;
+	deletedAt: string;
 };
 
 interface NotesDB extends DBSchema {
@@ -60,6 +84,18 @@ interface NotesDB extends DBSchema {
 			'by-created-at': string;
 			'by-updated-at': string;
 		};
+	};
+	syncState: {
+		key: string;
+		value: SyncStateRow;
+	};
+	tombstones: {
+		key: string;
+		value: SyncTombstone;
+	};
+	syncMeta: {
+		key: string;
+		value: { lastPulledAt: string };
 	};
 }
 
@@ -168,9 +204,9 @@ export async function importNoteAsset(asset: NotesAssetImport): Promise<void> {
 	const db = await getDb();
 	const existing = normalizeStoredAsset(await db.get(ASSETS_STORE_NAME, asset.id));
 	const now = new Date().toISOString();
+	const tx = db.transaction([ASSETS_STORE_NAME, SYNC_STATE_STORE_NAME], 'readwrite');
 
-	await db.put(
-		ASSETS_STORE_NAME,
+	await tx.objectStore(ASSETS_STORE_NAME).put(
 		{
 			id: asset.id,
 			blob: asset.blob,
@@ -183,6 +219,10 @@ export async function importNoteAsset(asset: NotesAssetImport): Promise<void> {
 		},
 		asset.id
 	);
+	await markDirtyInTx(tx.objectStore(SYNC_STATE_STORE_NAME), asset.id, 'asset');
+	await tx.done;
+
+	emitLocalMutation();
 }
 
 export async function saveNotePage(page: NotePageV1): Promise<NotePageV1> {
@@ -252,7 +292,22 @@ export async function deleteNotePage(pageId: string): Promise<void> {
 	await initializeNotesDb();
 
 	const db = await getDb();
-	await db.delete(PAGES_STORE_NAME, pageId);
+	const tx = db.transaction(
+		[PAGES_STORE_NAME, SYNC_STATE_STORE_NAME, TOMBSTONES_STORE_NAME],
+		'readwrite'
+	);
+	const existed = (await tx.objectStore(PAGES_STORE_NAME).getKey(pageId)) !== undefined;
+
+	await tx.objectStore(PAGES_STORE_NAME).delete(pageId);
+	await tx.objectStore(SYNC_STATE_STORE_NAME).delete(pageId);
+	if (existed) {
+		await tx
+			.objectStore(TOMBSTONES_STORE_NAME)
+			.put({ id: pageId, kind: 'page', deletedAt: new Date().toISOString() }, pageId);
+	}
+	await tx.done;
+
+	if (existed) emitLocalMutation();
 }
 
 export async function saveNoteAsset(file: File, pageId?: string): Promise<NotesAssetV1> {
@@ -270,8 +325,13 @@ export async function saveNoteAsset(file: File, pageId?: string): Promise<NotesA
 		updatedAt: now
 	};
 	const db = await getDb();
+	const tx = db.transaction([ASSETS_STORE_NAME, SYNC_STATE_STORE_NAME], 'readwrite');
 
-	await db.put(ASSETS_STORE_NAME, asset, asset.id);
+	await tx.objectStore(ASSETS_STORE_NAME).put(asset, asset.id);
+	await markDirtyInTx(tx.objectStore(SYNC_STATE_STORE_NAME), asset.id, 'asset');
+	await tx.done;
+
+	emitLocalMutation();
 
 	return asset;
 }
@@ -314,7 +374,22 @@ export async function deleteNoteAsset(assetId: string): Promise<void> {
 	if (!browser || !assetId) return;
 
 	const db = await getDb();
-	await db.delete(ASSETS_STORE_NAME, assetId);
+	const tx = db.transaction(
+		[ASSETS_STORE_NAME, SYNC_STATE_STORE_NAME, TOMBSTONES_STORE_NAME],
+		'readwrite'
+	);
+	const existed = (await tx.objectStore(ASSETS_STORE_NAME).getKey(assetId)) !== undefined;
+
+	await tx.objectStore(ASSETS_STORE_NAME).delete(assetId);
+	await tx.objectStore(SYNC_STATE_STORE_NAME).delete(assetId);
+	if (existed) {
+		await tx
+			.objectStore(TOMBSTONES_STORE_NAME)
+			.put({ id: assetId, kind: 'asset', deletedAt: new Date().toISOString() }, assetId);
+	}
+	await tx.done;
+
+	if (existed) emitLocalMutation();
 }
 
 export async function resolveNoteAssetObjectUrl(assetId: string) {
@@ -323,6 +398,208 @@ export async function resolveNoteAssetObjectUrl(assetId: string) {
 	if (!asset) return null;
 
 	return URL.createObjectURL(asset.blob);
+}
+
+// --- Sync support -----------------------------------------------------------
+// Remote-apply functions write records without marking them dirty and without
+// bumping updatedAt, so pulled changes never re-push. Everything else here is
+// the queue/checkpoint plumbing the sync engine consumes.
+
+export async function applyRemotePage(page: NotePageV1): Promise<void> {
+	if (!browser) return;
+
+	const db = await getDb();
+	const tx = db.transaction(
+		[PAGES_STORE_NAME, SYNC_STATE_STORE_NAME, TOMBSTONES_STORE_NAME],
+		'readwrite'
+	);
+
+	await tx.objectStore(PAGES_STORE_NAME).put(page, page.id);
+	await tx
+		.objectStore(SYNC_STATE_STORE_NAME)
+		.put({ id: page.id, kind: 'page', dirty: false, lastSyncedAt: page.updatedAt }, page.id);
+	await tx.objectStore(TOMBSTONES_STORE_NAME).delete(page.id);
+	await tx.done;
+}
+
+export async function applyRemoteAssetMeta(
+	asset: Omit<NotesAssetV1, 'blob'>,
+	blob?: Blob
+): Promise<void> {
+	if (!browser) return;
+
+	const db = await getDb();
+	const existing = normalizeStoredAsset(await db.get(ASSETS_STORE_NAME, asset.id));
+	const nextBlob = blob ?? existing?.blob;
+
+	// Without a blob (local or downloaded) there is nothing usable to store.
+	if (!nextBlob) return;
+
+	const tx = db.transaction(
+		[ASSETS_STORE_NAME, SYNC_STATE_STORE_NAME, TOMBSTONES_STORE_NAME],
+		'readwrite'
+	);
+
+	await tx.objectStore(ASSETS_STORE_NAME).put({ ...asset, blob: nextBlob }, asset.id);
+	await tx
+		.objectStore(SYNC_STATE_STORE_NAME)
+		.put({ id: asset.id, kind: 'asset', dirty: false, lastSyncedAt: asset.updatedAt }, asset.id);
+	await tx.objectStore(TOMBSTONES_STORE_NAME).delete(asset.id);
+	await tx.done;
+}
+
+export async function applyRemoteDelete(id: string, kind: SyncKind): Promise<void> {
+	if (!browser) return;
+
+	const recordStore = kind === 'page' ? PAGES_STORE_NAME : ASSETS_STORE_NAME;
+	const db = await getDb();
+	const tx = db.transaction(
+		[recordStore, SYNC_STATE_STORE_NAME, TOMBSTONES_STORE_NAME],
+		'readwrite'
+	);
+
+	await tx.objectStore(recordStore).delete(id);
+	await tx.objectStore(SYNC_STATE_STORE_NAME).delete(id);
+	await tx.objectStore(TOMBSTONES_STORE_NAME).delete(id);
+	await tx.done;
+}
+
+export async function getDirtySyncRecords(): Promise<{
+	pages: NotePageV1[];
+	assets: NotesAssetV1[];
+}> {
+	if (!browser) return { pages: [], assets: [] };
+
+	const db = await getDb();
+	const rows = (await db.getAll(SYNC_STATE_STORE_NAME)).filter((row) => row.dirty);
+	const pages: NotePageV1[] = [];
+	const assets: NotesAssetV1[] = [];
+
+	for (const row of rows) {
+		if (row.kind === 'page') {
+			const page = parseStoredPage(await db.get(PAGES_STORE_NAME, row.id));
+			if (page) pages.push(page);
+		} else {
+			const asset = normalizeStoredAsset(await db.get(ASSETS_STORE_NAME, row.id));
+			if (asset) assets.push(asset);
+		}
+	}
+
+	return { pages, assets };
+}
+
+export async function listSyncTombstones(): Promise<SyncTombstone[]> {
+	if (!browser) return [];
+
+	const db = await getDb();
+
+	return db.getAll(TOMBSTONES_STORE_NAME);
+}
+
+export async function hasPendingSyncWork(): Promise<boolean> {
+	if (!browser) return false;
+
+	const db = await getDb();
+	const [states, tombstoneCount] = await Promise.all([
+		db.getAll(SYNC_STATE_STORE_NAME),
+		db.count(TOMBSTONES_STORE_NAME)
+	]);
+
+	return tombstoneCount > 0 || states.some((row) => row.dirty);
+}
+
+// Clears the dirty flag only if the record hasn't changed since it was pushed,
+// so an edit made while a push was in flight is never lost.
+export async function clearDirtyFlag(
+	id: string,
+	kind: SyncKind,
+	pushedUpdatedAt: string
+): Promise<void> {
+	if (!browser) return;
+
+	const recordStore = kind === 'page' ? PAGES_STORE_NAME : ASSETS_STORE_NAME;
+	const db = await getDb();
+	const tx = db.transaction([recordStore, SYNC_STATE_STORE_NAME], 'readwrite');
+	const record = (await tx.objectStore(recordStore).get(id)) as { updatedAt?: string } | undefined;
+
+	if (record?.updatedAt === pushedUpdatedAt) {
+		await tx
+			.objectStore(SYNC_STATE_STORE_NAME)
+			.put({ id, kind, dirty: false, lastSyncedAt: pushedUpdatedAt }, id);
+	}
+
+	await tx.done;
+}
+
+export async function getSyncStateRow(id: string): Promise<SyncStateRow | null> {
+	if (!browser) return null;
+
+	const db = await getDb();
+
+	return (await db.get(SYNC_STATE_STORE_NAME, id)) ?? null;
+}
+
+export async function getSyncTombstone(id: string): Promise<SyncTombstone | null> {
+	if (!browser) return null;
+
+	const db = await getDb();
+
+	return (await db.get(TOMBSTONES_STORE_NAME, id)) ?? null;
+}
+
+// Queue a record for push without touching the record itself (used when pull
+// application locally modifies a pulled record, e.g. slug dedupe).
+export async function markRecordDirty(id: string, kind: SyncKind): Promise<void> {
+	if (!browser) return;
+
+	const db = await getDb();
+	const tx = db.transaction(SYNC_STATE_STORE_NAME, 'readwrite');
+
+	await markDirtyInTx(tx.store, id, kind);
+	await tx.done;
+
+	emitLocalMutation();
+}
+
+export async function removeSyncTombstone(id: string): Promise<void> {
+	if (!browser) return;
+
+	const db = await getDb();
+	await db.delete(TOMBSTONES_STORE_NAME, id);
+}
+
+export async function getSyncCheckpoint(): Promise<string | null> {
+	if (!browser) return null;
+
+	const db = await getDb();
+	const meta = await db.get(SYNC_META_STORE_NAME, SYNC_CHECKPOINT_KEY);
+
+	return meta?.lastPulledAt ?? null;
+}
+
+export async function setSyncCheckpoint(lastPulledAt: string): Promise<void> {
+	if (!browser) return;
+
+	const db = await getDb();
+	await db.put(SYNC_META_STORE_NAME, { lastPulledAt }, SYNC_CHECKPOINT_KEY);
+}
+
+// First sign-in on a device with pre-existing notes: queue everything so the
+// initial sync behaves like a normal push.
+export async function markAllRecordsDirty(): Promise<void> {
+	if (!browser) return;
+
+	const db = await getDb();
+	const [pageIds, assetIds] = await Promise.all([
+		db.getAllKeys(PAGES_STORE_NAME),
+		db.getAllKeys(ASSETS_STORE_NAME)
+	]);
+	const tx = db.transaction(SYNC_STATE_STORE_NAME, 'readwrite');
+
+	for (const id of pageIds) await markDirtyInTx(tx.store, id, 'page');
+	for (const id of assetIds) await markDirtyInTx(tx.store, id, 'asset');
+
+	await tx.done;
 }
 
 export async function getAvailablePageSlug(value: unknown, currentPageId = '') {
@@ -403,24 +680,46 @@ async function pageSlugExists(slug: string, currentPageId = '') {
 
 async function putNotePage(page: NotePageV1) {
 	const db = await getDb();
-	await db.put(PAGES_STORE_NAME, page, page.id);
+	const tx = db.transaction([PAGES_STORE_NAME, SYNC_STATE_STORE_NAME], 'readwrite');
+
+	await tx.objectStore(PAGES_STORE_NAME).put(page, page.id);
+	await markDirtyInTx(tx.objectStore(SYNC_STATE_STORE_NAME), page.id, 'page');
+	await tx.done;
+
+	emitLocalMutation();
+}
+
+type SyncStateWritableStore = {
+	get(key: string): Promise<SyncStateRow | undefined>;
+	put(value: SyncStateRow, key: string): Promise<unknown>;
+};
+
+async function markDirtyInTx(store: SyncStateWritableStore, id: string, kind: SyncKind) {
+	const existing = await store.get(id);
+
+	await store.put({ id, kind, dirty: true, lastSyncedAt: existing?.lastSyncedAt }, id);
 }
 
 async function attachAssetsToPage(pageId: string, assetIds: string[]) {
 	if (!assetIds.length) return;
 
 	const db = await getDb();
-	const tx = db.transaction(ASSETS_STORE_NAME, 'readwrite');
+	const tx = db.transaction([ASSETS_STORE_NAME, SYNC_STATE_STORE_NAME], 'readwrite');
+	const assetsStore = tx.objectStore(ASSETS_STORE_NAME);
+	const syncStore = tx.objectStore(SYNC_STATE_STORE_NAME);
+	let mutated = false;
 
 	await Promise.all(
 		assetIds.map(async (assetId) => {
-			const asset = normalizeStoredAsset(await tx.store.get(assetId));
+			const asset = normalizeStoredAsset(await assetsStore.get(assetId));
 			if (!asset) return;
 
 			const pageIds = new Set(asset.pageIds ?? []);
+			if (pageIds.has(pageId)) return;
 			pageIds.add(pageId);
+			mutated = true;
 
-			await tx.store.put(
+			await assetsStore.put(
 				{
 					...asset,
 					pageIds: [...pageIds],
@@ -428,10 +727,13 @@ async function attachAssetsToPage(pageId: string, assetIds: string[]) {
 				},
 				asset.id
 			);
+			await markDirtyInTx(syncStore, asset.id, 'asset');
 		})
 	);
 
 	await tx.done;
+
+	if (mutated) emitLocalMutation();
 }
 
 function getDb() {
@@ -454,6 +756,18 @@ function getDb() {
 				const store = db.createObjectStore(ASSETS_STORE_NAME);
 				store.createIndex('by-created-at', 'createdAt');
 				store.createIndex('by-updated-at', 'updatedAt');
+			}
+
+			if (!db.objectStoreNames.contains(SYNC_STATE_STORE_NAME)) {
+				db.createObjectStore(SYNC_STATE_STORE_NAME);
+			}
+
+			if (!db.objectStoreNames.contains(TOMBSTONES_STORE_NAME)) {
+				db.createObjectStore(TOMBSTONES_STORE_NAME);
+			}
+
+			if (!db.objectStoreNames.contains(SYNC_META_STORE_NAME)) {
+				db.createObjectStore(SYNC_META_STORE_NAME);
 			}
 		}
 	});

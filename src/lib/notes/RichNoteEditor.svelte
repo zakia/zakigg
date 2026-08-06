@@ -53,7 +53,9 @@
 		getMediaKindForUrl,
 		isMediaFile
 	} from './media';
-	import { formatSaveLabel, type SaveState } from './save-state';
+	import { formatSaveLabel, type SaveState, type SyncLabelStatus } from './save-state';
+	import { startSyncEngine, syncState } from './sync/engine.svelte';
+	import { refreshSyncSession, syncSession } from './sync/session.svelte';
 	import { resolveNoteAssetObjectUrl, saveNoteAsset, saveNotePage } from './storage';
 	import { createTimer } from '../editor/timers';
 	import { resolveNotePageMetadata, type NotePageV1 } from './types';
@@ -122,7 +124,10 @@
 	const linkShowTimer = createTimer();
 	const linkHideTimer = createTimer();
 
-	const saveLabel = $derived(formatSaveLabel(saveState, lastSavedAt));
+	const syncLabelStatus = $derived<SyncLabelStatus>(
+		syncSession.status === 'signed-in' ? syncState.status : 'disabled'
+	);
+	const saveLabel = $derived(formatSaveLabel(saveState, lastSavedAt, syncLabelStatus));
 	const selectionAnchorStyle = $derived(
 		`left: ${selectionToolbar.anchor.left}px; top: ${selectionToolbar.anchor.top}px; width: ${selectionToolbar.anchor.width}px; height: ${selectionToolbar.anchor.height}px;`
 	);
@@ -135,6 +140,9 @@
 	);
 
 	onMount(() => {
+		startSyncEngine();
+		void refreshSyncSession();
+
 		let destroyed = false;
 		const syncVisibleSelectionToolbar = () => {
 			if (selectionToolbar.visible) scheduleSelectionToolbarSync();
@@ -1151,6 +1159,7 @@
 		{copied}
 		{saveState}
 		{saveLabel}
+		syncStatus={syncLabelStatus}
 		historyOpen={historyPanelOpen}
 		embeds={embedActions}
 		onCopyMarkdown={copyMarkdown}

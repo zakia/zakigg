@@ -1,14 +1,22 @@
 <script lang="ts">
-	import { onDestroy } from 'svelte';
+	import { onDestroy, type Snippet } from 'svelte';
 
 	let {
 		onHost,
 		onDragOver,
-		onDrop
+		onDrop,
+		header,
+		children
 	}: {
 		onHost: (host?: HTMLDivElement) => void;
 		onDragOver?: (event: DragEvent) => void;
 		onDrop?: (event: DragEvent) => void;
+		// Content that scrolls above the document within the same column
+		// (aligned to the text width), e.g. the metadata panel.
+		header?: Snippet;
+		// Overlays that must live in content coordinate space (they scroll
+		// with the document), e.g. the block handle.
+		children?: Snippet;
 	} = $props();
 	let host = $state<HTMLDivElement>();
 
@@ -22,7 +30,17 @@
 </script>
 
 <div class="editor-surface" role="presentation" ondragover={onDragOver} ondrop={onDrop}>
-	<div class="editor-host" bind:this={host}></div>
+	{#if header}
+		<div class="editor-header">{@render header()}</div>
+	{/if}
+	<!-- Content-space overlays (the block handle) are absolutely positioned
+	     against this wrapper, whose origin is exactly the document's origin.
+	     They must NOT be positioned against .editor-surface: anything rendered
+	     above the document (the header) would offset them by its height. -->
+	<div class="editor-body">
+		<div class="editor-host" bind:this={host}></div>
+		{@render children?.()}
+	</div>
 </div>
 
 <style>
@@ -32,6 +50,17 @@
 		flex: 1;
 		min-height: 0;
 		overflow: auto;
+		position: relative;
+	}
+
+	/* Positioned so it — not .editor-surface — is the offset parent for
+	   content-space overlays, keeping their origin pinned to the document. */
+	.editor-body {
+		display: flex;
+		flex-direction: column;
+		flex: 1;
+		min-height: 0;
+		position: relative;
 	}
 
 	.editor-host {
@@ -39,6 +68,22 @@
 		flex-direction: column;
 		flex: 1;
 		min-height: 0;
+	}
+
+	/* Align the metadata panel with the document's text column, and give it the
+	   editor's top padding so it sits where content begins. The document's own
+	   top padding is zeroed (below) so the two don't stack. */
+	.editor-header {
+		box-sizing: border-box;
+		flex: 0 0 auto;
+		margin-inline: auto;
+		max-width: 46rem;
+		padding: clamp(var(--s1), 6vw, var(--s3)) clamp(var(--s0), 5vw, var(--s2)) 0;
+		width: min(100%, 46rem);
+	}
+
+	.editor-surface:has(.editor-header) :global(.ProseMirror) {
+		padding-top: var(--s-1);
 	}
 
 	.editor-surface :global(.ProseMirror) {
@@ -98,6 +143,11 @@
 
 	.editor-surface :global(.ProseMirror .media-block-node.ProseMirror-selectednode) {
 		border-radius: var(--radius);
+		box-shadow: 0 0 0 2px color-mix(in oklch, var(--brand) 22%, transparent);
+	}
+
+	.editor-surface :global(.ProseMirror .metadata-block-node.ProseMirror-selectednode) {
+		border-radius: var(--s-3);
 		box-shadow: 0 0 0 2px color-mix(in oklch, var(--brand) 22%, transparent);
 	}
 </style>

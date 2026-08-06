@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import type { Editor } from '@tiptap/core';
+	import type { EditorShortcutId } from './keyboard-shortcuts';
 	import ToolbarButton from './ToolbarButton.svelte';
 
 	type ToolbarItem = {
@@ -10,6 +11,7 @@
 		can?: (activeEditor: Editor) => boolean;
 		command?: (activeEditor: Editor) => void;
 		action?: () => void | Promise<void>;
+		shortcutId?: EditorShortcutId;
 	};
 
 	type ToolbarMode = 'format' | 'link';
@@ -86,6 +88,7 @@
 				{
 					title: 'Bold',
 					icon: 'mdi:format-bold',
+					shortcutId: 'bold',
 					active: (e) => e.isActive('bold'),
 					can: (e) => e.can().chain().focus().toggleBold().run(),
 					command: (e) => e.chain().focus().toggleBold().run()
@@ -93,6 +96,7 @@
 				{
 					title: 'Italic',
 					icon: 'mdi:format-italic',
+					shortcutId: 'italic',
 					active: (e) => e.isActive('italic'),
 					can: (e) => e.can().chain().focus().toggleItalic().run(),
 					command: (e) => e.chain().focus().toggleItalic().run()
@@ -100,6 +104,7 @@
 				{
 					title: 'Strike',
 					icon: 'mdi:format-strikethrough',
+					shortcutId: 'strike',
 					active: (e) => e.isActive('strike'),
 					can: (e) => e.can().chain().focus().toggleStrike().run(),
 					command: (e) => e.chain().focus().toggleStrike().run()
@@ -107,6 +112,7 @@
 				{
 					title: 'Inline Code',
 					icon: 'mdi:code-tags',
+					shortcutId: 'inlineCode',
 					active: (e) => e.isActive('code'),
 					can: (e) => e.can().chain().focus().toggleCode().run(),
 					command: (e) => e.chain().focus().toggleCode().run()
@@ -114,6 +120,7 @@
 				{
 					title: 'Link',
 					icon: 'mdi:link-variant',
+					shortcutId: 'link',
 					active: (e) => e.isActive('link'),
 					action: onOpenLink
 				}
@@ -257,6 +264,7 @@
 							active={isActive(item)}
 							pressed={item.active ? isActive(item) : undefined}
 							disabled={isDisabled(item)}
+							shortcutId={item.shortcutId}
 							onClick={() => activate(item)}
 						/>
 					{/each}

@@ -1,4 +1,13 @@
 import type { JSONContent } from '@tiptap/core';
+import { getLocalAssetId } from './media';
+import {
+	metadataEntriesToRecord,
+	normalizeMetadataEntries,
+	normalizeMetadataProperties,
+	slugifyText,
+	type MetadataEntry,
+	type MetadataProperties
+} from './metadata-block';
 
 export const NOTES_DOC_VERSION = 1;
 export const NOTES_PAGE_VERSION = 1;
@@ -24,6 +33,15 @@ export type NotesDocV1 = {
 	updatedAt: string;
 };
 
+export type NotePageFrontmatter = {
+	title?: string;
+	slug?: string;
+	description?: string;
+	tags?: string[];
+	date?: string;
+	draft?: boolean;
+};
+
 export type NotePageV1 = {
 	version: typeof NOTES_PAGE_VERSION;
 	editor: typeof NOTES_EDITOR;
@@ -31,6 +49,10 @@ export type NotePageV1 = {
 	slug: string;
 	title: string;
 	tags: string[];
+	// Canonical, ordered page metadata edited by the properties panel. `title`,
+	// `slug`, `tags` and `frontmatter` are derived from this on save.
+	properties: MetadataEntry[];
+	frontmatter?: NotePageFrontmatter;
 	content: JSONContent;
 	createdAt: string;
 	updatedAt: string;
@@ -40,9 +62,15 @@ export type NotePageSummary = Pick<
 	NotePageV1,
 	'id' | 'slug' | 'title' | 'tags' | 'createdAt' | 'updatedAt'
 > & {
+	// The document date: the verbatim metadata `date` when present (often a
+	// timezone-less `yyyy-mm-dd`, which display code must not shift through
+	// the local timezone), else the record's createdAt timestamp.
+	date: string;
 	assetCount: number;
 	wordCount: number;
 };
+
+export type NotePageMetadataPatch = Partial<NotePageFrontmatter>;
 
 export function createNotesDoc(
 	content: JSONContent,
@@ -58,29 +86,52 @@ export function createNotesDoc(
 
 export function createNotePage(input: Partial<NotePageV1> = {}): NotePageV1 {
 	const now = new Date().toISOString();
-	const title = normalizePageTitle(input.title);
-
-	return {
+	const id = input.id || createPageId();
+	const content =
+		input.content && isJSONContent(input.content)
+			? stripLegacyMetadataBlocks(input.content)
+			: createInitialNotePageContent(input.title);
+	// Seed the ordered metadata from explicit properties, else from a
+	// frontmatter/tags record (imports, legacy notes carry these instead).
+	const properties = normalizeMetadataEntries(
+		input.properties ?? {
+			...(input.frontmatter ?? {}),
+			...(input.tags && input.tags.length ? { tags: input.tags } : {})
+		}
+	);
+	const base: NotePageV1 = {
 		version: NOTES_PAGE_VERSION,
 		editor: NOTES_EDITOR,
-		id: input.id || createPageId(),
-		slug: normalizePageSlug(input.slug || title || DEFAULT_NOTE_SLUG),
-		title,
+		id,
+		slug: normalizePageSlug(input.slug || DEFAULT_NOTE_SLUG),
+		title: normalizePageTitle(input.title || getFirstLevelOneHeadingText(content)),
 		tags: normalizePageTags(input.tags),
-		content: input.content && isJSONContent(input.content) ? input.content : EMPTY_TIPTAP_DOC,
+		properties,
+		content,
 		createdAt: normalizeDate(input.createdAt) || now,
 		updatedAt: normalizeDate(input.updatedAt) || now
+	};
+	const metadata = resolveNotePageMetadata(base, content);
+
+	return {
+		...base,
+		slug: metadata.slug,
+		title: metadata.title,
+		tags: metadata.tags,
+		...(metadata.frontmatter ? { frontmatter: metadata.frontmatter } : {}),
+		createdAt: metadata.createdAt
 	};
 }
 
 export function createDefaultNotePage(legacyNote?: NotesDocV1 | null): NotePageV1 {
+	const content = legacyNote?.content ?? createInitialNotePageContent('Default');
 	const updatedAt = legacyNote?.updatedAt ?? new Date().toISOString();
 
 	return createNotePage({
 		id: DEFAULT_NOTE_ID,
 		slug: DEFAULT_NOTE_SLUG,
-		title: 'Default',
-		content: legacyNote?.content ?? EMPTY_TIPTAP_DOC,
+		title: getFirstLevelOneHeadingText(content) || 'Default',
+		content,
 		createdAt: updatedAt,
 		updatedAt
 	});
@@ -101,15 +152,7 @@ export function normalizePageTitle(value: unknown) {
 }
 
 export function normalizePageSlug(value: unknown) {
-	const slug = String(value ?? '')
-		.toLowerCase()
-		.trim()
-		.replace(/['"`]/g, '')
-		.replace(/[^a-z0-9]+/g, '-')
-		.replace(/^-+|-+$/g, '')
-		.slice(0, 72);
-
-	return slug || DEFAULT_NOTE_SLUG;
+	return slugifyText(value) || DEFAULT_NOTE_SLUG;
 }
 
 export function titleFromSlug(slug: string) {
@@ -168,6 +211,21 @@ export function parseStoredPage(value: unknown): NotePageV1 | null {
 		return null;
 	}
 
+	const frontmatter = normalizeNotePageFrontmatter(page.frontmatter);
+	// Migrate legacy records that stored metadata as a leading `metadataBlock`
+	// node: lift its properties to page state and strip it from the content.
+	// New records already carry `properties`; fall back to stored frontmatter/
+	// tags when neither is present.
+	const legacyEntries = extractLegacyMetadataEntries(page.content);
+	const properties = Array.isArray(page.properties)
+		? normalizeMetadataEntries(page.properties)
+		: legacyEntries && legacyEntries.length
+			? legacyEntries
+			: normalizeMetadataEntries({
+					...(frontmatter ?? {}),
+					...(page.tags && page.tags.length ? { tags: normalizePageTags(page.tags) } : {})
+				});
+
 	return {
 		version: NOTES_PAGE_VERSION,
 		editor: NOTES_EDITOR,
@@ -175,7 +233,9 @@ export function parseStoredPage(value: unknown): NotePageV1 | null {
 		slug: normalizePageSlug(page.slug),
 		title: normalizePageTitle(page.title),
 		tags: normalizePageTags(page.tags),
-		content: page.content,
+		properties,
+		...(frontmatter ? { frontmatter } : {}),
+		content: stripLegacyMetadataBlocks(page.content),
 		createdAt: page.createdAt,
 		updatedAt: page.updatedAt
 	};
@@ -185,13 +245,37 @@ export function getReferencedAssetIds(content: JSONContent) {
 	const ids = new Set<string>();
 
 	visitContent(content, (node) => {
-		if (node.type !== 'mediaBlock') return;
+		if (node.type === 'mediaBlock') {
+			const assetId = typeof node.attrs?.assetId === 'string' ? node.attrs.assetId.trim() : '';
+			if (assetId) ids.add(assetId);
+			return;
+		}
 
-		const assetId = typeof node.attrs?.assetId === 'string' ? node.attrs.assetId.trim() : '';
-		if (assetId) ids.add(assetId);
+		// Component embeds may reference stored assets anywhere in their
+		// props (e.g. the image carousel's slides).
+		if (node.type === 'componentEmbed') {
+			collectLocalAssetIds(node.attrs?.props, ids);
+		}
 	});
 
 	return [...ids];
+}
+
+function collectLocalAssetIds(value: unknown, ids: Set<string>) {
+	if (typeof value === 'string') {
+		const assetId = getLocalAssetId(value);
+		if (assetId) ids.add(assetId);
+		return;
+	}
+
+	if (Array.isArray(value)) {
+		for (const item of value) collectLocalAssetIds(item, ids);
+		return;
+	}
+
+	if (value && typeof value === 'object') {
+		for (const item of Object.values(value)) collectLocalAssetIds(item, ids);
+	}
 }
 
 export function getContentText(content: JSONContent) {
@@ -204,18 +288,157 @@ export function getContentText(content: JSONContent) {
 	return parts.join(' ').replace(/\s+/g, ' ').trim();
 }
 
+export function getFirstLevelOneHeadingText(content: JSONContent) {
+	let title = '';
+
+	visitContent(content, (node) => {
+		if (title || node.type !== 'heading' || Number(node.attrs?.level) !== 1) return;
+
+		title = getNodeText(node);
+	});
+
+	return title.trim().replace(/\s+/g, ' ');
+}
+
+export function resolveNotePageMetadata(
+	page: NotePageV1,
+	content: JSONContent,
+	patch: NotePageMetadataPatch = {}
+): Pick<NotePageV1, 'title' | 'slug' | 'tags' | 'createdAt'> & {
+	frontmatter?: NotePageFrontmatter;
+} {
+	// Page-level `properties` are the single source of truth; the first H1 is
+	// the title fallback when no `title` property is set.
+	const propertiesFrontmatter = metadataPropertiesToNotePageFrontmatter(
+		metadataEntriesToRecord(normalizeMetadataEntries(page.properties))
+	);
+	const frontmatter = normalizeNotePageFrontmatter({ ...propertiesFrontmatter, ...patch });
+	const firstHeadingTitle = getFirstLevelOneHeadingText(content);
+	const title = normalizePageTitle(frontmatter?.title || firstHeadingTitle || page.title);
+	const slug = normalizePageSlug(frontmatter?.slug || title || page.slug);
+	const createdAt = frontmatter?.date ? normalizeDate(frontmatter.date) : page.createdAt;
+	const tags = normalizePageTags(frontmatter?.tags ?? page.tags);
+
+	return {
+		title,
+		slug,
+		tags,
+		createdAt: createdAt || page.createdAt,
+		...(frontmatter ? { frontmatter } : {})
+	};
+}
+
+const LEGACY_METADATA_BLOCK_NAME = 'metadataBlock';
+
+// Legacy notes stored metadata as a leading `metadataBlock` node in the doc.
+// Lift its properties out to page state (the first non-empty one wins).
+function extractLegacyMetadataEntries(content: JSONContent): MetadataEntry[] | undefined {
+	let entries: MetadataEntry[] | undefined;
+
+	visitContent(content, (node) => {
+		if ((entries && entries.length) || node.type !== LEGACY_METADATA_BLOCK_NAME) return;
+
+		entries = normalizeMetadataEntries(node.attrs?.properties);
+	});
+
+	return entries;
+}
+
+// Remove any `metadataBlock` node from the document at every depth. The doc
+// must not be left empty once the (formerly required) leading block is gone.
+function stripLegacyMetadataBlocks(content: JSONContent): JSONContent {
+	if (!Array.isArray(content.content)) return content;
+
+	const filtered = content.content
+		.filter((node) => node.type !== LEGACY_METADATA_BLOCK_NAME)
+		.map(stripLegacyMetadataBlocks);
+
+	if (content.type === 'doc' && filtered.length === 0) filtered.push({ type: 'paragraph' });
+
+	return { ...content, content: filtered };
+}
+
+export function metadataPropertiesToNotePageFrontmatter(
+	value: MetadataProperties
+): NotePageFrontmatter | undefined {
+	const properties = normalizeMetadataProperties(value);
+	const frontmatter: NotePageFrontmatter = {};
+	const title =
+		typeof properties.title === 'string' ? properties.title.trim().replace(/\s+/g, ' ') : '';
+	const slug = typeof properties.slug === 'string' ? normalizePageSlug(properties.slug) : '';
+	const description =
+		typeof properties.description === 'string'
+			? properties.description.trim().replace(/\s+/g, ' ')
+			: '';
+	const date = typeof properties.date === 'string' ? properties.date.trim() : '';
+
+	if (title) frontmatter.title = title;
+	if (slug) frontmatter.slug = slug;
+	if (description) frontmatter.description = description;
+	if (hasOwn(properties, 'tags')) frontmatter.tags = normalizePageTags(properties.tags);
+	if (date) frontmatter.date = date;
+	if (hasOwn(properties, 'draft')) frontmatter.draft = properties.draft === true;
+
+	return Object.keys(frontmatter).length ? frontmatter : undefined;
+}
+
+export function normalizeNotePageFrontmatter(value: unknown): NotePageFrontmatter | undefined {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return;
+
+	const record = value as Partial<NotePageFrontmatter>;
+	const frontmatter: NotePageFrontmatter = {};
+	const title = typeof record.title === 'string' ? record.title.trim().replace(/\s+/g, ' ') : '';
+	const slug = typeof record.slug === 'string' ? normalizePageSlug(record.slug) : '';
+	const description =
+		typeof record.description === 'string' ? record.description.trim().replace(/\s+/g, ' ') : '';
+	const tags = hasOwn(record, 'tags') ? normalizePageTags(record.tags) : undefined;
+	const date = typeof record.date === 'string' ? record.date.trim() : '';
+	const draft = hasOwn(record, 'draft') ? record.draft === true : undefined;
+
+	if (title) frontmatter.title = title;
+	if (slug) frontmatter.slug = slug;
+	if (description) frontmatter.description = description;
+	if (tags) frontmatter.tags = tags;
+	if (date) frontmatter.date = date;
+	if (draft !== undefined) frontmatter.draft = draft;
+
+	return Object.keys(frontmatter).length ? frontmatter : undefined;
+}
+
 export function summarizeNotePage(page: NotePageV1): NotePageSummary {
 	const text = getContentText(page.content);
+	const frontmatterDate = page.frontmatter?.date?.trim() ?? '';
 
 	return {
 		id: page.id,
 		slug: page.slug,
 		title: page.title,
 		tags: page.tags,
+		date: Number.isFinite(Date.parse(frontmatterDate)) ? frontmatterDate : page.createdAt,
 		createdAt: page.createdAt,
 		updatedAt: page.updatedAt,
 		assetCount: getReferencedAssetIds(page.content).length,
 		wordCount: text ? text.split(/\s+/).length : 0
+	};
+}
+
+function createInitialNotePageContent(title: unknown): JSONContent {
+	const normalizedTitle = typeof title === 'string' ? title.trim().replace(/\s+/g, ' ') : '';
+
+	if (!normalizedTitle) return EMPTY_TIPTAP_DOC;
+
+	return {
+		type: 'doc',
+		content: [
+			{
+				type: 'heading',
+				attrs: { level: 1 },
+				content: [{ type: 'text', text: normalizedTitle }]
+			},
+			{
+				type: 'paragraph'
+			}
+		]
 	};
 }
 
@@ -243,8 +466,18 @@ function visitContent(node: JSONContent, visit: (node: JSONContent) => void) {
 	node.content?.forEach((child) => visitContent(child, visit));
 }
 
+function getNodeText(node: JSONContent): string {
+	if (node.text) return node.text;
+
+	return (node.content ?? []).map(getNodeText).join('');
+}
+
 function isJSONContent(value: unknown): value is JSONContent {
 	return Boolean(
 		value && typeof value === 'object' && typeof (value as JSONContent).type === 'string'
 	);
+}
+
+function hasOwn(record: object, key: string) {
+	return Object.prototype.hasOwnProperty.call(record, key);
 }

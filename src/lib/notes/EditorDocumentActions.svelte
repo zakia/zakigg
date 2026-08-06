@@ -1,5 +1,13 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import ActionTooltip from './ActionTooltip.svelte';
+	import {
+		getEditorShortcut,
+		isAppleShortcutPlatform,
+		shortcutTitle,
+		type EditorShortcut
+	} from './keyboard-shortcuts';
 	import SaveStatus from './SaveStatus.svelte';
 	import type { SaveState } from './save-state';
 
@@ -7,6 +15,7 @@
 		title: string;
 		icon: string;
 		active?: boolean;
+		shortcut?: EditorShortcut;
 		action: () => void | Promise<void>;
 	};
 
@@ -24,6 +33,7 @@
 		embeds?: EmbedAction[];
 		onCopyMarkdown: () => void | Promise<void>;
 		onDownloadMarkdown: () => void;
+		onOpenShortcuts: () => void;
 		onToggleHistory: () => void;
 		onInsertImage?: () => void;
 		onInsertVideo?: () => void;
@@ -38,11 +48,14 @@
 		embeds = [],
 		onCopyMarkdown,
 		onDownloadMarkdown,
+		onOpenShortcuts,
 		onToggleHistory,
 		onInsertImage,
 		onInsertVideo,
 		onInsertEmbed
 	}: Props = $props();
+
+	let useAppleKeys = $state(false);
 
 	function actions(): DocumentAction[] {
 		const items: DocumentAction[] = [
@@ -51,6 +64,12 @@
 				icon: 'mdi:history',
 				active: historyOpen,
 				action: onToggleHistory
+			},
+			{
+				title: 'Keyboard Shortcuts',
+				icon: 'mdi:keyboard-outline',
+				shortcut: getEditorShortcut('openShortcuts'),
+				action: onOpenShortcuts
 			},
 			{
 				title: copied ? 'Copied Markdown' : 'Copy Markdown',
@@ -92,6 +111,14 @@
 
 		return items;
 	}
+
+	function actionTitle(item: DocumentAction) {
+		return shortcutTitle(item.title, item.shortcut, useAppleKeys);
+	}
+
+	onMount(() => {
+		useAppleKeys = isAppleShortcutPlatform();
+	});
 </script>
 
 <div class="document-actions" aria-label="Document actions">
@@ -103,12 +130,13 @@
 				type="button"
 				class:copied={item.title === 'Copied Markdown'}
 				class:active={item.active}
-				title={item.title}
-				aria-label={item.title}
+				title={actionTitle(item)}
+				aria-label={actionTitle(item)}
 				aria-pressed={item.active}
 				onclick={() => void item.action()}
 			>
 				<Icon icon={item.icon} />
+				<ActionTooltip title={item.title} shortcut={item.shortcut} />
 			</button>
 		{/each}
 	</div>
@@ -148,6 +176,7 @@
 		justify-content: center;
 		min-width: 2rem;
 		padding: 0;
+		position: relative;
 		transition:
 			background-color 0.2s,
 			color 0.2s,

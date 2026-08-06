@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { Editor, posToDOMRect, type JSONContent, type Range } from '@tiptap/core';
 	import type { EditorView } from '@tiptap/pm/view';
 	import { craftComponentEmbeds } from '$lib/crafts/component-embeds';
@@ -9,6 +9,8 @@
 	import EditorHistoryPanel from './EditorHistoryPanel.svelte';
 	import EditorSurface from './EditorSurface.svelte';
 	import EditorToolbar from './EditorToolbar.svelte';
+	import BlockHandle from './BlockHandle.svelte';
+	import KeyboardShortcutsPanel from './KeyboardShortcutsPanel.svelte';
 	import LinkPopover from './LinkPopover.svelte';
 	import { createEditorExtensions } from './editor-extensions';
 	import {
@@ -29,12 +31,19 @@
 		openLinkHrefOnce,
 		type LinkPopoverState
 	} from './link-popover';
+	import { isOpenShortcutsShortcut } from './keyboard-shortcuts';
 	import {
-		getEditorMarkdown,
 		getMarkdownFiles,
 		insertEditorMarkdown,
-		looksLikeMarkdown
+		looksLikeMarkdown,
+		serializeNotePageMarkdown
 	} from './markdown';
+	import MetadataPanel from './metadata-block/MetadataPanel.svelte';
+	import {
+		normalizeMetadataEntries,
+		type MetadataEntry,
+		type MetadataProperties
+	} from './metadata-block';
 	import { downloadNotePageExport } from './export';
 	import {
 		createLocalAssetSrc,
@@ -47,7 +56,7 @@
 	import { formatSaveLabel, type SaveState } from './save-state';
 	import { resolveNoteAssetObjectUrl, saveNoteAsset, saveNotePage } from './storage';
 	import { createTimer } from '../editor/timers';
-	import type { NotePageV1 } from './types';
+	import { resolveNotePageMetadata, type NotePageV1 } from './types';
 
 	type SelectionToolbarMode = 'format' | 'link';
 
@@ -78,6 +87,14 @@
 	} = $props();
 
 	let editorHost = $state<HTMLDivElement>();
+	// Ordered page metadata, edited by the properties panel (source of truth).
+	// Seeded once — the route remounts this component per note ({#key note.id}).
+	// svelte-ignore state_referenced_locally
+	let properties = $state<MetadataEntry[]>(
+		normalizeMetadataEntries($state.snapshot(page.properties))
+	);
+	// The handle element the drag-handle extension positions and binds drag to.
+	let blockHandleElement = $state<HTMLElement>();
 	let imageInput = $state<HTMLInputElement>();
 	let videoInput = $state<HTMLInputElement>();
 	let editor = $state<Editor>();
@@ -89,7 +106,10 @@
 	let activeHistoryId = $state('');
 	let previewHistoryId = $state('');
 	let historyPanelOpen = $state(false);
+	let shortcutsPanelOpen = $state(false);
+	let blockHandleTarget = $state<import('$lib/editor/block-handle').BlockHandleTarget | null>(null);
 	let editorTickQueued = false;
+	let pendingSave = false;
 	let linkPopover = $state<LinkPopoverState>(createHiddenLinkPopover());
 	let selectionToolbar = $state<SelectionToolbarState>(createHiddenSelectionToolbar());
 	let selectionToolbarFrame = 0;
@@ -147,14 +167,26 @@
 		};
 
 		async function setupEditor() {
+			// The block-handle element is owned by <BlockHandle> in the markup;
+			// flush pending renders/effects so its ref is populated before the
+			// editor's ProseMirror plugins read it during construction.
+			await tick();
+
 			if (destroyed || !editorHost) return;
 
-			const initialContent = page.content;
+			const initialContent = getInitialEditorContent(page);
 			const instance = new Editor({
 				element: editorHost,
-				extensions: createEditorExtensions(craftComponentEmbeds, resolveNoteAssetObjectUrl),
+				extensions: createEditorExtensions(craftComponentEmbeds, resolveNoteAssetObjectUrl, {
+					getBlockHandleElement: () => blockHandleElement ?? null,
+					onBlockHandleTargetChange: (nextTarget) => {
+						blockHandleTarget = nextTarget;
+					}
+				}),
 				content: initialContent,
-				autofocus: 'end',
+				// Position 1 is inside the leading H1 — land there on a fresh,
+				// untitled note so the user starts typing the title.
+				autofocus: startsWithEmptyTitle(initialContent) ? 1 : 'end',
 				editorProps: {
 					attributes: {
 						'aria-label': `${page.title} editor`,
@@ -201,7 +233,11 @@
 			document.removeEventListener('pointerdown', handleDocumentPointerdown, true);
 			document.removeEventListener('pointerup', handleDocumentPointerup, true);
 			document.removeEventListener('pointercancel', handleDocumentPointercancel, true);
-			void persistNow();
+			// Flush only when an edit is actually pending. An unconditional
+			// teardown save would rewrite the record (bumping updatedAt) on
+			// every visit, and can persist a transient editor state — e.g. a
+			// mid-HMR or mid-destroy document — over real content.
+			if (pendingSave) void persistNow({ notify: false });
 			editor?.destroy();
 		};
 	});
@@ -227,6 +263,8 @@
 	function createEditorDomHandlers() {
 		return {
 			keydown: (_view: unknown, event: KeyboardEvent) => {
+				if (handleShortcutsKeydown(event)) return true;
+
 				if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
 					event.preventDefault();
 					openLinkEditorFromKeyboard();
@@ -287,6 +325,21 @@
 				return false;
 			}
 		};
+	}
+
+	function handleRichEditorKeydown(event: KeyboardEvent) {
+		if (event.defaultPrevented) return;
+
+		handleShortcutsKeydown(event);
+	}
+
+	function handleShortcutsKeydown(event: KeyboardEvent) {
+		if (!isOpenShortcutsShortcut(event)) return false;
+
+		event.preventDefault();
+		openShortcutsPanel();
+
+		return true;
 	}
 
 	function noteEditorChanged() {
@@ -521,8 +574,34 @@
 		}
 	}
 
+	// Panel edits and pasted/imported frontmatter both flow through here.
+	function updateProperties(next: MetadataEntry[]) {
+		properties = normalizeMetadataEntries(next);
+		noteEditorChanged();
+		scheduleSave();
+	}
+
 	function insertMarkdown(markdown: string) {
-		return insertEditorMarkdown(editor, markdown);
+		const result = insertEditorMarkdown(editor, markdown);
+
+		if (result.properties) mergePageProperties(result.properties);
+
+		return result.inserted || Boolean(result.frontmatter);
+	}
+
+	// Pasted/dropped frontmatter merges into page properties; incoming values
+	// win per key, everything else is kept.
+	function mergePageProperties(incoming: MetadataProperties) {
+		const merged = [...normalizeMetadataEntries(properties)];
+
+		for (const entry of normalizeMetadataEntries(incoming)) {
+			const index = merged.findIndex((existing) => existing.key === entry.key);
+
+			if (index >= 0) merged[index] = entry;
+			else merged.push(entry);
+		}
+
+		updateProperties(merged);
 	}
 
 	async function insertMediaFiles(files: File[]) {
@@ -569,20 +648,30 @@
 
 	function scheduleSave() {
 		saveState = 'saving';
+		pendingSave = true;
 		saveTimer.schedule(() => {
 			void persistNow();
 		}, 350);
 	}
 
-	async function persistNow() {
+	async function persistNow({ notify = true }: { notify?: boolean } = {}) {
 		if (!editor) return;
 
+		pendingSave = false;
+
 		try {
+			const content = previewReturnContent ?? editor.getJSON();
+			// saveNotePage re-derives title/slug/tags/frontmatter from properties
+			// and the document's first H1.
 			const nextPage = await saveNotePage({
 				...page,
-				content: previewReturnContent ?? editor.getJSON()
+				properties: $state.snapshot(properties) as MetadataEntry[],
+				content
 			});
-			onSaved?.(nextPage);
+			// On teardown we save but must not notify: onSaved -> the page's
+			// slug-change redirect would fire during route transitions and revert
+			// navigation away from the editor.
+			if (notify) onSaved?.(nextPage);
 			lastSavedAt = nextPage.updatedAt;
 			saveState = 'saved';
 		} catch {
@@ -637,6 +726,14 @@
 	function closeHistoryPanel() {
 		clearHistoryPreview();
 		historyPanelOpen = false;
+	}
+
+	function openShortcutsPanel() {
+		shortcutsPanelOpen = true;
+	}
+
+	function closeShortcutsPanel() {
+		shortcutsPanelOpen = false;
 	}
 
 	function restoreHistoryEntry(entry: EditorHistoryEntry) {
@@ -979,7 +1076,11 @@
 	}
 
 	async function copyMarkdown() {
-		const markdown = getEditorMarkdown(editor);
+		if (!editor) return;
+
+		const content = editor.getJSON();
+		const draftPage = getDraftPage(content);
+		const markdown = serializeNotePageMarkdown(draftPage, content);
 		if (!markdown) return;
 
 		await navigator.clipboard.writeText(markdown);
@@ -992,9 +1093,41 @@
 	function downloadMarkdown() {
 		if (!editor) return;
 
-		void downloadNotePageExport(page, editor.getJSON());
+		const content = editor.getJSON();
+
+		void downloadNotePageExport(getDraftPage(content), content);
+	}
+
+	function getDraftPage(content: JSONContent): NotePageV1 {
+		const draft: NotePageV1 = {
+			...page,
+			properties: $state.snapshot(properties) as MetadataEntry[],
+			content
+		};
+
+		return { ...draft, ...resolveNotePageMetadata(draft, content) };
+	}
+
+	function startsWithEmptyTitle(content: JSONContent) {
+		// The document now leads with the title H1 (metadata lives on the page).
+		const first = content.type === 'doc' ? content.content?.[0] : undefined;
+
+		return (
+			first?.type === 'heading' && Number(first.attrs?.level) === 1 && !(first.content ?? []).length
+		);
+	}
+
+	function getInitialEditorContent(page: NotePageV1): JSONContent {
+		// `page` is a Svelte $state proxy, so its `content` is deeply proxied.
+		// ProseMirror retains proxy references for object-valued node attrs (e.g.
+		// component embed props), and those proxies can't be structuredClone'd
+		// into IndexedDB — which silently breaks every save. Snapshot to plain
+		// objects before the content ever reaches the editor.
+		return $state.snapshot(page.content) as JSONContent;
 	}
 </script>
+
+<svelte:window onkeydown={handleRichEditorKeydown} />
 
 <div class="rich-editor">
 	<input
@@ -1022,6 +1155,7 @@
 		embeds={embedActions}
 		onCopyMarkdown={copyMarkdown}
 		onDownloadMarkdown={downloadMarkdown}
+		onOpenShortcuts={openShortcutsPanel}
 		onToggleHistory={toggleHistoryPanel}
 		onInsertImage={openImagePicker}
 		onInsertVideo={openVideoPicker}
@@ -1038,6 +1172,8 @@
 		onPreview={previewHistoryEntry}
 		onClearPreview={clearHistoryPreview}
 	/>
+
+	<KeyboardShortcutsPanel visible={shortcutsPanelOpen} onClose={closeShortcutsPanel} />
 
 	{#if selectionToolbar.visible}
 		<div class="selection-anchor" style={selectionAnchorStyle} aria-hidden="true"></div>
@@ -1064,7 +1200,16 @@
 		onHost={updateEditorHost}
 		onDragOver={handleSurfaceDragOver}
 		onDrop={handleSurfaceDrop}
-	/>
+	>
+		{#snippet header()}
+			<MetadataPanel {properties} onChange={updateProperties} />
+		{/snippet}
+		<BlockHandle
+			{editor}
+			target={blockHandleTarget}
+			onElement={(element) => (blockHandleElement = element)}
+		/>
+	</EditorSurface>
 
 	{#if linkPopover.visible}
 		<LinkPopover

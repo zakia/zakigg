@@ -9,19 +9,15 @@ export type ComponentEmbedAttrs = {
 	props: Record<string, unknown>;
 };
 
-export type ComponentEmbedField = {
-	label?: string;
-	control?: 'text' | 'textarea' | 'number' | 'toggle' | 'select' | 'datetime-local' | 'json';
-	description?: string;
-	options?: readonly string[];
-};
-
+// The embed contract: a component plus a valibot props schema. The schema
+// validates persisted props; components are always live and own any editing
+// UI, persisting changes through the `updateProps` callback they receive
+// when rendered inside an editor.
 export type ComponentEmbedConfig<TSchema extends v.GenericSchema = v.GenericSchema> = {
 	id: string;
 	label: string;
 	icon?: string;
 	props: TSchema;
-	fields?: Record<string, ComponentEmbedField>;
 	initialProps?: () => v.InferInput<TSchema>;
 	insertable?: boolean;
 	crafts?: readonly string[];
@@ -29,7 +25,7 @@ export type ComponentEmbedConfig<TSchema extends v.GenericSchema = v.GenericSche
 
 export type RegisteredComponentEmbed<TSchema extends v.GenericSchema = v.GenericSchema> =
 	ComponentEmbedConfig<TSchema> & {
-		component: EmbedComponent;
+		load: () => Promise<EmbedComponent>;
 	};
 
 export type ComponentEmbedRegistry = ReturnType<typeof createComponentEmbedRegistry>;
@@ -63,24 +59,59 @@ export function registerComponentEmbed<
 ): RegisteredComponentEmbed<TSchema> {
 	return {
 		...config,
-		component: component as unknown as EmbedComponent
+		load: () => Promise.resolve(component as unknown as EmbedComponent)
+	};
+}
+
+// Lazy registration: the component module is only downloaded when a document
+// actually renders the embed, so heavy embeds cost nothing at page load.
+export function registerLazyComponentEmbed<TSchema extends v.GenericSchema>(
+	load: () => Promise<{ default: unknown }>,
+	config: ComponentEmbedConfig<TSchema>
+): RegisteredComponentEmbed<TSchema> {
+	return {
+		...config,
+		load: async () => (await load()).default as EmbedComponent
 	};
 }
 
 export function createComponentEmbedRegistry(entries: RegisteredComponentEmbed[]) {
 	const byId = new Map(entries.map((entry) => [entry.id, entry]));
+	const componentCache = new Map<string, Promise<EmbedComponent>>();
 
 	return {
 		all: entries,
 		insertable: (context: ComponentEmbedInsertContext = {}) =>
 			entries.filter((entry) => isInsertableEntry(entry, context)),
 		get: (id: string) => byId.get(id),
+		resolveComponent: (id: string) => resolveEmbedComponent(byId, componentCache, id),
 		createNode: (id: string, inputProps?: unknown) =>
 			createComponentEmbedNode(byId, id, inputProps),
 		parseProps: (id: string, inputProps: unknown) => parseComponentEmbedProps(byId, id, inputProps),
 		parseAttrs: (attrs: unknown) => parseComponentEmbedAttrs(byId, attrs),
 		validateDocument: (content: JSONContent) => validateComponentEmbeds(byId, content)
 	};
+}
+
+function resolveEmbedComponent(
+	entries: Map<string, RegisteredComponentEmbed>,
+	cache: Map<string, Promise<EmbedComponent>>,
+	id: string
+): Promise<EmbedComponent> {
+	const entry = entries.get(id);
+
+	if (!entry) return Promise.reject(new Error(`Unknown component embed: ${id}`));
+
+	let pending = cache.get(id);
+
+	if (!pending) {
+		pending = entry.load();
+		// A failed load should retry on the next render, not cache the error.
+		pending.catch(() => cache.delete(id));
+		cache.set(id, pending);
+	}
+
+	return pending;
 }
 
 function isInsertableEntry(entry: RegisteredComponentEmbed, context: ComponentEmbedInsertContext) {

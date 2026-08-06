@@ -48,6 +48,7 @@
 		"@tailwindcss/vite": "4.1.18",
 		"@tiptap/core": "^3.27.1",
 		"@tiptap/extension-document": "^3.27.1",
+		"@tiptap/extension-drag-handle": "3.27.1",
 		"@tiptap/extension-link": "^3.27.1",
 		"@tiptap/extension-placeholder": "^3.27.1",
 		"@tiptap/markdown": "^3.27.1",

@@ -33,8 +33,14 @@
 	{#if header}
 		<div class="editor-header">{@render header()}</div>
 	{/if}
-	<div class="editor-host" bind:this={host}></div>
-	{@render children?.()}
+	<!-- Content-space overlays (the block handle) are absolutely positioned
+	     against this wrapper, whose origin is exactly the document's origin.
+	     They must NOT be positioned against .editor-surface: anything rendered
+	     above the document (the header) would offset them by its height. -->
+	<div class="editor-body">
+		<div class="editor-host" bind:this={host}></div>
+		{@render children?.()}
+	</div>
 </div>
 
 <style>
@@ -44,6 +50,16 @@
 		flex: 1;
 		min-height: 0;
 		overflow: auto;
+		position: relative;
+	}
+
+	/* Positioned so it — not .editor-surface — is the offset parent for
+	   content-space overlays, keeping their origin pinned to the document. */
+	.editor-body {
+		display: flex;
+		flex-direction: column;
+		flex: 1;
+		min-height: 0;
 		position: relative;
 	}
 

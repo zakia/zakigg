@@ -12,6 +12,9 @@ import { Table, TableCell, TableHeader, TableKit, TableRow } from './tables';
 
 export type EditorExtensionOptions = {
 	onBlockHandleTargetChange?: (target: BlockHandleTarget | null) => void;
+	// Resolves the DOM element the block-drag-handle positions and drags. It is
+	// owned by the Svelte layer and read once, when ProseMirror plugins init.
+	getBlockHandleElement?: () => HTMLElement | null;
 };
 
 export function createEditorExtensions(
@@ -40,6 +43,7 @@ export function createEditorExtensions(
 		}),
 		BlockHandle.configure({
 			registry: componentEmbedRegistry,
+			getElement: options.getBlockHandleElement,
 			onTargetChange: options.onBlockHandleTargetChange
 		}),
 		Table,

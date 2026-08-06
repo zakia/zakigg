@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { Editor, posToDOMRect, type JSONContent, type Range } from '@tiptap/core';
 	import type { EditorView } from '@tiptap/pm/view';
 	import { craftComponentEmbeds } from '$lib/crafts/component-embeds';
@@ -93,6 +93,8 @@
 	let properties = $state<MetadataEntry[]>(
 		normalizeMetadataEntries($state.snapshot(page.properties))
 	);
+	// The handle element the drag-handle extension positions and binds drag to.
+	let blockHandleElement = $state<HTMLElement>();
 	let imageInput = $state<HTMLInputElement>();
 	let videoInput = $state<HTMLInputElement>();
 	let editor = $state<Editor>();
@@ -165,12 +167,18 @@
 		};
 
 		async function setupEditor() {
+			// The block-handle element is owned by <BlockHandle> in the markup;
+			// flush pending renders/effects so its ref is populated before the
+			// editor's ProseMirror plugins read it during construction.
+			await tick();
+
 			if (destroyed || !editorHost) return;
 
 			const initialContent = getInitialEditorContent(page);
 			const instance = new Editor({
 				element: editorHost,
 				extensions: createEditorExtensions(craftComponentEmbeds, resolveNoteAssetObjectUrl, {
+					getBlockHandleElement: () => blockHandleElement ?? null,
 					onBlockHandleTargetChange: (nextTarget) => {
 						blockHandleTarget = nextTarget;
 					}
@@ -1196,7 +1204,11 @@
 		{#snippet header()}
 			<MetadataPanel {properties} onChange={updateProperties} />
 		{/snippet}
-		<BlockHandle {editor} target={blockHandleTarget} />
+		<BlockHandle
+			{editor}
+			target={blockHandleTarget}
+			onElement={(element) => (blockHandleElement = element)}
+		/>
 	</EditorSurface>
 
 	{#if linkPopover.visible}

@@ -15,9 +15,10 @@
 	let buttonContainer = $state<HTMLElement>();
 	let signInFailed = $state(false);
 
-	onMount(() => {
+	onMount(async () => {
 		startSyncEngine();
-		void refreshSyncSession();
+		await refreshSyncSession();
+		if (syncSession.status === 'signed-in') await handleSignedIn();
 	});
 
 	// Render the official Google button whenever the signed-out container is in

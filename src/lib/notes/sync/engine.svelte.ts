@@ -3,6 +3,7 @@ import {
 	clearDirtyFlag,
 	getDirtySyncRecords,
 	getSyncCheckpoint,
+	getSyncStateRow,
 	hasPendingSyncWork,
 	listSyncTombstones,
 	loadNoteAsset,
@@ -11,7 +12,7 @@ import {
 	setSyncCheckpoint
 } from '../storage';
 import { applyPullBatch } from './apply';
-import { MAX_CONTENT_JSON_LENGTH, assetToPayload, pageToPayload } from './protocol';
+import { assetToPayload, pageToPayload } from './protocol';
 import { syncSession } from './session.svelte';
 import { onLocalMutation } from './signals';
 import { pullChanges, pushChanges } from './sync.remote';
@@ -22,15 +23,15 @@ const DEBOUNCE_MS = 2_000;
 const PERIODIC_MS = 60_000;
 const MIN_BACKOFF_MS = 5_000;
 const MAX_BACKOFF_MS = 300_000;
-const PULL_LIMIT = 200;
+const PULL_LIMIT = 25;
 const MAX_PULL_ROUNDS = 25;
+const PAGE_PUSH_BATCH_SIZE = 1;
+const METADATA_PUSH_BATCH_SIZE = 100;
 const SYNC_ENROLLED_FLAG_KEY = 'zaki.gg:notes:sync:enrolled';
 
 export const syncState = $state({
 	status: 'idle' as SyncStatus,
-	lastSyncedAt: null as string | null,
-	// Notes too large for Firestore's doc limit, surfaced in the UI.
-	oversizedPageIds: [] as string[]
+	lastSyncedAt: null as string | null
 });
 
 let started = false;
@@ -55,6 +56,9 @@ export function startSyncEngine(): void {
 	});
 
 	window.addEventListener('online', () => syncNow());
+	window.addEventListener('offline', () => {
+		if (signedIn()) syncState.status = 'pending';
+	});
 	document.addEventListener('visibilitychange', () => {
 		if (!document.hidden) syncNow();
 	});
@@ -144,37 +148,43 @@ async function pushCycle(): Promise<void> {
 
 	if (!pages.length && !assets.length && !tombstones.length) return;
 
-	const pagePayloads = pages.map(pageToPayload);
-	// Oversized notes stay local-only (and dirty); pushing them would fail the
-	// whole batch at validation.
-	const oversized = pagePayloads.filter((p) => p.contentJson.length > MAX_CONTENT_JSON_LENGTH);
-	const pushablePages = pagePayloads.filter((p) => p.contentJson.length <= MAX_CONTENT_JSON_LENGTH);
+	const pagePayloads = (
+		await Promise.all(
+			pages.map(async (page) => {
+				const state = await getSyncStateRow(page.id);
+				return state ? pageToPayload(page, state.mutationId) : null;
+			})
+		)
+	).filter((page) => page !== null);
+	const assetPayloads = (
+		await Promise.all(
+			assets.map(async (asset) => {
+				const state = await getSyncStateRow(asset.id);
+				return state ? assetToPayload(asset, state.mutationId) : null;
+			})
+		)
+	).filter((asset) => asset !== null);
 
-	syncState.oversizedPageIds = oversized.map((p) => p.id);
-
-	const result = await pushChanges({
-		pages: pushablePages,
-		assets: assets.map(assetToPayload),
-		tombstones: tombstones.map(({ id, kind, deletedAt }) => ({ id, kind, deletedAt }))
-	});
-
-	// 'stale' also clears the dirty flag: the server kept a newer version,
-	// which arrives on the next pull.
-	for (const page of pages) {
-		if (syncState.oversizedPageIds.includes(page.id)) continue;
-		await clearDirtyFlag(page.id, 'page', page.updatedAt);
-	}
-	for (const asset of assets) {
-		await clearDirtyFlag(asset.id, 'asset', asset.updatedAt);
-	}
-	// A stale tombstone means a newer remote edit exists; it resurrects the
-	// record on pull, so the local tombstone is finished either way.
-	for (const tombstone of tombstones) {
-		await removeSyncTombstone(tombstone.id);
+	for (const batch of chunks(pagePayloads, PAGE_PUSH_BATCH_SIZE)) {
+		await pushChanges({ pages: batch, assets: [], tombstones: [] });
+		for (const payload of batch) {
+			await clearDirtyFlag(payload.id, 'page', payload.mutationId);
+		}
 	}
 
-	for (const assetId of result.needsBlob) {
-		await uploadAssetBlob(assetId);
+	for (const batch of chunks(assetPayloads, METADATA_PUSH_BATCH_SIZE)) {
+		const result = await pushChanges({ pages: [], assets: batch, tombstones: [] });
+		for (const payload of batch) {
+			await clearDirtyFlag(payload.id, 'asset', payload.mutationId);
+		}
+		for (const assetId of result.needsBlob) await uploadAssetBlob(assetId);
+	}
+
+	for (const batch of chunks(tombstones, METADATA_PUSH_BATCH_SIZE)) {
+		await pushChanges({ pages: [], assets: [], tombstones: batch });
+		// A stale tombstone means a newer remote edit exists; it resurrects the
+		// record on pull, so the local tombstone is finished either way.
+		for (const tombstone of batch) await removeSyncTombstone(tombstone.id);
 	}
 }
 
@@ -239,4 +249,12 @@ function setEnrolledFlag() {
 		// Best effort: worst case the next sign-in re-marks everything dirty,
 		// which only costs a redundant push.
 	}
+}
+
+function chunks<T>(items: T[], size: number): T[][] {
+	const result: T[][] = [];
+	for (let index = 0; index < items.length; index += size) {
+		result.push(items.slice(index, index + size));
+	}
+	return result;
 }

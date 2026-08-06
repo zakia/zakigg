@@ -8,6 +8,8 @@ locals {
     "iamcredentials.googleapis.com",
     "iam.googleapis.com",
     "cloudresourcemanager.googleapis.com",
+    "firebase.googleapis.com",
+    "firebasehosting.googleapis.com",
   ]
 }
 

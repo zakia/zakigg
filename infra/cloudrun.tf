@@ -1,7 +1,8 @@
 resource "google_cloud_run_v2_service" "app" {
-  name     = var.service_name
-  location = var.region
-  ingress  = "INGRESS_TRAFFIC_ALL"
+  name                = var.service_name
+  location            = var.region
+  ingress             = "INGRESS_TRAFFIC_ALL"
+  deletion_protection = true
 
   template {
     service_account = google_service_account.app_runtime.email
@@ -23,8 +24,16 @@ resource "google_cloud_run_v2_service" "app" {
       }
 
       env {
-        name  = "ORIGIN"
-        value = var.origin
+        name  = "GCP_PROJECT_ID"
+        value = var.project_id
+      }
+      env {
+        name  = "PROTOCOL_HEADER"
+        value = "x-forwarded-proto"
+      }
+      env {
+        name  = "HOST_HEADER"
+        value = "x-forwarded-host"
       }
       env {
         name  = "BODY_SIZE_LIMIT"
@@ -70,21 +79,4 @@ resource "google_cloud_run_v2_service_iam_member" "public" {
   location = google_cloud_run_v2_service.app.location
   role     = "roles/run.invoker"
   member   = "allUsers"
-}
-
-# Requires the domain to be verified for this project first:
-#   gcloud domains verify <domain>
-# The DNS records to add at the registrar come out as `domain_dns_records`.
-resource "google_cloud_run_domain_mapping" "app" {
-  count    = var.custom_domain == "" ? 0 : 1
-  name     = var.custom_domain
-  location = var.region
-
-  metadata {
-    namespace = var.project_id
-  }
-
-  spec {
-    route_name = google_cloud_run_v2_service.app.name
-  }
 }

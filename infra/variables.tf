@@ -6,7 +6,7 @@ variable "project_id" {
 variable "region" {
   description = "Region for Cloud Run, Artifact Registry, Firestore and the assets bucket"
   type        = string
-  default     = "us-central1"
+  default     = "northamerica-northeast2"
 }
 
 variable "service_name" {
@@ -20,12 +20,6 @@ variable "github_repo" {
   type        = string
 }
 
-variable "origin" {
-  description = "Public origin the app is served from"
-  type        = string
-  default     = "https://zaki.gg"
-}
-
 variable "allowed_email" {
   description = "The single Google account email allowed to use notes sync"
   type        = string
@@ -37,7 +31,13 @@ variable "google_client_id" {
 }
 
 variable "custom_domain" {
-  description = "Custom domain to map to the Cloud Run service (empty to skip). The domain must be verified first: gcloud domains verify <domain>"
+  description = "Custom domain served by Firebase Hosting in front of Cloud Run (empty to skip)"
+  type        = string
+  default     = "zaki.gg"
+}
+
+variable "hosting_site_id" {
+  description = "Globally unique Firebase Hosting site id; defaults to the GCP project id"
   type        = string
   default     = ""
 }

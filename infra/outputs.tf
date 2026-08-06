@@ -16,6 +16,13 @@ output "deployer_service_account" {
 }
 
 output "domain_dns_records" {
-  description = "DNS records to create at the registrar for the custom domain"
-  value       = try(google_cloud_run_domain_mapping.app[0].status[0].resource_records, [])
+  description = "Firebase Hosting ownership and serving DNS records to create at the registrar"
+  value = var.custom_domain == "" ? null : {
+    required_dns_updates = try(google_firebase_hosting_custom_domain.app[0].required_dns_updates, null)
+    cert_verification    = try(google_firebase_hosting_custom_domain.app[0].cert[0].verification, null)
+  }
+}
+
+output "hosting_preview_url" {
+  value = google_firebase_hosting_site.app.default_url
 }

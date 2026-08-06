@@ -1,24 +1,27 @@
 import type { JSONContent } from '@tiptap/core';
-import type { NotesAssetV1, SyncTombstone } from '../storage';
+import type { MetadataEntry } from '../metadata-block';
 import { parseStoredPage, type NotePageV1 } from '../types';
+import type { NotesAssetV1, SyncKind } from '../storage';
 
-// Wire/Firestore shapes shared by client and server. Tiptap content and
-// frontmatter travel as JSON strings: byte-exact round-trips, no Firestore
-// nested-array restrictions, one index entry instead of thousands.
+export type MutationVersion = {
+	updatedAt: string;
+	mutationId: string;
+};
 
-export type RemotePageDoc = {
+export type PagePayload = {
 	id: string;
 	slug: string;
 	title: string;
 	tags: string[];
 	createdAt: string;
 	updatedAt: string;
+	mutationId: string;
 	contentJson: string;
+	propertiesJson: string;
 	frontmatterJson?: string;
-	syncedAt: string;
 };
 
-export type RemoteAssetDoc = {
+export type AssetPayload = {
 	id: string;
 	mediaType: string;
 	name: string;
@@ -26,16 +29,30 @@ export type RemoteAssetDoc = {
 	pageIds: string[];
 	createdAt: string;
 	updatedAt: string;
-	blobUploaded: boolean;
-	syncedAt: string;
+	mutationId: string;
+	blobUploaded?: boolean;
 };
 
-export type RemoteTombstoneDoc = SyncTombstone & { syncedAt: string };
+export type TombstonePayload = {
+	id: string;
+	kind: SyncKind;
+	deletedAt: string;
+	mutationId: string;
+};
 
-// Firestore docs are capped at 1 MiB; leave headroom for the other fields.
-export const MAX_CONTENT_JSON_LENGTH = 900_000;
+export type RemotePageDoc = PagePayload & { serverVersion: string };
+export type RemoteAssetDoc = AssetPayload & { serverVersion: string; blobUploaded: boolean };
+export type RemoteTombstoneDoc = TombstonePayload & { serverVersion: string };
 
-export function pageToPayload(page: NotePageV1) {
+export type PullBatch = {
+	pages: RemotePageDoc[];
+	assets: RemoteAssetDoc[];
+	tombstones: RemoteTombstoneDoc[];
+	checkpoint: string | null;
+	hasMore: boolean;
+};
+
+export function pageToPayload(page: NotePageV1, mutationId: string): PagePayload {
 	return {
 		id: page.id,
 		slug: page.slug,
@@ -43,37 +60,40 @@ export function pageToPayload(page: NotePageV1) {
 		tags: page.tags,
 		createdAt: page.createdAt,
 		updatedAt: page.updatedAt,
+		mutationId,
 		contentJson: JSON.stringify(page.content),
-		frontmatterJson: page.frontmatter ? JSON.stringify(page.frontmatter) : undefined
+		propertiesJson: JSON.stringify(page.properties),
+		...(page.frontmatter ? { frontmatterJson: JSON.stringify(page.frontmatter) } : {})
 	};
 }
 
-export function payloadToPage(doc: RemotePageDoc): NotePageV1 | null {
-	let content: JSONContent;
-	let frontmatter: unknown;
-
+export function payloadToPage(payload: RemotePageDoc): NotePageV1 | null {
 	try {
-		content = JSON.parse(doc.contentJson);
-		frontmatter = doc.frontmatterJson ? JSON.parse(doc.frontmatterJson) : undefined;
+		const content = JSON.parse(payload.contentJson) as JSONContent;
+		const properties = JSON.parse(payload.propertiesJson) as MetadataEntry[];
+		const frontmatter = payload.frontmatterJson
+			? (JSON.parse(payload.frontmatterJson) as NotePageV1['frontmatter'])
+			: undefined;
+
+		return parseStoredPage({
+			version: 1,
+			editor: 'tiptap',
+			id: payload.id,
+			slug: payload.slug,
+			title: payload.title,
+			tags: payload.tags,
+			properties,
+			...(frontmatter ? { frontmatter } : {}),
+			content,
+			createdAt: payload.createdAt,
+			updatedAt: payload.updatedAt
+		});
 	} catch {
 		return null;
 	}
-
-	return parseStoredPage({
-		version: 1,
-		editor: 'tiptap',
-		id: doc.id,
-		slug: doc.slug,
-		title: doc.title,
-		tags: doc.tags,
-		frontmatter,
-		content,
-		createdAt: doc.createdAt,
-		updatedAt: doc.updatedAt
-	});
 }
 
-export function assetToPayload(asset: NotesAssetV1) {
+export function assetToPayload(asset: NotesAssetV1, mutationId: string): AssetPayload {
 	return {
 		id: asset.id,
 		mediaType: asset.mediaType,
@@ -81,34 +101,40 @@ export function assetToPayload(asset: NotesAssetV1) {
 		size: asset.size,
 		pageIds: asset.pageIds ?? [],
 		createdAt: asset.createdAt,
-		updatedAt: asset.updatedAt
+		updatedAt: asset.updatedAt,
+		mutationId
 	};
 }
 
-export function payloadToAssetMeta(doc: RemoteAssetDoc): Omit<NotesAssetV1, 'blob'> {
+export function payloadToAssetMeta(payload: RemoteAssetDoc): Omit<NotesAssetV1, 'blob'> {
 	return {
-		id: doc.id,
-		mediaType: doc.mediaType,
-		name: doc.name,
-		size: doc.size,
-		pageIds: doc.pageIds,
-		createdAt: doc.createdAt,
-		updatedAt: doc.updatedAt
+		id: payload.id,
+		mediaType: payload.mediaType,
+		name: payload.name,
+		size: payload.size,
+		pageIds: payload.pageIds,
+		createdAt: payload.createdAt,
+		updatedAt: payload.updatedAt
 	};
 }
 
-// Deterministic LWW winner shared by server and client: newer updatedAt wins;
-// on an exact tie the larger id wins so every replica picks the same winner.
+export function compareMutationVersions(a: MutationVersion, b: MutationVersion): number {
+	const timeDifference = Date.parse(a.updatedAt) - Date.parse(b.updatedAt);
+	if (timeDifference !== 0) return timeDifference;
+
+	return a.mutationId.localeCompare(b.mutationId);
+}
+
 export function remoteWins(
 	remoteUpdatedAt: string,
-	remoteId: string,
+	remoteMutationId: string,
 	localUpdatedAt: string,
-	localId: string
+	localMutationId: string
 ): boolean {
-	const remote = Date.parse(remoteUpdatedAt);
-	const local = Date.parse(localUpdatedAt);
-
-	if (remote !== local) return remote > local;
-
-	return remoteId > localId;
+	return (
+		compareMutationVersions(
+			{ updatedAt: remoteUpdatedAt, mutationId: remoteMutationId },
+			{ updatedAt: localUpdatedAt, mutationId: localMutationId }
+		) > 0
+	);
 }

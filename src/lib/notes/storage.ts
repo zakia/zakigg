@@ -49,6 +49,7 @@ export type SyncStateRow = {
 	id: string;
 	kind: SyncKind;
 	dirty: boolean;
+	mutationId: string;
 	// The record's updatedAt at the moment the server last acknowledged it.
 	lastSyncedAt?: string;
 };
@@ -57,6 +58,7 @@ export type SyncTombstone = {
 	id: string;
 	kind: SyncKind;
 	deletedAt: string;
+	mutationId: string;
 };
 
 interface NotesDB extends DBSchema {
@@ -301,9 +303,10 @@ export async function deleteNotePage(pageId: string): Promise<void> {
 	await tx.objectStore(PAGES_STORE_NAME).delete(pageId);
 	await tx.objectStore(SYNC_STATE_STORE_NAME).delete(pageId);
 	if (existed) {
+		const deletedAt = new Date().toISOString();
 		await tx
 			.objectStore(TOMBSTONES_STORE_NAME)
-			.put({ id: pageId, kind: 'page', deletedAt: new Date().toISOString() }, pageId);
+			.put({ id: pageId, kind: 'page', deletedAt, mutationId: createMutationId() }, pageId);
 	}
 	await tx.done;
 
@@ -383,9 +386,10 @@ export async function deleteNoteAsset(assetId: string): Promise<void> {
 	await tx.objectStore(ASSETS_STORE_NAME).delete(assetId);
 	await tx.objectStore(SYNC_STATE_STORE_NAME).delete(assetId);
 	if (existed) {
+		const deletedAt = new Date().toISOString();
 		await tx
 			.objectStore(TOMBSTONES_STORE_NAME)
-			.put({ id: assetId, kind: 'asset', deletedAt: new Date().toISOString() }, assetId);
+			.put({ id: assetId, kind: 'asset', deletedAt, mutationId: createMutationId() }, assetId);
 	}
 	await tx.done;
 
@@ -405,7 +409,7 @@ export async function resolveNoteAssetObjectUrl(assetId: string) {
 // bumping updatedAt, so pulled changes never re-push. Everything else here is
 // the queue/checkpoint plumbing the sync engine consumes.
 
-export async function applyRemotePage(page: NotePageV1): Promise<void> {
+export async function applyRemotePage(page: NotePageV1, mutationId: string): Promise<void> {
 	if (!browser) return;
 
 	const db = await getDb();
@@ -417,13 +421,17 @@ export async function applyRemotePage(page: NotePageV1): Promise<void> {
 	await tx.objectStore(PAGES_STORE_NAME).put(page, page.id);
 	await tx
 		.objectStore(SYNC_STATE_STORE_NAME)
-		.put({ id: page.id, kind: 'page', dirty: false, lastSyncedAt: page.updatedAt }, page.id);
+		.put(
+			{ id: page.id, kind: 'page', dirty: false, mutationId, lastSyncedAt: page.updatedAt },
+			page.id
+		);
 	await tx.objectStore(TOMBSTONES_STORE_NAME).delete(page.id);
 	await tx.done;
 }
 
 export async function applyRemoteAssetMeta(
 	asset: Omit<NotesAssetV1, 'blob'>,
+	mutationId: string,
 	blob?: Blob
 ): Promise<void> {
 	if (!browser) return;
@@ -443,7 +451,10 @@ export async function applyRemoteAssetMeta(
 	await tx.objectStore(ASSETS_STORE_NAME).put({ ...asset, blob: nextBlob }, asset.id);
 	await tx
 		.objectStore(SYNC_STATE_STORE_NAME)
-		.put({ id: asset.id, kind: 'asset', dirty: false, lastSyncedAt: asset.updatedAt }, asset.id);
+		.put(
+			{ id: asset.id, kind: 'asset', dirty: false, mutationId, lastSyncedAt: asset.updatedAt },
+			asset.id
+		);
 	await tx.objectStore(TOMBSTONES_STORE_NAME).delete(asset.id);
 	await tx.done;
 }
@@ -513,7 +524,7 @@ export async function hasPendingSyncWork(): Promise<boolean> {
 export async function clearDirtyFlag(
 	id: string,
 	kind: SyncKind,
-	pushedUpdatedAt: string
+	pushedMutationId: string
 ): Promise<void> {
 	if (!browser) return;
 
@@ -521,11 +532,12 @@ export async function clearDirtyFlag(
 	const db = await getDb();
 	const tx = db.transaction([recordStore, SYNC_STATE_STORE_NAME], 'readwrite');
 	const record = (await tx.objectStore(recordStore).get(id)) as { updatedAt?: string } | undefined;
+	const state = await tx.objectStore(SYNC_STATE_STORE_NAME).get(id);
 
-	if (record?.updatedAt === pushedUpdatedAt) {
+	if (record?.updatedAt && state?.mutationId === pushedMutationId) {
 		await tx
 			.objectStore(SYNC_STATE_STORE_NAME)
-			.put({ id, kind, dirty: false, lastSyncedAt: pushedUpdatedAt }, id);
+			.put({ ...state, id, kind, dirty: false, lastSyncedAt: record.updatedAt }, id);
 	}
 
 	await tx.done;
@@ -697,7 +709,16 @@ type SyncStateWritableStore = {
 async function markDirtyInTx(store: SyncStateWritableStore, id: string, kind: SyncKind) {
 	const existing = await store.get(id);
 
-	await store.put({ id, kind, dirty: true, lastSyncedAt: existing?.lastSyncedAt }, id);
+	await store.put(
+		{
+			id,
+			kind,
+			dirty: true,
+			mutationId: createMutationId(),
+			lastSyncedAt: existing?.lastSyncedAt
+		},
+		id
+	);
 }
 
 async function attachAssetsToPage(pageId: string, assetIds: string[]) {
@@ -823,4 +844,8 @@ function isNoteAsset(asset: NotesAssetV1 | null): asset is NotesAssetV1 {
 
 function createAssetId() {
 	return `asset_${crypto.randomUUID?.() ?? `${Date.now()}_${Math.random().toString(36).slice(2)}`}`;
+}
+
+function createMutationId() {
+	return `mutation_${crypto.randomUUID?.() ?? `${Date.now()}_${Math.random().toString(36).slice(2)}`}`;
 }

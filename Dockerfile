@@ -12,6 +12,8 @@ RUN pnpm prune --prod
 FROM node:22-slim
 WORKDIR /app
 ENV NODE_ENV=production
+ENV PORT=8080
+ENV HOST=0.0.0.0
 COPY --from=build /app/build ./build
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/package.json ./

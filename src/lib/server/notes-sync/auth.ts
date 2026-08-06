@@ -7,6 +7,13 @@ import { OAuth2Client } from 'google-auth-library';
 export const SESSION_COOKIE_NAME = 'notes_sync_session';
 export const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
 
+export type SyncUser = {
+	sub: string;
+	email: string;
+};
+
+type SessionPayload = SyncUser & { expiresAt: number };
+
 let oauthClient: OAuth2Client | null = null;
 
 function getSessionSecret(): string {
@@ -23,57 +30,50 @@ export function getGoogleClientId(): string {
 	return clientId;
 }
 
-// Verifies a Google Identity Services ID-token credential and enforces the
-// single-user allowlist. Returns the verified email.
-export async function verifyGoogleCredential(credential: string): Promise<string> {
+export async function verifyGoogleCredential(credential: string): Promise<SyncUser> {
 	const clientId = getGoogleClientId();
 	const allowedEmail = env.NOTES_SYNC_ALLOWED_EMAIL;
-
 	if (!allowedEmail) throw error(500, 'NOTES_SYNC_ALLOWED_EMAIL is not configured');
 
 	oauthClient ??= new OAuth2Client(clientId);
 
-	let email: string | undefined;
-	let emailVerified: boolean | undefined;
-
 	try {
 		const ticket = await oauthClient.verifyIdToken({ idToken: credential, audience: clientId });
 		const payload = ticket.getPayload();
-		email = payload?.email;
-		emailVerified = payload?.email_verified;
-	} catch {
+		const email = payload?.email;
+		const sub = payload?.sub;
+
+		if (!sub || !email || !payload.email_verified) {
+			throw error(401, 'Google account is missing a verified identity');
+		}
+		if (email.toLowerCase() !== allowedEmail.toLowerCase()) {
+			throw error(403, 'This account is not allowed to sync notes');
+		}
+
+		return { sub, email };
+	} catch (cause) {
+		if (cause && typeof cause === 'object' && 'status' in cause) throw cause;
 		throw error(401, 'Invalid Google credential');
 	}
-
-	if (!email || !emailVerified) throw error(401, 'Google account email is not verified');
-	if (email.toLowerCase() !== allowedEmail.toLowerCase()) {
-		throw error(403, 'This account is not allowed to sync notes');
-	}
-
-	return email;
 }
 
-// Stateless session cookie: base64url(email).expiryEpochSeconds.hmac
-export function createSessionCookieValue(email: string): string {
-	const expiry = Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS;
-	const encodedEmail = Buffer.from(email, 'utf8').toString('base64url');
-	const signature = signSession(encodedEmail, expiry);
-
-	return `${encodedEmail}.${expiry}.${signature}`;
+export function createSessionCookieValue(user: SyncUser): string {
+	const payload: SessionPayload = {
+		...user,
+		expiresAt: Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS
+	};
+	const encodedPayload = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
+	return `${encodedPayload}.${signSession(encodedPayload)}`;
 }
 
-export function verifySessionCookieValue(value: string): { email: string } | null {
-	const [encodedEmail, expiryRaw, signature] = value.split('.');
-	if (!encodedEmail || !expiryRaw || !signature) return null;
-
-	const expiry = Number(expiryRaw);
-	if (!Number.isFinite(expiry) || expiry * 1000 < Date.now()) return null;
+export function verifySessionCookieValue(value: string): SyncUser | null {
+	const [encodedPayload, signature] = value.split('.');
+	if (!encodedPayload || !signature) return null;
 
 	let expected: string;
 	try {
-		expected = signSession(encodedEmail, expiry);
+		expected = signSession(encodedPayload);
 	} catch {
-		// Session secret not configured; treat every session as invalid.
 		return null;
 	}
 
@@ -82,17 +82,33 @@ export function verifySessionCookieValue(value: string): { email: string } | nul
 	if (expectedBuffer.length !== actualBuffer.length) return null;
 	if (!timingSafeEqual(expectedBuffer, actualBuffer)) return null;
 
-	return { email: Buffer.from(encodedEmail, 'base64url').toString('utf8') };
+	try {
+		const payload = JSON.parse(
+			Buffer.from(encodedPayload, 'base64url').toString('utf8')
+		) as Partial<SessionPayload>;
+		const allowedEmail = env.NOTES_SYNC_ALLOWED_EMAIL;
+
+		if (
+			typeof payload.sub !== 'string' ||
+			typeof payload.email !== 'string' ||
+			typeof payload.expiresAt !== 'number' ||
+			payload.expiresAt * 1000 < Date.now() ||
+			!allowedEmail ||
+			payload.email.toLowerCase() !== allowedEmail.toLowerCase()
+		)
+			return null;
+
+		return { sub: payload.sub, email: payload.email };
+	} catch {
+		return null;
+	}
 }
 
-export function assertSyncUser(locals: App.Locals): { email: string } {
+export function assertSyncUser(locals: App.Locals): SyncUser {
 	if (!locals.syncUser) throw error(401, 'Sign in to sync notes');
-
 	return locals.syncUser;
 }
 
-function signSession(encodedEmail: string, expiry: number): string {
-	return createHmac('sha256', getSessionSecret())
-		.update(`${encodedEmail}.${expiry}`)
-		.digest('base64url');
+function signSession(encodedPayload: string): string {
+	return createHmac('sha256', getSessionSecret()).update(encodedPayload).digest('base64url');
 }

@@ -1,77 +1,186 @@
-# Deployment & Notes Sync Runbook
+# Google Cloud deployment and Notes sync
 
-The app deploys to **Google Cloud Run** as a container (adapter-node, `Dockerfile`),
-with all infrastructure in Terraform under `infra/`. Notes sync uses **Firestore**
-(page/asset metadata + tombstones) and a **GCS bucket** (asset blobs), accessed by
-the Cloud Run service account via ADC — no key files anywhere.
+The SvelteKit app runs on Cloud Run in Toronto. Artifact Registry stores the
+container image, Firestore stores note metadata and the ordered sync change
+log, and a private Cloud Storage bucket stores complete note bodies and assets.
+Firebase Hosting is the stable HTTPS/custom-domain front door and forwards all
+requests to Cloud Run.
 
-## One-time bootstrap
+IndexedDB remains the immediate local store. Editing never waits for the
+network; signed-in devices push and pull in the background.
 
-Only **one** step is genuinely manual — creating the OAuth client (Google has
-no public API for non-IAP OAuth web clients; the IAP-scoped API produces
-clients that don't work for Google Sign-In). Everything else is scripted.
+## What is automatic and what is manual
 
-1. **Create the GCP project** (or pick an existing one) and note the project id.
+Terraform manages the Google APIs, Artifact Registry, Cloud Run, Firestore,
+the weekly Firestore backup schedule, Cloud Storage, Firebase Hosting, the
+custom-domain association, service accounts, IAM, Secret Manager, and GitHub
+Workload Identity Federation.
 
-2. **OAuth client** (console-only): GCP console → APIs & Services →
-   Credentials → Create OAuth client ID → _Web application_.
-   - Authorized JavaScript origins: `https://zaki.gg` and `http://localhost:5173`
-   - No redirect URIs needed (Google Identity Services popup flow) and the
-     client secret is unused — sync only verifies ID tokens against the client id.
-   - Consent screen: External; publish it (the server allowlists a single email
-     anyway via `NOTES_SYNC_ALLOWED_EMAIL`).
+Two operations remain manual:
 
-3. **Fill in tfvars and run the bootstrap script** (needs `gcloud`, `terraform`,
-   `gh`, all authed):
+1. Creating the Google Identity Services OAuth web client in Cloud Console.
+2. Adding the DNS records Terraform receives from Firebase at the domain
+   registrar. Terraform deliberately does not manage the registrar account.
 
-   ```sh
-   cp infra/terraform.tfvars.example infra/terraform.tfvars   # project id, repo, client id
-   ./scripts/bootstrap.sh
-   ```
+## 1. Prerequisites
 
-   The script is idempotent and does: state bucket → `terraform init` +
-   `apply` → session secret (generated, never enters TF state) → GitHub Actions
-   repo variables (`GCP_PROJECT_ID`, `WIF_PROVIDER`, `DEPLOYER_SA` — none are
-   secret thanks to Workload Identity Federation).
+Install and authenticate these tools:
 
-4. **First deploy**: push to `main` (or run the _Deploy_ workflow manually).
-   CI builds the image, pushes it to Artifact Registry, and swaps the Cloud Run
-   image; all other service config stays in Terraform.
+```sh
+gcloud auth login
+gcloud auth application-default login
+gh auth login
+terraform version
+```
 
-5. **Domain** (optional, Terraform-managed): verify ownership once with
-   `gcloud domains verify zaki.gg`, set `custom_domain = "zaki.gg"` in
-   `infra/terraform.tfvars`, re-run `./scripts/bootstrap.sh`, then create the
-   DNS records shown by `terraform -chdir=infra output domain_dns_records` at
-   the registrar.
+Create or select a billing-enabled GCP project. Firestore's location is
+effectively permanent after creation; this configuration intentionally uses
+`northamerica-northeast2` (Toronto) for Cloud Run, Firestore, Cloud Storage,
+Artifact Registry, and Terraform state.
+
+## 2. Create the Google sign-in client
+
+In Google Cloud Console, open **Google Auth Platform → Clients**, create a
+**Web application** client, and add these Authorized JavaScript origins:
+
+- `https://zaki.gg`
+- `https://YOUR_HOSTING_SITE_ID.web.app`
+- `http://localhost:5173`
+
+The default Hosting site id is the GCP project id. No redirect URI or client
+secret is required because the app uses the Google Identity Services popup and
+verifies its ID token on the server.
+
+Copy the client id ending in `.apps.googleusercontent.com`.
+
+## 3. Configure and bootstrap Terraform
+
+```sh
+cp infra/terraform.tfvars.example infra/terraform.tfvars
+```
+
+Fill in the project id, allowed Google email, OAuth client id, GitHub repository,
+and—if the project id is not available as a globally unique Hosting site id—a
+different `hosting_site_id`.
+
+Then run:
+
+```sh
+./scripts/bootstrap.sh
+```
+
+The script performs five ordered operations:
+
+1. Creates a private, versioned Terraform-state bucket.
+2. Initializes Terraform and creates the Secret Manager container.
+3. Generates the session-signing secret outside Terraform state.
+4. Applies the complete infrastructure.
+5. Adds the non-secret GitHub Actions variables used by CI.
+
+Infrastructure changes stay explicit: CI checks Terraform formatting and
+validity, while `terraform apply` runs from an authenticated administrator's
+machine. The GitHub deployment identity therefore cannot change project-wide
+IAM, databases, storage, or domain configuration.
+
+The first Terraform apply creates Cloud Run with Google's hello image. That is
+only a bootstrap revision; the application workflow replaces it with the real
+image.
+
+## 4. Deploy without touching DNS
+
+Push the branch through `main`, or run the **Deploy** GitHub workflow manually.
+The workflow checks and builds the app, pushes an immutable commit-tagged image
+to Artifact Registry, deploys it to Cloud Run, and calls `/healthz`.
+
+Get both preview addresses:
+
+```sh
+terraform -chdir=infra output -raw service_url
+terraform -chdir=infra output -raw hosting_preview_url
+```
+
+Before changing DNS, verify both URLs:
+
+- `/healthz` returns `{"ok":true}`.
+- `/notes` loads normally.
+- Google sign-in works on the `web.app` URL.
+- A local note can be created and remains after a reload.
+- The browser shows a registered service worker.
+
+## 5. Connect `zaki.gg` without downtime
+
+First print the records requested by Firebase:
+
+```sh
+terraform -chdir=infra apply -refresh-only
+terraform -chdir=infra output -json domain_dns_records
+```
+
+The output can contain two classes of records:
+
+- A TXT ownership/certificate-verification record.
+- A/AAAA serving records that direct traffic to Firebase Hosting.
+
+Use this cutover sequence:
+
+1. Record the site's current A, AAAA, and CNAME values so rollback is one DNS
+   edit away. Lower their TTL to about 300 seconds at least one TTL before the
+   cutover when practical.
+2. Add the requested ownership/certificate TXT records first. Do **not** remove
+   the current serving records yet; the existing site remains live while
+   Firebase verifies domain control. The certificate can remain pending until
+   the serving records point at Firebase.
+3. Wait for DNS propagation, then run the refresh/output commands again. The
+   custom-domain resource is configured not to block Terraform while DNS is
+   still pending.
+4. Confirm the Cloud Run and `web.app` previews still pass the checks above.
+5. Replace only the old A/AAAA/CNAME serving records with Firebase's requested
+   serving records. Keep the TXT verification record.
+6. Verify `https://zaki.gg/healthz`, `/notes`, Google sign-in, the manifest,
+   and the service worker from a clean browser profile and the installed PWA.
+
+Rollback is simply restoring the old serving records. Firestore and Cloud
+Storage remain untouched, so no note data is rolled back or discarded.
+
+## 6. First sync and multi-device test
+
+Open `/notes`, sign in with the allowlisted Google account, and wait for the
+cloud indicator to show synced. Existing local records are enrolled on first
+sign-in. Complete note bodies and binary assets go to Cloud Storage; Firestore
+only holds metadata, version pointers, tombstones, and the change log.
+
+Test from a second browser profile or phone:
+
+1. Sign in and confirm the first device's notes appear.
+2. Go offline, edit a note, and confirm it still reads **Saved locally**.
+3. Reconnect or foreground the app and confirm it becomes **Synced**.
+4. Delete a test note and confirm the deletion reaches the second device.
+5. Add an image and confirm the asset downloads on the second device.
+6. Open a previously visited note with the phone offline to verify the cached
+   PWA shell and IndexedDB data.
+
+Mobile browsers do not guarantee execution while an installed PWA is fully
+closed. Pending changes sync after the app reopens, reconnects, or returns to
+the foreground.
 
 ## Local development
 
 ```sh
-cp .env.example .env                      # fill in project id, bucket, client id, secret
-gcloud auth application-default login     # ADC for Firestore + GCS
+cp .env.example .env
 pnpm dev
 ```
 
-Optional: run against the Firestore emulator instead of the real project by
-starting `gcloud emulators firestore start --host-port=localhost:8484` and
-uncommenting `FIRESTORE_EMULATOR_HOST` in `.env` (the client libraries switch
-automatically).
+Fill in the project, bucket, allowlisted email, OAuth client id, and a local
+session secret. Application Default Credentials provide Firestore and Storage
+access. For Firestore-only local work, `FIRESTORE_EMULATOR_HOST` can point the
+server client at the emulator; use a disposable GCS bucket for asset tests.
 
-## How sync works (short version)
+## Recovery and protection
 
-- IndexedDB stays the source of truth; the editor saves locally exactly as
-  before. Sidecar stores (`syncState`, `tombstones`, `syncMeta`) track what
-  needs pushing — see `src/lib/notes/sync/`.
-- The engine (`engine.svelte.ts`) debounces after each local mutation, and also
-  syncs on `online`, tab-visible, sign-in, and a 60s interval. Push sends dirty
-  records + tombstones; pull pages through server changes using a
-  server-assigned cursor. Conflicts resolve last-write-wins by `updatedAt`
-  (larger id breaks ties), symmetric on server and client; a newer edit beats
-  an older delete.
-- Only the allowlisted Google account can sync (`sync.remote.ts` verifies the
-  GIS ID token, then a signed 30-day session cookie). Anonymous visitors keep
-  purely local notes; the sync UI just doesn't engage.
-- Asset blobs are proxied through `/notes/sync/assets/[id]` to GCS. Cloud Run
-  caps request bodies at 32 MB, which bounds asset size.
-- Notes whose Tiptap JSON exceeds ~900 KB stay local-only (Firestore doc limit)
-  and are reported in the engine's `oversizedPageIds`.
+- Firestore has deletion protection and a weekly backup retained for 14 weeks.
+- Cloud Storage has public access prevention and object versioning; replaced or
+  deleted asset generations remain recoverable for 90 days.
+- Every uploaded note body is immutable and hash-checked when downloaded.
+- Losing concurrent note revisions are retained in Cloud Storage and recorded
+  in Firestore's `revisions` collection rather than silently discarded.
+- Cloud Run scales to zero and is capped at two instances for cost control.

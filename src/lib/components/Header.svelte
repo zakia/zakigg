@@ -67,7 +67,7 @@
 </script>
 
 <header
-	class="bg-base-1 dock p-s-2 fixed bottom-0 left-1/2 z-999 flex h-14 w-fit items-end rounded-lg backdrop-blur-lg print:hidden"
+	class="bg-base-1 dock p-s-2 fixed left-1/2 z-999 flex h-14 w-fit items-end rounded-lg backdrop-blur-lg print:hidden"
 	style:translate="-50% {isHidden ? '200%' : '0%'}"
 >
 	{#each links as link (link.path)}
@@ -106,7 +106,7 @@
 	</button>
 </header>
 <div
-	class="transition-property-[translate] right-s0 bottom-s0 fixed z-999 duration-[0.3s] print:hidden"
+	class="dock-toggle transition-property-[translate] fixed z-999 duration-[0.3s] print:hidden"
 	style:translate="0% {isHidden ? '0%' : '200%'}"
 >
 	<button
@@ -119,9 +119,15 @@
 
 <style>
 	.dock {
+		bottom: env(safe-area-inset-bottom, 0px);
 		box-shadow: 0 4px 12px rgb(0 0 0 / 0.1);
 		transition: translate 0.3s;
 		transform-origin: bottom;
+	}
+
+	.dock-toggle {
+		right: calc(var(--s0) + env(safe-area-inset-right, 0px));
+		bottom: calc(var(--s0) + env(safe-area-inset-bottom, 0px));
 	}
 
 	.dock-item {

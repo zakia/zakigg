@@ -48,6 +48,8 @@
 		display: flex;
 		flex-direction: column;
 		min-height: 100vh;
+		min-height: 100dvh;
+		background-color: var(--base);
 	}
 
 	main {
@@ -60,6 +62,7 @@
 
 	.grid-bg {
 		--grid-size: var(--s4);
+		background-color: var(--base);
 		background-image: radial-gradient(
 			circle at calc(var(--grid-size) * 0.5) calc(var(--grid-size) * 0.5),
 			color-mix(in oklch, var(--brand) 15%, transparent) 2px,

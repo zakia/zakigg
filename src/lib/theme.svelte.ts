@@ -13,26 +13,52 @@ const hues = [
 
 let theme = $state('light');
 let hue = $state('145');
+let themeColorFrame: number | undefined;
+
+const syncSystemThemeColor = () => {
+	if (themeColorFrame) cancelAnimationFrame(themeColorFrame);
+
+	themeColorFrame = requestAnimationFrame(() => {
+		const meta = document.querySelector<HTMLMetaElement>('#theme-color');
+		if (!meta) return;
+
+		const backgroundColor = getComputedStyle(document.body).backgroundColor;
+		const canvas = document.createElement('canvas');
+		canvas.width = 1;
+		canvas.height = 1;
+
+		const context = canvas.getContext('2d', { willReadFrequently: true });
+		if (!context) {
+			meta.content = backgroundColor;
+			return;
+		}
+
+		context.fillStyle = backgroundColor;
+		context.fillRect(0, 0, 1, 1);
+		const [red, green, blue] = context.getImageData(0, 0, 1, 1).data;
+		meta.content = `rgb(${red} ${green} ${blue})`;
+	});
+};
 
 export const useTheme = () => {
 	$effect(() => {
 		theme = document.documentElement.dataset.theme || 'light';
-	});
-
-	$effect(() => {
 		hue = document.documentElement.style.getPropertyValue('--hue') || '145';
+		syncSystemThemeColor();
 	});
 
 	const setTheme = (newTheme: string) => {
 		localStorage.setItem('theme', newTheme);
 		document.documentElement.dataset.theme = newTheme;
 		theme = newTheme;
+		syncSystemThemeColor();
 	};
 
 	const setHue = (newHue: string) => {
 		localStorage.setItem('hue', newHue);
 		document.documentElement.style.setProperty('--hue', newHue);
 		hue = newHue;
+		syncSystemThemeColor();
 	};
 
 	const toggle = (e?: MouseEvent) => {

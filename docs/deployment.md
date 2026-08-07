@@ -167,7 +167,7 @@ the foreground.
 
 ```sh
 cp .env.example .env
-pnpm dev
+bun run dev
 ```
 
 Fill in the project, bucket, allowlisted email, OAuth client id, and a local

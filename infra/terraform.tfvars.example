@@ -1,0 +1,8 @@
+project_id       = "my-gcp-project"
+region           = "northamerica-northeast2"
+github_repo      = "zaki/zakigg"
+allowed_email    = "you@example.com"
+google_client_id = "1234567890-abc.apps.googleusercontent.com"
+custom_domain    = "zaki.gg"
+# Optional. Firebase Hosting site ids are globally unique; project_id is used when empty.
+hosting_site_id = ""

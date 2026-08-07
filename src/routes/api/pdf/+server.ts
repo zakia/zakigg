@@ -29,7 +29,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	}
 
 	const pdfBytes = await pdfDoc.save();
-	return new Response(pdfBytes, {
+	return new Response(new Uint8Array(pdfBytes), {
 		headers: {
 			'Content-Type': 'application/pdf',
 			'Content-Disposition': 'attachment; filename=filled.pdf'

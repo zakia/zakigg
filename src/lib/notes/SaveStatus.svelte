@@ -1,11 +1,18 @@
 <script lang="ts">
-	import type { SaveState } from './save-state';
+	import type { SaveState, SyncLabelStatus } from './save-state';
 
-	let { state, label }: { state: SaveState; label: string } = $props();
+	let {
+		state,
+		label,
+		sync = 'disabled'
+	}: { state: SaveState; label: string; sync?: SyncLabelStatus } = $props();
 </script>
 
-<div class="save-status" data-state={state}>
+<div class="save-status" data-state={state} data-sync={sync}>
 	<span class="status-dot"></span>
+	{#if sync !== 'disabled' && sync !== 'idle'}
+		<span class="sync-dot"></span>
+	{/if}
 	<span>{label}</span>
 </div>
 
@@ -40,6 +47,23 @@
 	}
 
 	.save-status[data-state='error'] .status-dot {
+		background: var(--error);
+	}
+
+	.sync-dot {
+		background: var(--success);
+		border-radius: 999px;
+		display: block;
+		height: 0.5rem;
+		width: 0.5rem;
+	}
+
+	.save-status[data-sync='syncing'] .sync-dot,
+	.save-status[data-sync='pending'] .sync-dot {
+		background: var(--warning);
+	}
+
+	.save-status[data-sync='error'] .sync-dot {
 		background: var(--error);
 	}
 

@@ -70,7 +70,7 @@ else
 fi
 
 echo "==> 2/5 terraform init + session-secret container"
-terraform -chdir="$INFRA_DIR" init -input=false -backend-config="bucket=$STATE_BUCKET"
+terraform -chdir="$INFRA_DIR" init -input=false -reconfigure -backend-config="bucket=$STATE_BUCKET"
 terraform -chdir="$INFRA_DIR" apply -target=google_secret_manager_secret.session_secret
 
 echo "==> 3/5 Session secret value ($SECRET_NAME)"

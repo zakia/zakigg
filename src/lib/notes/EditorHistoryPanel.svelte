@@ -79,7 +79,7 @@
 			</button>
 		</header>
 
-		<ol class="history-list">
+		<ol class="history-list list-reset">
 			{#each orderedEntries as entry, index (entry.id)}
 				{@const diff = createEditorHistoryDiff(entry.content, orderedEntries[index + 1]?.content)}
 				<li>
@@ -212,8 +212,6 @@
 	.history-list {
 		display: grid;
 		gap: var(--s-4);
-		list-style: none;
-		margin: 0;
 		min-height: 0;
 		overflow: auto;
 		padding: var(--s-4);

@@ -55,7 +55,7 @@
 	} from './media';
 	import { formatSaveLabel, type SaveState, type SyncLabelStatus } from './save-state';
 	import { startSyncEngine, syncState } from './sync/engine.svelte';
-	import { authSession } from '$lib/auth/session.svelte';
+	import { auth } from '$lib/auth';
 	import { resolveNoteAssetObjectUrl, saveNoteAsset, saveNotePage } from './storage';
 	import { createTimer } from '../editor/timers';
 	import { resolveNotePageMetadata, type NotePageV1 } from './types';
@@ -124,9 +124,7 @@
 	const linkShowTimer = createTimer();
 	const linkHideTimer = createTimer();
 
-	const syncLabelStatus = $derived<SyncLabelStatus>(
-		authSession.status === 'signed-in' ? syncState.status : 'disabled'
-	);
+	const syncLabelStatus = $derived<SyncLabelStatus>(auth.user ? syncState.status : 'disabled');
 	const saveLabel = $derived(formatSaveLabel(saveState, lastSavedAt, syncLabelStatus));
 	const selectionAnchorStyle = $derived(
 		`left: ${selectionToolbar.anchor.left}px; top: ${selectionToolbar.anchor.top}px; width: ${selectionToolbar.anchor.width}px; height: ${selectionToolbar.anchor.height}px;`

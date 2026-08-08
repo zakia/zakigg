@@ -1,5 +1,5 @@
 import { browser } from '$app/environment';
-import { authSession } from '$lib/auth/session.svelte';
+import { auth } from '$lib/auth';
 import {
 	clearDirtyFlag,
 	getDirtySyncRecords,
@@ -42,7 +42,7 @@ let inFlight = false;
 let runAgain = false;
 
 function signedIn() {
-	return authSession.status === 'signed-in';
+	return Boolean(auth.user);
 }
 
 export function startSyncEngine(): void {

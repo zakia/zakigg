@@ -4,7 +4,7 @@ import { SESSION_COOKIE_NAME, verifySessionCookieValue } from '$lib/server/auth/
 export const handle: Handle = async ({ event, resolve }) => {
 	const sessionCookie = event.cookies.get(SESSION_COOKIE_NAME);
 
-	event.locals.user = sessionCookie ? verifySessionCookieValue(sessionCookie) : null;
+	event.locals.session = sessionCookie ? verifySessionCookieValue(sessionCookie) : null;
 
 	return resolve(event);
 };

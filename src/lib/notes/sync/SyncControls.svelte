@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { authSession } from '$lib/auth/session.svelte';
+	import { auth } from '$lib/auth';
 	import Icon from '$lib/components/Icon.svelte';
 	import { handleSignedIn, startSyncEngine, syncNow, syncState } from './engine.svelte';
 
@@ -11,19 +11,19 @@
 	});
 
 	$effect(() => {
-		const email = authSession.user?.email ?? null;
-		if (authSession.status !== 'signed-in' || !email) {
+		const userId = auth.user?.id ?? null;
+		if (!userId) {
 			initializedFor = null;
 			return;
 		}
-		if (initializedFor === email) return;
+		if (initializedFor === userId) return;
 
-		initializedFor = email;
+		initializedFor = userId;
 		void handleSignedIn();
 	});
 </script>
 
-{#if authSession.status === 'signed-in'}
+{#if auth.user}
 	<div class="sync-pill" data-status={syncState.status} title="Notes sync status">
 		<span class="sync-dot"></span>
 		<button

@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import { renderGoogleSignInButton } from './google-signin';
-	import { authSession, signInWithGoogleCredential, signOutAuthSession } from './session.svelte';
+	import { auth } from '$lib/auth';
+	import { renderAuthProviderButton } from './provider-buttons';
 
 	let menu = $state<HTMLElement>();
 	let buttonContainer = $state<HTMLElement>();
@@ -28,27 +28,29 @@
 
 	$effect(() => {
 		const container = buttonContainer;
-		if (!open || !container || authSession.status !== 'signed-out') return;
+		if (!open || !container || !auth.ready || auth.user) return;
 
 		message = '';
-		renderGoogleSignInButton(container, (credential) => void completeSignIn(credential)).catch(
-			() => {
-				message = 'Google sign-in is unavailable right now.';
-			}
-		);
+		renderAuthProviderButton(
+			'google',
+			container,
+			(credentials) => void completeSignIn(credentials)
+		).catch(() => {
+			message = 'Google sign-in is unavailable right now.';
+		});
 	});
 
-	async function completeSignIn(credential: string) {
+	async function completeSignIn(credentials: { credential: string }) {
 		try {
-			await signInWithGoogleCredential(credential);
+			await auth.signIn('google', credentials);
 			message = '';
 		} catch {
-			message = 'This Google account is not allowed.';
+			message = 'This account is not allowed.';
 		}
 	}
 
 	async function handleSignOut() {
-		await signOutAuthSession();
+		await auth.signOut();
 		open = false;
 	}
 </script>
@@ -57,33 +59,31 @@
 	<button
 		type="button"
 		class="dock-item auth-trigger"
-		class:is-signed-in={authSession.status === 'signed-in'}
-		aria-label={authSession.status === 'signed-in' ? 'Open account menu' : 'Sign in'}
+		class:is-signed-in={Boolean(auth.user)}
+		aria-label={auth.user ? 'Open account menu' : 'Sign in'}
 		aria-expanded={open}
 		onclick={() => (open = !open)}
 	>
 		<div class="tooltip">
-			{authSession.status === 'signed-in' ? authSession.user?.email : 'Sign in'}
+			{auth.user?.email ?? 'Sign in'}
 		</div>
 		<Icon
-			icon={authSession.status === 'signed-in'
-				? 'mdi:account-check-outline'
-				: 'mdi:account-outline'}
+			icon={auth.user ? 'mdi:account-check-outline' : 'mdi:account-outline'}
 			class="h-full w-full"
 		/>
-		{#if authSession.status === 'signed-in'}
+		{#if auth.user}
 			<span class="status-dot" aria-hidden="true"></span>
 		{/if}
 	</button>
 
 	{#if open}
 		<div class="auth-panel" role="dialog" aria-label="Account">
-			{#if authSession.status === 'unknown'}
+			{#if !auth.ready}
 				<p class="auth-copy">Checking your session…</p>
-			{:else if authSession.status === 'signed-in'}
+			{:else if auth.user}
 				<div class="account-details">
 					<span class="eyebrow">Signed in as</span>
-					<strong>{authSession.user?.email}</strong>
+					<strong>{auth.user.email}</strong>
 				</div>
 				<button type="button" class="sign-out" onclick={() => void handleSignOut()}>
 					<Icon icon="mdi:logout" />
@@ -91,7 +91,7 @@
 				</button>
 			{:else}
 				<p class="auth-copy">Sign in to use your account across the app.</p>
-				<div class="google-button" bind:this={buttonContainer}></div>
+				<div class="provider-button" bind:this={buttonContainer}></div>
 			{/if}
 
 			{#if message}
@@ -227,7 +227,7 @@
 		width: 1rem;
 	}
 
-	.google-button {
+	.provider-button {
 		display: flex;
 		justify-content: center;
 		min-height: 2rem;

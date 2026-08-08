@@ -6,7 +6,7 @@ declare global {
 	namespace App {
 		// interface Error {}
 		interface Locals {
-			user: { sub: string; email: string } | null;
+			session: import('$lib/auth/types').Session | null;
 		}
 		// interface PageData {}
 		// interface PageState {}

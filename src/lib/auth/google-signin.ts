@@ -1,6 +1,5 @@
 import { env } from '$env/dynamic/public';
 
-// Minimal surface of the Google Identity Services script we use.
 type GoogleAccountsId = {
 	initialize(config: {
 		client_id: string;
@@ -45,15 +44,13 @@ function loadGis(): Promise<GoogleAccountsId> {
 	return scriptPromise;
 }
 
-// Renders the official Google button into `container`; `onCredential` receives
-// the ID-token credential once the user completes sign-in.
 export async function renderGoogleSignInButton(
 	container: HTMLElement,
 	onCredential: (credential: string) => void
 ): Promise<void> {
 	const clientId = env.PUBLIC_GOOGLE_CLIENT_ID;
 
-	if (!clientId) throw new Error('Sync is not configured (missing Google client id)');
+	if (!clientId) throw new Error('Authentication is not configured');
 
 	const gis = await loadGis();
 

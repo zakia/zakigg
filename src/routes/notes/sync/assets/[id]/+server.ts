@@ -1,6 +1,6 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { error } from '@sveltejs/kit';
-import { assertSyncUser } from '$lib/server/notes-sync/auth';
+import { assertAuthUser } from '$lib/server/auth/session';
 import {
 	getAssetDoc,
 	markAssetBlobUploaded,
@@ -12,7 +12,7 @@ import {
 // origin, no GCS CORS setup, auth via the same session cookie. Cloud Run caps
 // request bodies at 32 MB, which bounds the supported asset size.
 export const GET: RequestHandler = async ({ locals, params }) => {
-	const user = assertSyncUser(locals);
+	const user = assertAuthUser(locals);
 
 	const id = params.id ?? '';
 	const blob = await readAssetBlob(user.sub, id);
@@ -30,7 +30,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 };
 
 export const PUT: RequestHandler = async ({ locals, params, request }) => {
-	const user = assertSyncUser(locals);
+	const user = assertAuthUser(locals);
 
 	const id = params.id ?? '';
 	const meta = await getAssetDoc(user.sub, id);

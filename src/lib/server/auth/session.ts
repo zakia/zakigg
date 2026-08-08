@@ -4,21 +4,22 @@ import { env as publicEnv } from '$env/dynamic/public';
 import { error } from '@sveltejs/kit';
 import { OAuth2Client } from 'google-auth-library';
 
-export const SESSION_COOKIE_NAME = 'notes_sync_session';
+// Firebase Hosting only forwards this specially named cookie to Cloud Run.
+export const SESSION_COOKIE_NAME = '__session';
 export const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
 
-export type SyncUser = {
+export type AuthUser = {
 	sub: string;
 	email: string;
 };
 
-type SessionPayload = SyncUser & { expiresAt: number };
+type SessionPayload = AuthUser & { expiresAt: number };
 
 let oauthClient: OAuth2Client | null = null;
 
 function getSessionSecret(): string {
-	const secret = env.NOTES_SYNC_SESSION_SECRET;
-	if (!secret) throw error(500, 'NOTES_SYNC_SESSION_SECRET is not configured');
+	const secret = env.AUTH_SESSION_SECRET || env.NOTES_SYNC_SESSION_SECRET;
+	if (!secret) throw error(500, 'AUTH_SESSION_SECRET is not configured');
 
 	return secret;
 }
@@ -30,10 +31,10 @@ export function getGoogleClientId(): string {
 	return clientId;
 }
 
-export async function verifyGoogleCredential(credential: string): Promise<SyncUser> {
+export async function verifyGoogleCredential(credential: string): Promise<AuthUser> {
 	const clientId = getGoogleClientId();
-	const allowedEmail = env.NOTES_SYNC_ALLOWED_EMAIL;
-	if (!allowedEmail) throw error(500, 'NOTES_SYNC_ALLOWED_EMAIL is not configured');
+	const allowedEmail = getAllowedEmail();
+	if (!allowedEmail) throw error(500, 'AUTH_ALLOWED_EMAIL is not configured');
 
 	oauthClient ??= new OAuth2Client(clientId);
 
@@ -47,7 +48,7 @@ export async function verifyGoogleCredential(credential: string): Promise<SyncUs
 			throw error(401, 'Google account is missing a verified identity');
 		}
 		if (email.toLowerCase() !== allowedEmail.toLowerCase()) {
-			throw error(403, 'This account is not allowed to sync notes');
+			throw error(403, 'This account is not allowed');
 		}
 
 		return { sub, email };
@@ -57,7 +58,7 @@ export async function verifyGoogleCredential(credential: string): Promise<SyncUs
 	}
 }
 
-export function createSessionCookieValue(user: SyncUser): string {
+export function createSessionCookieValue(user: AuthUser): string {
 	const payload: SessionPayload = {
 		...user,
 		expiresAt: Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS
@@ -66,7 +67,7 @@ export function createSessionCookieValue(user: SyncUser): string {
 	return `${encodedPayload}.${signSession(encodedPayload)}`;
 }
 
-export function verifySessionCookieValue(value: string): SyncUser | null {
+export function verifySessionCookieValue(value: string): AuthUser | null {
 	const [encodedPayload, signature] = value.split('.');
 	if (!encodedPayload || !signature) return null;
 
@@ -86,7 +87,7 @@ export function verifySessionCookieValue(value: string): SyncUser | null {
 		const payload = JSON.parse(
 			Buffer.from(encodedPayload, 'base64url').toString('utf8')
 		) as Partial<SessionPayload>;
-		const allowedEmail = env.NOTES_SYNC_ALLOWED_EMAIL;
+		const allowedEmail = getAllowedEmail();
 
 		if (
 			typeof payload.sub !== 'string' ||
@@ -104,11 +105,15 @@ export function verifySessionCookieValue(value: string): SyncUser | null {
 	}
 }
 
-export function assertSyncUser(locals: App.Locals): SyncUser {
-	if (!locals.syncUser) throw error(401, 'Sign in to sync notes');
-	return locals.syncUser;
+export function assertAuthUser(locals: App.Locals): AuthUser {
+	if (!locals.user) throw error(401, 'Sign in to continue');
+	return locals.user;
 }
 
 function signSession(encodedPayload: string): string {
 	return createHmac('sha256', getSessionSecret()).update(encodedPayload).digest('base64url');
+}
+
+function getAllowedEmail(): string | undefined {
+	return env.AUTH_ALLOWED_EMAIL || env.NOTES_SYNC_ALLOWED_EMAIL;
 }

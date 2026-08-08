@@ -1,4 +1,5 @@
 import { browser } from '$app/environment';
+import { authSession } from '$lib/auth/session.svelte';
 import {
 	clearDirtyFlag,
 	getDirtySyncRecords,
@@ -13,7 +14,6 @@ import {
 } from '../storage';
 import { applyPullBatch } from './apply';
 import { assetToPayload, pageToPayload } from './protocol';
-import { syncSession } from './session.svelte';
 import { onLocalMutation } from './signals';
 import { pullChanges, pushChanges } from './sync.remote';
 
@@ -42,7 +42,7 @@ let inFlight = false;
 let runAgain = false;
 
 function signedIn() {
-	return syncSession.status === 'signed-in';
+	return authSession.status === 'signed-in';
 }
 
 export function startSyncEngine(): void {

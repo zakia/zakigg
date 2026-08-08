@@ -91,7 +91,7 @@ gh variable set GCP_PROJECT_ID --body "$PROJECT_ID"
 gh variable set WIF_PROVIDER --body "$WIF_PROVIDER"
 gh variable set DEPLOYER_SA --body "$DEPLOYER_SA"
 gh variable set GOOGLE_CLIENT_ID --body "$GOOGLE_CLIENT_ID"
-gh variable set NOTES_SYNC_ALLOWED_EMAIL --body "$ALLOWED_EMAIL"
+gh variable set AUTH_ALLOWED_EMAIL --body "$ALLOWED_EMAIL"
 
 echo
 echo "Done. Next:"

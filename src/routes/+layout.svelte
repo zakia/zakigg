@@ -1,10 +1,16 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
+	import { onMount } from 'svelte';
+	import { initializeAuthSession } from '$lib/auth/session.svelte';
 	import '$lib/prism.css';
 	import '@fontsource-variable/inter';
 	import '@fontsource/fira-mono';
 	import '../app.css';
 	import Header from '../lib/components/Header.svelte';
+
+	onMount(() => {
+		void initializeAuthSession();
+	});
 
 	// onNavigate((navigation) => {
 	// 	if (!document.startViewTransition) return;

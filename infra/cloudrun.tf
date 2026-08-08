@@ -44,7 +44,7 @@ resource "google_cloud_run_v2_service" "app" {
         value = google_storage_bucket.note_assets.name
       }
       env {
-        name  = "NOTES_SYNC_ALLOWED_EMAIL"
+        name  = "AUTH_ALLOWED_EMAIL"
         value = var.allowed_email
       }
       env {
@@ -52,7 +52,7 @@ resource "google_cloud_run_v2_service" "app" {
         value = var.google_client_id
       }
       env {
-        name = "NOTES_SYNC_SESSION_SECRET"
+        name = "AUTH_SESSION_SECRET"
         value_source {
           secret_key_ref {
             secret  = google_secret_manager_secret.session_secret.secret_id

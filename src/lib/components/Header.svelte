@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
+	import AuthMenu from '$lib/auth/AuthMenu.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import { useTheme } from '$lib/theme.svelte';
 	import { clamp } from '$lib/utils';
@@ -83,6 +84,8 @@
 		<div class="tooltip">GitHub</div>
 		<Icon icon="line-md:github" class="h-full w-full"></Icon>
 	</a>
+	<div class="bg-edge-1 my-auto h-3/4 w-px"></div>
+	<AuthMenu />
 	<div class="bg-edge-1 my-auto h-3/4 w-px"></div>
 
 	<button class="dock-item" onclick={theme.toggle}>

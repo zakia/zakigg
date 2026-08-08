@@ -343,7 +343,7 @@
 			<Icon icon="mdi:plus" />
 			New
 		</button>
-		<SyncControls onToast={showToast} />
+		<SyncControls />
 	</div>
 
 	{#if loading}

@@ -1,13 +1,6 @@
-import { command, getRequestEvent, query } from '$app/server';
-import { error } from '@sveltejs/kit';
+import { command, getRequestEvent } from '$app/server';
 import * as v from 'valibot';
-import {
-	SESSION_COOKIE_NAME,
-	SESSION_TTL_SECONDS,
-	assertSyncUser,
-	createSessionCookieValue,
-	verifyGoogleCredential
-} from '$lib/server/notes-sync/auth';
+import { assertAuthUser } from '$lib/server/auth/session';
 import {
 	pullSince,
 	pushAssetLww,
@@ -66,34 +59,6 @@ export type SyncPushResult = {
 	needsBlob: string[];
 };
 
-export const getSyncUser = query(async () => getRequestEvent().locals.syncUser);
-
-export const signIn = command(
-	v.object({ credential: v.pipe(v.string(), v.nonEmpty()) }),
-	async ({ credential }) => {
-		const event = getRequestEvent();
-		const requestOrigin = event.request.headers.get('origin');
-		if (requestOrigin && requestOrigin !== event.url.origin) {
-			throw error(403, 'Sign-in origin did not match');
-		}
-
-		const user = await verifyGoogleCredential(credential);
-		event.cookies.set(SESSION_COOKIE_NAME, createSessionCookieValue(user), {
-			path: '/',
-			httpOnly: true,
-			secure: !event.url.hostname.includes('localhost'),
-			sameSite: 'lax',
-			maxAge: SESSION_TTL_SECONDS
-		});
-		return user;
-	}
-);
-
-export const signOut = command(async () => {
-	getRequestEvent().cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
-	return null;
-});
-
 export const pushChanges = command(
 	v.object({
 		pages: v.pipe(v.array(PagePayloadSchema), v.maxLength(100)),
@@ -101,7 +66,7 @@ export const pushChanges = command(
 		tombstones: v.pipe(v.array(TombstonePayloadSchema), v.maxLength(100))
 	}),
 	async ({ pages, assets, tombstones }): Promise<SyncPushResult> => {
-		const user = assertSyncUser(getRequestEvent().locals);
+		const user = assertAuthUser(getRequestEvent().locals);
 		const results: SyncPushResult['results'] = [];
 		const needsBlob: string[] = [];
 
@@ -127,7 +92,7 @@ export const pullChanges = command(
 		limit: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(100))
 	}),
 	async ({ since, limit }) => {
-		const user = assertSyncUser(getRequestEvent().locals);
+		const user = assertAuthUser(getRequestEvent().locals);
 		return pullSince(user.sub, since, limit);
 	}
 );

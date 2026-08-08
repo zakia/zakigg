@@ -1,58 +1,30 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { authSession } from '$lib/auth/session.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import { handleSignedIn, startSyncEngine, syncNow, syncState } from './engine.svelte';
-	import { renderGoogleSignInButton } from './google-signin';
-	import {
-		refreshSyncSession,
-		signInWithCredential,
-		signOutSyncSession,
-		syncSession
-	} from './session.svelte';
 
-	let { onToast }: { onToast?: (message: string) => void } = $props();
+	let initializedFor = $state<string | null>(null);
 
-	let buttonContainer = $state<HTMLElement>();
-	let signInFailed = $state(false);
-
-	onMount(async () => {
+	onMount(() => {
 		startSyncEngine();
-		await refreshSyncSession();
-		if (syncSession.status === 'signed-in') await handleSignedIn();
 	});
 
-	// Render the official Google button whenever the signed-out container is in
-	// the DOM. Failing to load GIS (offline, unconfigured client id) hides the
-	// control instead of breaking the page.
 	$effect(() => {
-		const container = buttonContainer;
-		if (!container || syncSession.status !== 'signed-out') return;
-
-		renderGoogleSignInButton(container, (credential) => void completeSignIn(credential)).catch(
-			() => {
-				signInFailed = true;
-			}
-		);
-	});
-
-	async function completeSignIn(credential: string) {
-		try {
-			const email = await signInWithCredential(credential);
-			onToast?.(`Sync enabled for ${email}`);
-			await handleSignedIn();
-		} catch {
-			onToast?.('This account is not allowed to sync');
+		const email = authSession.user?.email ?? null;
+		if (authSession.status !== 'signed-in' || !email) {
+			initializedFor = null;
+			return;
 		}
-	}
+		if (initializedFor === email) return;
 
-	async function handleSignOut() {
-		await signOutSyncSession();
-		onToast?.('Sync disabled on this device');
-	}
+		initializedFor = email;
+		void handleSignedIn();
+	});
 </script>
 
-{#if syncSession.status === 'signed-in'}
-	<div class="sync-pill" data-status={syncState.status} title={syncSession.email}>
+{#if authSession.status === 'signed-in'}
+	<div class="sync-pill" data-status={syncState.status} title="Notes sync status">
 		<span class="sync-dot"></span>
 		<button
 			type="button"
@@ -63,18 +35,7 @@
 		>
 			<Icon icon="mdi:cloud-sync-outline" />
 		</button>
-		<button
-			type="button"
-			class="sync-action"
-			title="Sign out of sync"
-			aria-label="Sign out of sync"
-			onclick={() => void handleSignOut()}
-		>
-			<Icon icon="mdi:logout" />
-		</button>
 	</div>
-{:else if syncSession.status === 'signed-out' && !signInFailed}
-	<div class="google-button" bind:this={buttonContainer}></div>
 {/if}
 
 <style>
@@ -123,10 +84,5 @@
 	.sync-action :global(svg) {
 		height: 1rem;
 		width: 1rem;
-	}
-
-	.google-button {
-		display: flex;
-		flex-shrink: 0;
 	}
 </style>

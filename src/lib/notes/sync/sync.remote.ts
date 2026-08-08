@@ -1,6 +1,6 @@
-import { command, getRequestEvent } from '$app/server';
+import { command } from '$app/server';
 import * as v from 'valibot';
-import { assertAuthUser } from '$lib/server/auth/session';
+import { auth } from '$lib/server/auth';
 import {
 	pullSince,
 	pushAssetLww,
@@ -66,20 +66,20 @@ export const pushChanges = command(
 		tombstones: v.pipe(v.array(TombstonePayloadSchema), v.maxLength(100))
 	}),
 	async ({ pages, assets, tombstones }): Promise<SyncPushResult> => {
-		const user = assertAuthUser(getRequestEvent().locals);
+		const { user } = auth({ required: true });
 		const results: SyncPushResult['results'] = [];
 		const needsBlob: string[] = [];
 
 		for (const page of pages) {
-			results.push({ id: page.id, status: await pushPageLww(user.sub, page) });
+			results.push({ id: page.id, status: await pushPageLww(user.id, page) });
 		}
 		for (const asset of assets) {
-			const result = await pushAssetLww(user.sub, asset);
+			const result = await pushAssetLww(user.id, asset);
 			results.push({ id: asset.id, status: result.status });
 			if (result.needsBlob) needsBlob.push(asset.id);
 		}
 		for (const tombstone of tombstones) {
-			results.push({ id: tombstone.id, status: await pushTombstoneLww(user.sub, tombstone) });
+			results.push({ id: tombstone.id, status: await pushTombstoneLww(user.id, tombstone) });
 		}
 
 		return { results, needsBlob };
@@ -92,7 +92,7 @@ export const pullChanges = command(
 		limit: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(100))
 	}),
 	async ({ since, limit }) => {
-		const user = assertAuthUser(getRequestEvent().locals);
-		return pullSince(user.sub, since, limit);
+		const { user } = auth({ required: true });
+		return pullSince(user.id, since, limit);
 	}
 );

@@ -1,6 +1,6 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { error } from '@sveltejs/kit';
-import { assertAuthUser } from '$lib/server/auth/session';
+import { auth } from '$lib/server/auth';
 import {
 	getAssetDoc,
 	markAssetBlobUploaded,
@@ -11,15 +11,15 @@ import {
 // Asset blobs are proxied through the server rather than via signed URLs: one
 // origin, no GCS CORS setup, auth via the same session cookie. Cloud Run caps
 // request bodies at 32 MB, which bounds the supported asset size.
-export const GET: RequestHandler = async ({ locals, params }) => {
-	const user = assertAuthUser(locals);
+export const GET: RequestHandler = async ({ params }) => {
+	const { user } = auth({ required: true });
 
 	const id = params.id ?? '';
-	const blob = await readAssetBlob(user.sub, id);
+	const blob = await readAssetBlob(user.id, id);
 
 	if (!blob) throw error(404, 'Asset blob not found');
 
-	const meta = await getAssetDoc(user.sub, id);
+	const meta = await getAssetDoc(user.id, id);
 
 	return new Response(new Uint8Array(blob.data), {
 		headers: {
@@ -29,11 +29,11 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 	});
 };
 
-export const PUT: RequestHandler = async ({ locals, params, request }) => {
-	const user = assertAuthUser(locals);
+export const PUT: RequestHandler = async ({ params, request }) => {
+	const { user } = auth({ required: true });
 
 	const id = params.id ?? '';
-	const meta = await getAssetDoc(user.sub, id);
+	const meta = await getAssetDoc(user.id, id);
 
 	// Blob uploads are only accepted for assets whose metadata was pushed first.
 	if (!meta) throw error(404, 'Asset metadata not found');
@@ -45,8 +45,8 @@ export const PUT: RequestHandler = async ({ locals, params, request }) => {
 		throw error(400, 'Asset body size does not match its metadata');
 	}
 
-	await saveAssetBlob(user.sub, id, data, request.headers.get('content-type') || meta.mediaType);
-	await markAssetBlobUploaded(user.sub, id);
+	await saveAssetBlob(user.id, id, data, request.headers.get('content-type') || meta.mediaType);
+	await markAssetBlobUploaded(user.id, id);
 
 	return new Response(null, { status: 204 });
 };

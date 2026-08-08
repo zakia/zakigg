@@ -166,7 +166,7 @@
 			{#each Object.entries(packingList) as [category, items]}
 				<div class="rounded-lg border p-4">
 					<h2 class="mb-3 text-xl font-semibold capitalize">{category}</h2>
-					<ul class="space-y-2">
+					<ul class="list-reset space-y-2">
 						{#each items as item}
 							<li class="flex items-center">
 								<input type="checkbox" bind:checked={item.checked} class="mr-2" />

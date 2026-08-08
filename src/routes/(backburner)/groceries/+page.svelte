@@ -13,7 +13,7 @@
 		{#each Object.entries(data) as [key, value]}
 			<div>
 				<h2>{value.icon} {key}</h2>
-				<ul>
+				<ul class="list-reset">
 					{#each value.items as item}
 						<li class="flex items-center gap-1"><input type="checkbox" />{item}</li>
 					{/each}

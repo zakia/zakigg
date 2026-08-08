@@ -354,7 +354,7 @@
 		{#each yearGroups as group (group.year)}
 			<div class="year-group">
 				<span class="year-ghost" aria-hidden="true">{group.year}</span>
-				<ul class="year-list">
+				<ul class="year-list list-reset">
 					{#each group.pages as page (page.id)}
 						<li class="page-row">
 							<a class="page-link" href={resolve(`/notes/${page.slug}`)}>
@@ -545,8 +545,6 @@
 
 	.year-list {
 		display: grid;
-		list-style: none;
-		margin: 0;
 		padding: 1.9rem 0 0;
 		position: relative;
 	}

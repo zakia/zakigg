@@ -104,59 +104,6 @@
 		}
 
 		/* 5. Lists */
-		& ul,
-		& ol {
-			padding-left: var(--s1);
-		}
-
-		& ul {
-			list-style-type: disc;
-		}
-
-		& :is(ul, ol) ul {
-			list-style-type: circle;
-		}
-
-		& :is(ul, ol) :is(ul, ol) ul {
-			list-style-type: square;
-		}
-
-		& :is(ul, ol) :is(ul, ol) :is(ul, ol) ul {
-			list-style-type: disc;
-		}
-
-		& :is(ul, ol) :is(ul, ol) :is(ul, ol) :is(ul, ol) ul {
-			list-style-type: circle;
-		}
-
-		& :is(ul, ol) :is(ul, ol) :is(ul, ol) :is(ul, ol) :is(ul, ol) ul {
-			list-style-type: square;
-		}
-
-		& ol {
-			list-style-type: decimal;
-		}
-
-		& :is(ul, ol) ol {
-			list-style-type: lower-alpha;
-		}
-
-		& :is(ul, ol) :is(ul, ol) ol {
-			list-style-type: lower-roman;
-		}
-
-		& :is(ul, ol) :is(ul, ol) :is(ul, ol) ol {
-			list-style-type: decimal;
-		}
-
-		& :is(ul, ol) :is(ul, ol) :is(ul, ol) :is(ul, ol) ol {
-			list-style-type: lower-alpha;
-		}
-
-		& :is(ul, ol) :is(ul, ol) :is(ul, ol) :is(ul, ol) :is(ul, ol) ol {
-			list-style-type: lower-roman;
-		}
-
 		& li {
 			padding-left: var(--s-2);
 			margin-bottom: var(--s-3);

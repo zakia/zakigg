@@ -98,7 +98,7 @@
 <figure class="image-carousel">
 	{#if images.length}
 		<div class="carousel-frame">
-			<ul class="carousel-track" bind:this={scroller}>
+			<ul class="carousel-track list-reset" bind:this={scroller}>
 				{#each images as src (src)}
 					<li class="carousel-slide">
 						{#if displaySrc(src)}
@@ -195,11 +195,8 @@
 	.carousel-track {
 		border-radius: var(--s-2);
 		display: flex;
-		list-style: none;
-		margin: 0;
 		overflow-x: auto;
 		overscroll-behavior-x: contain;
-		padding: 0;
 		scroll-snap-type: x mandatory;
 		scrollbar-width: none;
 	}

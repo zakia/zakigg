@@ -551,7 +551,7 @@ await navigator.mediaDevices.enumerateDevices(); // labels now populated`}
 							<span class="key">After permission</span>
 							<span>{mediaDevicesAfter.length} devices, labels exposed</span>
 						</div>
-						<ul class="dev-list">
+						<ul class="dev-list list-reset">
 							{#each mediaDevicesAfter as dev (dev.deviceId || dev.label)}
 								<li>
 									<span class="kind">{dev.kind}</span>
@@ -924,9 +924,6 @@ console.log(text);`}
 	}
 
 	.dev-list {
-		list-style: none;
-		padding: 0;
-		margin: 0;
 		display: flex;
 		flex-direction: column;
 		gap: var(--s-4);

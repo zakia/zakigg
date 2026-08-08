@@ -57,7 +57,7 @@
 			{#each EDITOR_SHORTCUT_GROUPS as group (group.title)}
 				<section class="shortcut-group" aria-labelledby={`shortcut-group-${group.title}`}>
 					<h3 id={`shortcut-group-${group.title}`}>{group.title}</h3>
-					<ul>
+					<ul class="list-reset">
 						{#each group.shortcuts as shortcut (shortcut.id)}
 							<li>
 								<span class="shortcut-action">
@@ -174,8 +174,6 @@
 	ul {
 		display: grid;
 		gap: var(--s-3);
-		list-style: none;
-		padding: 0;
 	}
 
 	.shortcut-group li {

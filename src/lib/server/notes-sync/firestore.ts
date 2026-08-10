@@ -54,12 +54,12 @@ export type PushStatus = 'accepted' | 'stale';
 let firestore: Firestore | null = null;
 let bucket: Bucket | null = null;
 
-function getFirestore(): Firestore {
+export function getFirestore(): Firestore {
 	firestore ??= new Firestore(env.GCP_PROJECT_ID ? { projectId: env.GCP_PROJECT_ID } : undefined);
 	return firestore;
 }
 
-function getBucket(): Bucket {
+export function getBucket(): Bucket {
 	if (!bucket) {
 		const name = env.NOTES_GCS_BUCKET;
 		if (!name) throw error(500, 'NOTES_GCS_BUCKET is not configured');

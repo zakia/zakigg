@@ -4,6 +4,8 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import Icon from '$lib/components/Icon.svelte';
+	import { auth } from '$lib/auth';
+	import { publishNoteCraft } from '$lib/crafts/publication.remote';
 	import SyncControls from '$lib/notes/sync/SyncControls.svelte';
 	import { downloadNotePageExport } from '$lib/notes/export';
 	import { importNotesFromZip, isNotesArchiveFile } from '$lib/notes/import';
@@ -174,6 +176,34 @@
 		}
 	}
 
+	async function publishAll() {
+		busy = 'publish-all';
+		let published = 0;
+		let skipped = 0;
+
+		try {
+			for (const summary of pages) {
+				const page = await loadNotePageById(summary.id);
+				if (!page || page.frontmatter?.draft) {
+					skipped += 1;
+					continue;
+				}
+
+				await publishNoteCraft({ pageJson: JSON.stringify(page) });
+				published += 1;
+			}
+
+			showToast(
+				`Published ${published} craft${published === 1 ? '' : 's'}${skipped ? ` · skipped ${skipped} draft${skipped === 1 ? '' : 's'}` : ''}`
+			);
+		} catch (error) {
+			console.error(error);
+			showToast(`Published ${published} before an error interrupted the batch`);
+		} finally {
+			busy = '';
+		}
+	}
+
 	async function refresh() {
 		loading = true;
 
@@ -334,6 +364,18 @@
 		>
 			<Icon icon="mdi:script-text-outline" />
 		</button>
+		{#if auth.user}
+			<button
+				type="button"
+				class="quiet-button"
+				title="Publish all non-draft notes as crafts"
+				aria-label="Publish all non-draft notes as crafts"
+				disabled={busy === 'publish-all'}
+				onclick={() => void publishAll()}
+			>
+				<Icon icon={busy === 'publish-all' ? 'mdi:loading' : 'mdi:publish'} />
+			</button>
+		{/if}
 		<button
 			type="button"
 			class="quiet-button new-note-button"

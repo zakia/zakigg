@@ -32,6 +32,7 @@
 		syncStatus?: SyncLabelStatus;
 		historyOpen: boolean;
 		embeds?: EmbedAction[];
+		publicationState?: 'loading' | 'unpublished' | 'published' | 'working' | 'error';
 		onCopyMarkdown: () => void | Promise<void>;
 		onDownloadMarkdown: () => void;
 		onOpenShortcuts: () => void;
@@ -39,6 +40,7 @@
 		onInsertImage?: () => void;
 		onInsertVideo?: () => void;
 		onInsertEmbed?: (id: string) => void;
+		onTogglePublication?: () => void | Promise<void>;
 	};
 
 	let {
@@ -48,13 +50,15 @@
 		syncStatus = 'disabled',
 		historyOpen,
 		embeds = [],
+		publicationState = 'loading',
 		onCopyMarkdown,
 		onDownloadMarkdown,
 		onOpenShortcuts,
 		onToggleHistory,
 		onInsertImage,
 		onInsertVideo,
-		onInsertEmbed
+		onInsertEmbed,
+		onTogglePublication
 	}: Props = $props();
 
 	let useAppleKeys = $state(false);
@@ -85,6 +89,15 @@
 			}
 		];
 
+		if (onTogglePublication) {
+			items.unshift({
+				title: publicationActionTitle(publicationState),
+				icon: publicationActionIcon(publicationState),
+				active: publicationState === 'published',
+				action: onTogglePublication
+			});
+		}
+
 		if (onInsertVideo) {
 			items.unshift({
 				title: 'Insert Video',
@@ -112,6 +125,21 @@
 		}
 
 		return items;
+	}
+
+	function publicationActionTitle(state: Props['publicationState']) {
+		if (state === 'published') return 'Unpublish Craft';
+		if (state === 'working') return 'Updating Craft…';
+		if (state === 'error') return 'Retry Publishing';
+		if (state === 'loading') return 'Checking Publication…';
+		return 'Publish as Craft';
+	}
+
+	function publicationActionIcon(state: Props['publicationState']) {
+		if (state === 'published') return 'mdi:earth';
+		if (state === 'working' || state === 'loading') return 'mdi:loading';
+		if (state === 'error') return 'mdi:alert-circle-outline';
+		return 'mdi:publish';
 	}
 
 	function actionTitle(item: DocumentAction) {
@@ -200,6 +228,17 @@
 	button :global(svg) {
 		height: 1.1rem;
 		width: 1.1rem;
+	}
+
+	button[aria-label='Updating Craft…'] :global(svg),
+	button[aria-label='Checking Publication…'] :global(svg) {
+		animation: spin 0.8s linear infinite;
+	}
+
+	@keyframes spin {
+		to {
+			transform: rotate(1turn);
+		}
 	}
 
 	@media (max-width: 42rem) {

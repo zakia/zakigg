@@ -27,6 +27,16 @@
 {#snippet content()}
 	{#if craft.kind === 'document'}
 		<CraftDocumentRenderer document={craft.document} />
+	{:else if craft.kind === 'published'}
+		{#await craft.document}
+			<div class="document-skeleton" aria-label="Loading craft">
+				<span></span><span></span><span></span><span></span>
+			</div>
+		{:then document}
+			<CraftDocumentRenderer {document} />
+		{:catch}
+			<p class="document-error" role="alert">This craft could not be loaded.</p>
+		{/await}
 	{:else}
 		<craft.Component />
 	{/if}
@@ -69,6 +79,42 @@
 			grid-template-columns: 1fr;
 			padding-top: calc(var(--vertical-spacing) / 2);
 			padding-bottom: calc(var(--vertical-spacing) * 2);
+		}
+	}
+
+	.document-skeleton {
+		display: grid;
+		gap: var(--s-1);
+		padding-block: var(--s1);
+	}
+
+	.document-skeleton span {
+		animation: pulse 1.4s ease-in-out infinite alternate;
+		background: color-mix(in oklch, var(--content) 10%, transparent);
+		border-radius: var(--s-3);
+		height: 0.8rem;
+	}
+
+	.document-skeleton span:nth-child(2) {
+		width: 92%;
+	}
+
+	.document-skeleton span:nth-child(3) {
+		width: 78%;
+	}
+
+	.document-skeleton span:nth-child(4) {
+		width: 86%;
+	}
+
+	.document-error {
+		color: var(--error);
+		padding-block: var(--s1);
+	}
+
+	@keyframes pulse {
+		to {
+			opacity: 0.4;
 		}
 	}
 </style>

@@ -87,6 +87,7 @@
 				href={`/crafts/${post.slug}`}
 				class="grid grid-cols-[1fr_4fr]"
 				data-link
+				data-sveltekit-preload-data="hover"
 				data-year={post.year}
 			>
 				<div class="border-content">

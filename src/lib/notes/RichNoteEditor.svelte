@@ -3,6 +3,11 @@
 	import { Editor, posToDOMRect, type JSONContent, type Range } from '@tiptap/core';
 	import type { EditorView } from '@tiptap/pm/view';
 	import { craftComponentEmbeds } from '$lib/crafts/component-embeds';
+	import {
+		getCraftPublication,
+		publishNoteCraft,
+		unpublishNoteCraft
+	} from '$lib/crafts/publication.remote';
 	import { insertRegisteredComponentEmbed } from '$lib/editor/component-embeds';
 	import type { MediaBlockAttrs, MediaBlockKind } from '$lib/editor/media-block';
 	import EditorDocumentActions from './EditorDocumentActions.svelte';
@@ -114,6 +119,10 @@
 	let pendingSave = false;
 	let linkPopover = $state<LinkPopoverState>(createHiddenLinkPopover());
 	let selectionToolbar = $state<SelectionToolbarState>(createHiddenSelectionToolbar());
+	let publicationState = $state<'loading' | 'unpublished' | 'published' | 'working' | 'error'>(
+		'loading'
+	);
+	let publicationChecked = false;
 	let selectionToolbarFrame = 0;
 	let pointerSelectionActive = false;
 	let historyEntryIndex = 0;
@@ -136,6 +145,12 @@
 	const embedActions = $derived(
 		craftComponentEmbeds.insertable().map(({ id, label, icon }) => ({ id, label, icon }))
 	);
+
+	$effect(() => {
+		if (!auth.ready || !auth.user || publicationChecked) return;
+		publicationChecked = true;
+		void refreshPublicationState();
+	});
 
 	onMount(() => {
 		startSyncEngine();
@@ -679,8 +694,40 @@
 			if (notify) onSaved?.(nextPage);
 			lastSavedAt = nextPage.updatedAt;
 			saveState = 'saved';
+			return nextPage;
 		} catch {
 			saveState = 'error';
+		}
+	}
+
+	async function refreshPublicationState() {
+		try {
+			publicationState = (await getCraftPublication(page.id)) ? 'published' : 'unpublished';
+		} catch {
+			publicationState = 'error';
+		}
+	}
+
+	async function togglePublication() {
+		if (publicationState === 'working' || publicationState === 'loading') return;
+
+		const wasPublished = publicationState === 'published';
+		publicationState = 'working';
+
+		try {
+			if (wasPublished) {
+				await unpublishNoteCraft(page.id);
+				publicationState = 'unpublished';
+				return;
+			}
+
+			const savedPage = await persistNow();
+			if (!savedPage) throw new Error('Save failed');
+
+			await publishNoteCraft({ pageJson: JSON.stringify(savedPage) });
+			publicationState = 'published';
+		} catch {
+			publicationState = 'error';
 		}
 	}
 
@@ -1157,6 +1204,7 @@
 		{saveState}
 		{saveLabel}
 		syncStatus={syncLabelStatus}
+		{publicationState}
 		historyOpen={historyPanelOpen}
 		embeds={embedActions}
 		onCopyMarkdown={copyMarkdown}
@@ -1166,6 +1214,7 @@
 		onInsertImage={openImagePicker}
 		onInsertVideo={openVideoPicker}
 		onInsertEmbed={insertEmbed}
+		onTogglePublication={auth.user ? togglePublication : undefined}
 	/>
 
 	<EditorHistoryPanel

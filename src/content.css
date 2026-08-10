@@ -109,10 +109,6 @@
 			margin-bottom: var(--s-3);
 		}
 
-		& li::marker {
-			color: var(--brand);
-		}
-
 		/* 6. Blockquotes */
 		& blockquote {
 			border-left: 4px solid var(--brand);

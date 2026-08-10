@@ -1,16 +1,33 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
+	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import { auth } from '$lib/auth';
 	import '$lib/prism.css';
 	import '@fontsource-variable/inter';
 	import '@fontsource/fira-mono';
+	import type { Snippet } from 'svelte';
 	import '../app.css';
 	import Header from '../lib/components/Header.svelte';
+
+	let { children }: { children: Snippet } = $props();
 
 	onMount(() => {
 		void auth.refresh();
 	});
+
+	function titleFromPathname(pathname: string) {
+		const segment = decodeURIComponent(pathname).split('/').filter(Boolean).at(-1);
+		if (!segment) return 'zaki.gg';
+
+		const routeTitle = segment
+			.replace(/[-_]+/g, ' ')
+			.replace(/\b\p{L}/gu, (character) => character.toUpperCase());
+
+		return `${routeTitle} – zaki.gg`;
+	}
+
+	const pageTitle = $derived(titleFromPathname(page.url.pathname));
 
 	// onNavigate((navigation) => {
 	// 	if (!document.startViewTransition) return;
@@ -25,7 +42,7 @@
 </script>
 
 <svelte:head>
-	<title>Adham Zaki</title>
+	<title>{pageTitle}</title>
 	<meta
 		name="description"
 		content="Crafting interfaces. Building polished software and web experiences. Toronto-based Full Stack Developer and Entrepreneur."
@@ -35,7 +52,7 @@
 <div class="app">
 	<Header />
 	<main id="main" class="grid-bg">
-		<slot />
+		{@render children()}
 	</main>
 	<div class="preview"></div>
 </div>

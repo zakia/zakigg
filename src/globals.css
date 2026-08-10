@@ -35,6 +35,10 @@
 		list-style-type: decimal;
 	}
 
+	li::marker {
+		color: var(--brand);
+	}
+
 	:is(ul, ol) ol {
 		list-style-type: lower-alpha;
 	}

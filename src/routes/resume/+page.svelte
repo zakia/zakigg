@@ -1,6 +1,5 @@
 <script lang="ts">
 	import Icon from '$lib/components/Icon.svelte';
-	import { title } from 'radash';
 	import Card from './Card.svelte';
 	import { experiences, projects, skills } from './data';
 	import ProjectCard from './ProjectCard.svelte';
@@ -67,7 +66,7 @@
 		<div class="gap-s-2 mt-2 flex flex-wrap">
 			{#each skills as skill}
 				<div
-					class="bg-base-1 gap-s-2 px-s-1 py-s-4 border-base-2 pdf flex items-center rounded-lg border text-sm font-medium shadow-sm"
+					class="skill-chip bg-base-1 gap-s-2 px-s-1 py-s-4 border-base-2 flex items-center rounded-lg border text-sm font-medium"
 				>
 					<Icon icon={skill.icon} class="h-4 w-4 shrink-0" />
 					{skill.label}
@@ -78,8 +77,18 @@
 </div>
 
 <style>
-	.pdf {
-		/* -webkit-print-color-adjust: exact; */
-		-webkit-filter: opacity(1);
+	.skill-chip {
+		box-shadow:
+			0 1px 3px color-mix(in oklch, var(--brand) 20%, transparent),
+			0 1px 2px -1px color-mix(in oklch, var(--brand) 28%, transparent);
+		print-color-adjust: exact;
+		-webkit-print-color-adjust: exact;
+	}
+
+	@media print {
+		.skill-chip {
+			border-color: var(--edge-1);
+			box-shadow: 0 1px 0 color-mix(in oklch, var(--brand) 38%, var(--edge-1));
+		}
 	}
 </style>

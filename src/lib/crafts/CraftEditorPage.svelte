@@ -15,6 +15,7 @@
 	let loadedSlug = '';
 	let titleInput = $state('');
 	let tagsInput = $state('');
+	const editCollectionHref = `${resolve('/crafts')}?edit`;
 
 	$effect(() => {
 		if (loadedSlug === slug) return;
@@ -48,7 +49,7 @@
 		}
 
 		event.preventDefault();
-		void goto(resolve('/crafts?edit'));
+		void goto(editCollectionHref);
 	}
 
 	function handleSaved(page: NotePageV1) {
@@ -58,7 +59,7 @@
 			// Mark this slug as already loaded so the navigation below doesn't
 			// re-trigger loadPage() and remount the editor mid-edit.
 			loadedSlug = page.slug;
-			void goto(resolve(`/crafts/${page.slug}?edit`), {
+			void goto(editCraftHref(page.slug), {
 				replaceState: true,
 				keepFocus: true,
 				noScroll: true
@@ -78,7 +79,7 @@
 
 			craft = page;
 			syncMetadataInputs(page);
-			await goto(resolve(`/crafts/${page.slug}?edit`), { replaceState: true });
+			await goto(editCraftHref(page.slug), { replaceState: true });
 		} finally {
 			busy = '';
 		}
@@ -97,6 +98,14 @@
 			.map((tag) => tag.trim())
 			.filter(Boolean);
 	}
+
+	function craftHref(slug: string) {
+		return resolve('/crafts/[slug]', { slug });
+	}
+
+	function editCraftHref(slug: string) {
+		return `${craftHref(slug)}?edit`;
+	}
 </script>
 
 <svelte:head>
@@ -111,7 +120,7 @@
 	</section>
 {:else if !craft}
 	<section class="craft-state">
-		<a class="back-link" href={resolve('/crafts?edit')}><Icon icon="mdi:arrow-left" /> Crafts</a>
+		<a class="back-link" href={editCollectionHref}><Icon icon="mdi:arrow-left" /> Crafts</a>
 		<div class="missing-craft">
 			<h1>{titleFromSlug(slug)}</h1>
 			<p>No editable craft exists at /crafts/{slug} yet.</p>
@@ -135,7 +144,7 @@
 	<section class="craft-edit-page">
 		<a
 			class="back-button"
-			href={resolve('/crafts?edit')}
+			href={editCollectionHref}
 			aria-label="Back to crafts"
 			title="Back to crafts"
 			onclick={goBack}
@@ -143,11 +152,7 @@
 			<Icon icon="mdi:arrow-left" />
 		</a>
 		{#key craft.id}
-			<RichNoteEditor
-				page={craft}
-				publicHref={resolve(`/crafts/${craft.slug}`)}
-				onSaved={handleSaved}
-			/>
+			<RichNoteEditor page={craft} publicHref={craftHref(craft.slug)} onSaved={handleSaved} />
 		{/key}
 	</section>
 {/if}

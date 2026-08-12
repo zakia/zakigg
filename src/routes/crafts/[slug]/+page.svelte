@@ -66,7 +66,7 @@
 			<Icon icon="ep:top-left" />Back
 		</a>
 		{#if auth.user}
-			<a class="edit-craft" href={resolve(`/crafts/${data.meta.slug}?edit`)}>
+			<a class="edit-craft" href={`${resolve('/crafts/[slug]', { slug: data.meta.slug })}?edit`}>
 				<Icon icon="mdi:pencil-outline" /> Edit
 			</a>
 		{/if}

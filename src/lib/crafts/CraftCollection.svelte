@@ -42,6 +42,7 @@
 
 	const filteredPages = $derived(filterPages(pages));
 	const yearGroups = $derived(groupPagesByYear(filteredPages));
+	const editCollectionHref = `${resolve('/crafts')}?edit`;
 
 	onMount(() => {
 		if (editable) void refresh();
@@ -55,7 +56,7 @@
 				content: createCraftContent(),
 				properties: [{ key: 'date', value: new Date().toISOString().slice(0, 10) }]
 			});
-			await goto(resolve(`/crafts/${page.slug}?edit`));
+			await goto(craftHref(page.slug, true));
 		} finally {
 			busy = '';
 		}
@@ -126,7 +127,7 @@
 			);
 
 			if (importedPages === 1) {
-				await goto(resolve(`/crafts/${result.pages[0].slug}?edit`));
+				await goto(craftHref(result.pages[0].slug, true));
 			}
 		} finally {
 			busy = '';
@@ -269,6 +270,11 @@
 
 		return Math.max(1, Math.round(page.wordCount / READING_WORDS_PER_MINUTE));
 	}
+
+	function craftHref(slug: string, edit = false) {
+		const pathname = resolve('/crafts/[slug]', { slug });
+		return edit ? `${pathname}?edit` : pathname;
+	}
 </script>
 
 <section
@@ -286,7 +292,7 @@
 		{#if editable}
 			<a class="mode-link" href={resolve('/crafts')}>Done</a>
 		{:else if showEditLink}
-			<a class="mode-link" href={resolve('/crafts?edit')}>
+			<a class="mode-link" href={editCollectionHref}>
 				<Icon icon="mdi:pencil-outline" /> Edit
 			</a>
 		{/if}
@@ -375,10 +381,7 @@
 									</span>
 								</button>
 							{:else}
-								<a
-									class="page-link"
-									href={resolve(`/crafts/${page.slug}${editable ? '?edit' : ''}`)}
-								>
+								<a class="page-link" href={craftHref(page.slug, editable)}>
 									<span class="page-title">{page.title}</span>
 									<span class="page-meta">
 										{formatDay(page)}

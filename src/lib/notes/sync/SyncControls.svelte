@@ -24,7 +24,7 @@
 </script>
 
 {#if auth.user}
-	<div class="sync-pill" data-status={syncState.status} title="Notes sync status">
+	<div class="sync-pill" data-status={syncState.status} title="Craft sync status">
 		<span class="sync-dot"></span>
 		<button
 			type="button"

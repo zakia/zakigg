@@ -19,9 +19,9 @@ worker.addEventListener('install', (event) => {
 		(async () => {
 			const cache = await caches.open(CACHE);
 			await cache.addAll(STATIC_ASSETS);
-			// The notes list is the offline entry point. Individual note routes are
-			// cached after they are visited.
-			await cache.add('/notes');
+			// The private craft manager is the offline entry point. Individual edit
+			// routes are cached after they are visited.
+			await cache.add('/crafts?edit');
 			await worker.skipWaiting();
 		})()
 	);
@@ -58,14 +58,15 @@ async function handleNavigation(request: Request): Promise<Response> {
 	const cache = await caches.open(CACHE);
 	try {
 		const response = await fetch(request);
-		if (response.ok && new URL(request.url).pathname.startsWith('/notes')) {
+		const url = new URL(request.url);
+		if (response.ok && url.pathname.startsWith('/crafts') && url.searchParams.has('edit')) {
 			await cache.put(request, response.clone());
 		}
 		return response;
 	} catch {
 		return (
 			(await cache.match(request)) ??
-			(await cache.match('/notes')) ??
+			(await cache.match('/crafts?edit')) ??
 			new Response('This page is unavailable offline.', {
 				status: 503,
 				headers: { 'content-type': 'text/plain; charset=utf-8' }

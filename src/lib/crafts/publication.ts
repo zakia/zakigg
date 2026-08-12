@@ -16,6 +16,11 @@ export type PublishedCraftMetadata = PublishedCraftSummary & {
 	publishedAt: string;
 };
 
+export function countCraftWords(content: JSONContent, title = '') {
+	const text = [title, getContentText(content)].filter(Boolean).join(' ').trim();
+	return text ? text.split(/\s+/).length : 0;
+}
+
 export function createPublishedCraftSummary(page: NotePageV1): PublishedCraftSummary {
 	const text = getContentText(page.content);
 	const description = page.frontmatter?.description?.trim() || createExcerpt(text, page.title);
@@ -27,10 +32,33 @@ export function createPublishedCraftSummary(page: NotePageV1): PublishedCraftSum
 		description,
 		tags: page.tags,
 		date: page.frontmatter?.date?.trim() || page.createdAt.slice(0, 10),
+		wordCount: countCraftWords(page.content),
 		updatedAt: page.updatedAt,
 		draft: false,
 		fullBleed: false
 	};
+}
+
+export function toPublishedCraftSummary(record: PublishedCraftMetadata): PublishedCraftSummary {
+	return {
+		pageId: record.pageId,
+		slug: record.slug,
+		title: record.title,
+		description: record.description,
+		tags: record.tags,
+		date: record.date,
+		...(typeof record.wordCount === 'number' ? { wordCount: record.wordCount } : {}),
+		updatedAt: record.updatedAt,
+		draft: false,
+		fullBleed: false
+	};
+}
+
+export function isPublishedCraftOutdated(
+	page: Pick<NotePageV1, 'updatedAt'>,
+	publication: Pick<PublishedCraftSummary, 'updatedAt'>
+) {
+	return Date.parse(page.updatedAt) > Date.parse(publication.updatedAt);
 }
 
 export function createPublishedCraftDocument(page: NotePageV1): CraftDocument {

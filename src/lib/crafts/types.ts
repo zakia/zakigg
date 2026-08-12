@@ -5,8 +5,18 @@ export type CraftMeta = {
 	description: string;
 	tags: string[];
 	date: string;
+	wordCount?: number;
 	draft?: boolean;
 	fullBleed?: boolean;
+};
+
+export type CraftListItem = {
+	id: string;
+	slug: string;
+	title: string;
+	tags: string[];
+	date: string;
+	wordCount?: number;
 };
 
 export type CraftDocument = {

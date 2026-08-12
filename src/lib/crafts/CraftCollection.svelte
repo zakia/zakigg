@@ -1,79 +1,71 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import type { JSONContent } from '@tiptap/core';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import Icon from '$lib/components/Icon.svelte';
-	import { auth } from '$lib/auth';
-	import { publishNoteCraft } from '$lib/crafts/publication.remote';
+	import { unpublishNoteCraft } from '$lib/crafts/publication.remote';
 	import SyncControls from '$lib/notes/sync/SyncControls.svelte';
-	import { downloadNotePageExport } from '$lib/notes/export';
-	import { importNotesFromZip, isNotesArchiveFile } from '$lib/notes/import';
-	import { importCraftsToNotes } from '$lib/notes/import-crafts';
+	import { downloadNotePagesExport } from '$lib/notes/export';
+	import { importCraftFiles } from '$lib/notes/file-import';
 	import {
 		createNotePageRecord,
 		deleteNotePage,
-		duplicateNotePage,
 		initializeNotesDb,
 		listNotePages,
 		loadNotePageById
 	} from '$lib/notes/storage';
-	import type { NotePageSummary } from '$lib/notes/types';
+	import type { CraftListItem } from './types';
 
 	type YearGroup = {
 		year: number;
-		pages: NotePageSummary[];
+		pages: CraftListItem[];
 	};
 
 	const READING_WORDS_PER_MINUTE = 200;
 
-	let pages = $state<NotePageSummary[]>([]);
-	let loading = $state(true);
+	let {
+		initialCrafts = [],
+		editable = false,
+		showEditLink = false
+	}: { initialCrafts?: CraftListItem[]; editable?: boolean; showEditLink?: boolean } = $props();
+
+	let pages = $state<CraftListItem[]>(untrack(() => initialCrafts));
+	let loading = $state(untrack(() => editable));
 	let busy = $state('');
 	let toast = $state('');
 	let query = $state('');
 	let dragActive = $state(false);
-	let fileInput = $state<HTMLInputElement>();
+	let selectionMode = $state(false);
+	let selectedIds = $state(new Set<string>());
 	let dragDepth = 0;
 
 	const filteredPages = $derived(filterPages(pages));
 	const yearGroups = $derived(groupPagesByYear(filteredPages));
 
 	onMount(() => {
-		void refresh();
+		if (editable) void refresh();
 	});
 
-	async function createNote() {
+	async function createCraft() {
 		busy = 'create';
 
 		try {
 			const page = await createNotePageRecord({
-				content: createNoteContent(),
+				content: createCraftContent(),
 				properties: [{ key: 'date', value: new Date().toISOString().slice(0, 10) }]
 			});
-			await goto(resolve(`/notes/${page.slug}`));
+			await goto(resolve(`/crafts/${page.slug}?edit`));
 		} finally {
 			busy = '';
 		}
 	}
 
-	function createNoteContent(): JSONContent {
+	function createCraftContent(): JSONContent {
 		return {
 			type: 'doc',
 			content: [{ type: 'heading', attrs: { level: 1 } }, { type: 'paragraph' }]
 		};
-	}
-
-	function openImportPicker() {
-		fileInput?.click();
-	}
-
-	function handlePickedImport(event: Event) {
-		const input = event.currentTarget as HTMLInputElement;
-		const files = Array.from(input.files ?? []);
-
-		input.value = '';
-		void importFiles(files);
 	}
 
 	function eventHasFiles(event: DragEvent) {
@@ -81,7 +73,7 @@
 	}
 
 	function handleDragEnter(event: DragEvent) {
-		if (!eventHasFiles(event)) return;
+		if (!editable || !eventHasFiles(event)) return;
 
 		event.preventDefault();
 		dragDepth += 1;
@@ -89,7 +81,7 @@
 	}
 
 	function handleDragOver(event: DragEvent) {
-		if (!eventHasFiles(event)) return;
+		if (!editable || !eventHasFiles(event)) return;
 
 		event.preventDefault();
 
@@ -108,7 +100,7 @@
 	}
 
 	async function handleDrop(event: DragEvent) {
-		if (!eventHasFiles(event)) return;
+		if (!editable || !eventHasFiles(event)) return;
 
 		event.preventDefault();
 		dragDepth = 0;
@@ -118,87 +110,24 @@
 	}
 
 	async function importFiles(files: File[]) {
-		const archives = files.filter(isNotesArchiveFile);
-
-		if (!archives.length) {
-			showToast('Drop a .zip note export to import.');
-			return;
-		}
-
 		busy = 'import';
 
 		try {
-			let importedPages = 0;
-			let lastSlug = '';
-
-			for (const file of archives) {
-				try {
-					const result = await importNotesFromZip(file);
-					importedPages += result.pages.length;
-					lastSlug = result.pages.at(-1)?.slug ?? lastSlug;
-				} catch (error) {
-					console.error(error);
-					showToast(`Could not import ${file.name}`);
-				}
+			const result = await importCraftFiles(files);
+			const importedPages = result.pages.length;
+			if (!importedPages) {
+				showToast('No supported craft files found.');
+				return;
 			}
-
-			if (!importedPages) return;
 
 			await refresh();
-			showToast(`Imported ${importedPages} ${importedPages === 1 ? 'note' : 'notes'}`);
-
-			if (archives.length === 1 && importedPages === 1 && lastSlug) {
-				await goto(resolve(`/notes/${lastSlug}`));
-			}
-		} finally {
-			busy = '';
-		}
-	}
-
-	async function importCrafts() {
-		busy = 'import-crafts';
-
-		try {
-			const result = await importCraftsToNotes();
-
-			if (result.imported.length) await refresh();
-
 			showToast(
-				result.imported.length
-					? `Imported ${result.imported.length} craft${result.imported.length === 1 ? '' : 's'}`
-					: 'No new crafts to import'
+				`Created ${importedPages} ${importedPages === 1 ? 'craft' : 'crafts'}${result.failed.length ? ` · ${result.failed.length} skipped` : ''}`
 			);
-		} catch (error) {
-			console.error(error);
-			showToast('Could not import crafts');
-		} finally {
-			busy = '';
-		}
-	}
 
-	async function publishAll() {
-		busy = 'publish-all';
-		let published = 0;
-		let skipped = 0;
-
-		try {
-			for (const summary of pages) {
-				const page = await loadNotePageById(summary.id);
-				if (!page || page.frontmatter?.draft) {
-					skipped += 1;
-					continue;
-				}
-
-				await publishNoteCraft({ pageJson: JSON.stringify(page) });
-				published += 1;
+			if (importedPages === 1) {
+				await goto(resolve(`/crafts/${result.pages[0].slug}?edit`));
 			}
-
-			showToast(
-				`Published ${published} craft${published === 1 ? '' : 's'}${skipped ? ` · skipped ${skipped} draft${skipped === 1 ? '' : 's'}` : ''}`
-			);
-		} catch (error) {
-			console.error(error);
-			showToast(`Published ${published} before an error interrupted the batch`);
 		} finally {
 			busy = '';
 		}
@@ -215,7 +144,7 @@
 		}
 	}
 
-	function filterPages(source: NotePageSummary[]) {
+	function filterPages(source: CraftListItem[]) {
 		const text = query.trim().toLowerCase();
 		if (!text) return source;
 
@@ -227,7 +156,7 @@
 	// The document date (metadata `date` property) drives ordering and
 	// grouping — imported historical posts sit under their original year, not
 	// the year they were last touched.
-	function groupPagesByYear(source: NotePageSummary[]) {
+	function groupPagesByYear(source: CraftListItem[]) {
 		const sorted = [...source].sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
 		const groups: YearGroup[] = [];
 
@@ -248,47 +177,73 @@
 		return /^\d{4}-\d{2}-\d{2}$/.test(value);
 	}
 
-	function pageYear(page: NotePageSummary) {
+	function pageYear(page: CraftListItem) {
 		const date = new Date(page.date);
 
 		return isDateOnly(page.date) ? date.getUTCFullYear() : date.getFullYear();
 	}
 
-	async function exportPage(page: NotePageSummary) {
-		const fullPage = await loadNotePageById(page.id);
-		if (!fullPage) return;
+	function toggleSelection(id: string) {
+		const next = new Set(selectedIds);
+		if (next.has(id)) next.delete(id);
+		else next.add(id);
+		selectedIds = next;
+	}
 
-		busy = `export:${page.id}`;
+	function enterSelectionMode() {
+		selectionMode = true;
+		selectedIds = new Set();
+	}
+
+	function leaveSelectionMode() {
+		selectionMode = false;
+		selectedIds = new Set();
+	}
+
+	function selectAllVisible() {
+		const visibleIds = filteredPages.map((page) => page.id);
+		const allSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
+		const next = new Set(selectedIds);
+		for (const id of visibleIds) allSelected ? next.delete(id) : next.add(id);
+		selectedIds = next;
+	}
+
+	async function exportSelected() {
+		if (!selectedIds.size) return;
+		busy = 'export';
+
 		try {
-			await downloadNotePageExport(fullPage);
-			showToast(`Exported ${page.title}`);
+			const selectedPages = (
+				await Promise.all([...selectedIds].map((id) => loadNotePageById(id)))
+			).filter((page) => page !== null);
+			await downloadNotePagesExport(selectedPages);
+			showToast(
+				`Exported ${selectedPages.length} ${selectedPages.length === 1 ? 'craft' : 'crafts'}`
+			);
 		} finally {
 			busy = '';
 		}
 	}
 
-	async function duplicate(page: NotePageSummary) {
-		busy = `duplicate:${page.id}`;
+	async function deleteSelected() {
+		const count = selectedIds.size;
+		if (
+			!count ||
+			!confirm(
+				`Delete ${count} selected ${count === 1 ? 'craft' : 'crafts'}? Published copies will also be removed.`
+			)
+		)
+			return;
 
+		busy = 'delete';
 		try {
-			const copy = await duplicateNotePage(page.id);
-			showToast(`Duplicated ${page.title}`);
+			for (const id of selectedIds) {
+				await unpublishNoteCraft(id);
+				await deleteNotePage(id);
+			}
+			leaveSelectionMode();
 			await refresh();
-			await goto(resolve(`/notes/${copy.slug}`));
-		} finally {
-			busy = '';
-		}
-	}
-
-	async function remove(page: NotePageSummary) {
-		if (!confirm(`Delete "${page.title}"?`)) return;
-
-		busy = `delete:${page.id}`;
-
-		try {
-			await deleteNotePage(page.id);
-			showToast(`Deleted ${page.title}`);
-			await refresh();
+			showToast(`Deleted ${count} ${count === 1 ? 'craft' : 'crafts'}`);
 		} finally {
 			busy = '';
 		}
@@ -301,7 +256,7 @@
 		}, 2400);
 	}
 
-	function formatDay(page: NotePageSummary) {
+	function formatDay(page: CraftListItem) {
 		return new Intl.DateTimeFormat('en-US', {
 			month: 'short',
 			day: 'numeric',
@@ -309,139 +264,131 @@
 		}).format(new Date(page.date));
 	}
 
-	function readingMinutes(page: NotePageSummary) {
+	function readingMinutes(page: CraftListItem) {
 		if (!page.wordCount) return 0;
 
 		return Math.max(1, Math.round(page.wordCount / READING_WORDS_PER_MINUTE));
 	}
 </script>
 
-<svelte:head>
-	<title>Notes | Adham Zaki</title>
-	<meta name="description" content="A local-first document manager on zaki.gg." />
-</svelte:head>
-
 <section
-	class="notes-manager"
+	class="craft-collection"
+	class:editable
 	class:drag-active={dragActive}
 	ondragenter={handleDragEnter}
 	ondragover={handleDragOver}
 	ondragleave={handleDragLeave}
 	ondrop={handleDrop}
-	aria-label="Notes"
+	aria-label={editable ? 'Manage crafts' : 'Crafts'}
 >
-	<input
-		bind:this={fileInput}
-		class="import-input"
-		type="file"
-		accept=".zip,application/zip,application/x-zip-compressed"
-		multiple
-		onchange={handlePickedImport}
-	/>
+	<header class="collection-header">
+		<h1>Crafts</h1>
+		{#if editable}
+			<a class="mode-link" href={resolve('/crafts')}>Done</a>
+		{:else if showEditLink}
+			<a class="mode-link" href={resolve('/crafts?edit')}>
+				<Icon icon="mdi:pencil-outline" /> Edit
+			</a>
+		{/if}
+	</header>
 
 	<div class="manager-toolbar">
 		<label class="search-field">
 			<Icon icon="mdi:magnify" />
-			<input type="search" bind:value={query} placeholder="Search" aria-label="Search pages" />
+			<input type="search" bind:value={query} placeholder="Search" aria-label="Search crafts" />
 		</label>
-		<button
-			type="button"
-			class="quiet-button"
-			title="Import note export"
-			aria-label="Import note export"
-			disabled={busy === 'import'}
-			onclick={openImportPicker}
-		>
-			<Icon icon="mdi:package-up" />
-		</button>
-		<button
-			type="button"
-			class="quiet-button"
-			title="Import craft posts"
-			aria-label="Import craft posts"
-			disabled={busy === 'import-crafts'}
-			onclick={() => void importCrafts()}
-		>
-			<Icon icon="mdi:script-text-outline" />
-		</button>
-		{#if auth.user}
+		{#if editable && selectionMode}
+			<span class="selection-count">{selectedIds.size} selected</span>
+			<button type="button" class="quiet-button" onclick={selectAllVisible}>
+				{filteredPages.length > 0 && filteredPages.every((page) => selectedIds.has(page.id))
+					? 'None'
+					: 'All'}
+			</button>
 			<button
 				type="button"
 				class="quiet-button"
-				title="Publish all non-draft notes as crafts"
-				aria-label="Publish all non-draft notes as crafts"
-				disabled={busy === 'publish-all'}
-				onclick={() => void publishAll()}
+				disabled={!selectedIds.size || Boolean(busy)}
+				onclick={() => void exportSelected()}
 			>
-				<Icon icon={busy === 'publish-all' ? 'mdi:loading' : 'mdi:publish'} />
+				<Icon icon="mdi:download-outline" />
+				Download
 			</button>
+			<button
+				type="button"
+				class="quiet-button danger"
+				disabled={!selectedIds.size || Boolean(busy)}
+				onclick={() => void deleteSelected()}
+			>
+				<Icon icon="mdi:trash-can-outline" />
+				Delete
+			</button>
+			<button type="button" class="quiet-button" onclick={leaveSelectionMode}>Cancel</button>
+		{:else if editable}
+			<button type="button" class="quiet-button" onclick={enterSelectionMode}>Select</button>
+			<button
+				type="button"
+				class="quiet-button new-craft-button"
+				disabled={busy === 'create'}
+				onclick={() => void createCraft()}
+			>
+				<Icon icon="mdi:plus" />
+				New
+			</button>
+			<SyncControls />
 		{/if}
-		<button
-			type="button"
-			class="quiet-button new-note-button"
-			disabled={busy === 'create'}
-			onclick={() => void createNote()}
-		>
-			<Icon icon="mdi:plus" />
-			New
-		</button>
-		<SyncControls />
 	</div>
 
 	{#if loading}
-		<p class="empty-state">Loading notes...</p>
+		<p class="empty-state">Loading crafts...</p>
 	{:else if !filteredPages.length}
-		<p class="empty-state">No pages match this search.</p>
+		<p class="empty-state">No crafts match this search.</p>
 	{:else}
 		{#each yearGroups as group (group.year)}
 			<div class="year-group">
 				<span class="year-ghost" aria-hidden="true">{group.year}</span>
 				<ul class="year-list list-reset">
 					{#each group.pages as page (page.id)}
-						<li class="page-row">
-							<a class="page-link" href={resolve(`/notes/${page.slug}`)}>
-								<span class="page-title">{page.title}</span>
-								<span class="page-meta">
-									{formatDay(page)}
-									{#if readingMinutes(page)}
-										<span class="meta-dot">·</span>
-										{readingMinutes(page)}min
-									{/if}
-								</span>
-							</a>
-
-							<span class="row-actions">
+						<li class="page-row" class:selected={selectedIds.has(page.id)}>
+							{#if selectionMode}
 								<button
 									type="button"
-									class="row-action"
-									title="Export page"
-									aria-label={`Export ${page.title}`}
-									disabled={busy === `export:${page.id}`}
-									onclick={() => void exportPage(page)}
+									class="selection-toggle"
+									class:checked={selectedIds.has(page.id)}
+									aria-label={`${selectedIds.has(page.id) ? 'Deselect' : 'Select'} ${page.title}`}
+									aria-pressed={selectedIds.has(page.id)}
+									onclick={() => toggleSelection(page.id)}
 								>
-									<Icon icon="mdi:package-down" />
+									<Icon icon="mdi:check" />
 								</button>
 								<button
 									type="button"
-									class="row-action"
-									title="Duplicate page"
-									aria-label={`Duplicate ${page.title}`}
-									disabled={busy === `duplicate:${page.id}`}
-									onclick={() => void duplicate(page)}
+									class="page-link selection-link"
+									onclick={() => toggleSelection(page.id)}
 								>
-									<Icon icon="mdi:content-duplicate" />
+									<span class="page-title">{page.title}</span>
+									<span class="page-meta">
+										{formatDay(page)}
+										{#if readingMinutes(page)}
+											<span class="meta-dot">·</span>
+											{readingMinutes(page)}min
+										{/if}
+									</span>
 								</button>
-								<button
-									type="button"
-									class="row-action danger"
-									title="Delete page"
-									aria-label={`Delete ${page.title}`}
-									disabled={busy === `delete:${page.id}`}
-									onclick={() => void remove(page)}
+							{:else}
+								<a
+									class="page-link"
+									href={resolve(`/crafts/${page.slug}${editable ? '?edit' : ''}`)}
 								>
-									<Icon icon="mdi:trash-can-outline" />
-								</button>
-							</span>
+									<span class="page-title">{page.title}</span>
+									<span class="page-meta">
+										{formatDay(page)}
+										{#if readingMinutes(page)}
+											<span class="meta-dot">·</span>
+											{readingMinutes(page)}min
+										{/if}
+									</span>
+								</a>
+							{/if}
 						</li>
 					{/each}
 				</ul>
@@ -456,32 +403,70 @@
 	{#if dragActive}
 		<div class="drop-overlay" aria-hidden="true">
 			<div class="drop-overlay-card">
-				<Icon icon="mdi:package-down" />
-				<span>Drop a note export to import</span>
+				<Icon icon="mdi:file-plus-outline" />
+				<span>Drop files to create crafts</span>
 			</div>
 		</div>
 	{/if}
 </section>
 
 <style>
-	.notes-manager {
+	.craft-collection {
 		align-content: start;
 		display: grid;
 		margin-inline: auto;
-		max-width: 44rem;
+		max-width: 52rem;
 		padding: var(--s2) var(--s0) calc(var(--s4) + 5rem);
 		position: relative;
 		width: 100%;
 	}
 
-	.import-input {
-		display: none;
+	.craft-collection.editable {
+		padding-bottom: calc(clamp(13rem, 32vh, 20rem) + env(safe-area-inset-bottom, 0px));
+	}
+
+	.collection-header {
+		align-items: baseline;
+		display: flex;
+		justify-content: space-between;
+		margin-bottom: var(--s0);
+	}
+
+	.collection-header h1 {
+		font-size: var(--s2);
+		letter-spacing: -0.035em;
+		margin: 0;
+	}
+
+	.mode-link {
+		align-items: center;
+		color: var(--content-1);
+		display: inline-flex;
+		font-size: var(--s-1);
+		gap: var(--s-4);
+		text-decoration: none;
+	}
+
+	.mode-link:hover,
+	.mode-link:focus-visible {
+		color: var(--content);
+	}
+
+	.mode-link :global(svg) {
+		height: 1rem;
+		width: 1rem;
 	}
 
 	.manager-toolbar {
 		align-items: center;
 		display: flex;
 		gap: var(--s-3);
+	}
+
+	.selection-count {
+		color: var(--content-1);
+		font-size: var(--s-1);
+		white-space: nowrap;
 	}
 
 	.search-field {
@@ -555,39 +540,41 @@
 		opacity: 0.5;
 	}
 
+	.quiet-button.danger {
+		color: var(--error);
+	}
+
+	.quiet-button.danger:hover,
+	.quiet-button.danger:focus-visible {
+		background: color-mix(in oklch, var(--error) 10%, transparent);
+	}
+
 	.quiet-button :global(svg) {
 		height: 1.05rem;
 		width: 1.05rem;
 	}
 
 	.year-group {
-		padding-top: 3.4rem;
+		padding-top: 3rem;
 		position: relative;
 	}
 
 	.year-ghost {
-		color: transparent;
-		font-size: clamp(4.6rem, 13vw, 7.5rem);
+		color: color-mix(in oklch, var(--brand) 5%, transparent);
+		font-size: clamp(7rem, 13vw, 10rem);
 		font-weight: 800;
 		left: -0.03em;
-		letter-spacing: -0.02em;
+		letter-spacing: -0.045em;
 		line-height: 1;
 		pointer-events: none;
 		position: absolute;
 		top: 0;
 		user-select: none;
-		-webkit-text-stroke: 2px color-mix(in oklch, var(--content) 11%, transparent);
-	}
-
-	@supports not (-webkit-text-stroke: 2px black) {
-		.year-ghost {
-			color: color-mix(in oklch, var(--content) 6%, transparent);
-		}
 	}
 
 	.year-list {
 		display: grid;
-		padding: 1.9rem 0 0;
+		padding: 1.85rem 0 0;
 		position: relative;
 	}
 
@@ -595,6 +582,11 @@
 		align-items: baseline;
 		display: flex;
 		gap: var(--s-2);
+		position: relative;
+	}
+
+	.page-row.selected .page-link {
+		color: var(--content);
 	}
 
 	.page-link {
@@ -604,9 +596,17 @@
 		display: flex;
 		gap: var(--s-2);
 		min-width: 0;
-		padding: var(--s-3) 0;
+		padding: 0.62rem 0;
 		text-decoration: none;
 		transition: color 0.16s ease;
+	}
+
+	button.page-link {
+		background: transparent;
+		border: 0;
+		font: inherit;
+		text-align: left;
+		width: 100%;
 	}
 
 	.page-link:hover,
@@ -616,8 +616,9 @@
 	}
 
 	.page-title {
-		font-size: var(--s0);
-		font-weight: 560;
+		font-size: clamp(1.05rem, 2vw, 1.3rem);
+		font-weight: 520;
+		line-height: 1.25;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
@@ -626,7 +627,8 @@
 	.page-meta {
 		color: color-mix(in oklch, var(--content-1) 78%, transparent);
 		flex-shrink: 0;
-		font-size: var(--s-1);
+		font-size: clamp(0.82rem, 1.45vw, 0.98rem);
+		line-height: 1.25;
 		white-space: nowrap;
 	}
 
@@ -635,63 +637,41 @@
 		padding-inline: 0.1em;
 	}
 
-	.row-actions {
-		align-items: center;
-		align-self: center;
-		display: flex;
-		gap: var(--s-5);
-		margin-left: auto;
-		opacity: 0;
-		transition: opacity 0.16s ease;
-	}
-
-	.page-row:hover .row-actions,
-	.page-row:focus-within .row-actions {
-		opacity: 1;
-	}
-
-	@media (hover: none) {
-		.row-actions {
-			opacity: 1;
-		}
-	}
-
-	.row-action {
+	.selection-toggle {
 		align-items: center;
 		background: transparent;
-		border: 0;
-		border-radius: var(--s-4);
-		color: color-mix(in oklch, var(--content-1) 82%, transparent);
+		border: 1.5px solid color-mix(in oklch, var(--content-1) 45%, transparent);
+		border-radius: 50%;
+		color: transparent;
 		display: inline-flex;
-		height: 1.9rem;
+		flex: 0 0 auto;
+		height: 1.15rem;
 		justify-content: center;
-		transition:
-			background-color 0.16s ease,
-			color 0.16s ease;
-		width: 1.9rem;
+		margin-top: 0.85rem;
+		padding: 0;
+		transition: 0.16s ease;
+		width: 1.15rem;
 	}
 
-	.row-action :global(svg) {
-		height: 1rem;
-		width: 1rem;
+	.selection-toggle :global(svg) {
+		height: 0.75rem;
+		width: 0.75rem;
 	}
 
-	.row-action:hover,
-	.row-action:focus-visible {
-		background: color-mix(in oklch, var(--content) 8%, transparent);
-		color: var(--content);
+	.selection-toggle:hover,
+	.selection-toggle:focus-visible {
+		border-color: var(--brand);
 		outline: none;
 	}
 
-	.row-action.danger:hover,
-	.row-action.danger:focus-visible {
-		background: color-mix(in oklch, var(--error) 12%, transparent);
-		color: var(--error);
+	.selection-toggle.checked {
+		background: var(--brand);
+		border-color: var(--brand);
+		color: var(--brand-content);
 	}
 
-	.row-action:disabled {
-		cursor: default;
-		opacity: 0.5;
+	.selection-link {
+		cursor: pointer;
 	}
 
 	.empty-state {
@@ -748,6 +728,14 @@
 	}
 
 	@media (max-width: 42rem) {
+		.manager-toolbar {
+			flex-wrap: wrap;
+		}
+
+		.search-field {
+			flex-basis: 100%;
+		}
+
 		.page-link {
 			flex-direction: column;
 			gap: var(--s-5);

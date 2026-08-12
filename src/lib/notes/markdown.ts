@@ -1,6 +1,8 @@
-import type { Editor, JSONContent } from '@tiptap/core';
+import { Editor, type JSONContent } from '@tiptap/core';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import { normalizeMediaBlockAttrs } from '$lib/editor/media-block/config';
+import { noteComponentEmbeds } from './component-embeds';
+import { createEditorExtensions } from './editor-extensions';
 import { normalizeMetadataProperties, type MetadataProperties } from './metadata-block';
 import {
 	metadataPropertiesToNotePageFrontmatter,
@@ -83,6 +85,27 @@ export function insertEditorMarkdown(
 	};
 }
 
+export function parseEditorMarkdown(markdown: string) {
+	const parsed = parseMarkdownFrontmatter(markdown);
+	const editor = new Editor({
+		extensions: createEditorExtensions(noteComponentEmbeds).filter(
+			(extension) => extension.name !== 'blockHandle' && extension.name !== 'placeholder'
+		),
+		content: { type: 'doc', content: [{ type: 'paragraph' }] }
+	});
+
+	try {
+		const document = (editor as MarkdownEditor).markdown?.parse(parsed.markdown);
+
+		return {
+			...parsed,
+			content: normalizeMarkdownDoc(document ?? { type: 'doc', content: [{ type: 'paragraph' }] })
+		};
+	} finally {
+		editor.destroy();
+	}
+}
+
 export function looksLikeMarkdown(value: string) {
 	const parsed = parseMarkdownFrontmatter(value);
 	const text = parsed.markdown.trim();
@@ -123,7 +146,7 @@ export function downloadMarkdownFile(markdown: string) {
 	const anchor = document.createElement('a');
 
 	anchor.href = url;
-	anchor.download = `notes-${new Date().toISOString().slice(0, 10)}.md`;
+	anchor.download = `craft-${new Date().toISOString().slice(0, 10)}.md`;
 	document.body.append(anchor);
 	anchor.click();
 	window.setTimeout(() => {

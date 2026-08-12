@@ -2,12 +2,13 @@
 	import { onMount, tick } from 'svelte';
 	import { Editor, posToDOMRect, type JSONContent, type Range } from '@tiptap/core';
 	import type { EditorView } from '@tiptap/pm/view';
-	import { craftComponentEmbeds } from '$lib/crafts/component-embeds';
+	import { noteComponentEmbeds } from '$lib/notes/component-embeds';
 	import {
 		getCraftPublication,
 		publishNoteCraft,
 		unpublishNoteCraft
 	} from '$lib/crafts/publication.remote';
+	import { isPublishedCraftOutdated } from '$lib/crafts/publication';
 	import { insertRegisteredComponentEmbed } from '$lib/editor/component-embeds';
 	import type { MediaBlockAttrs, MediaBlockKind } from '$lib/editor/media-block';
 	import EditorDocumentActions from './EditorDocumentActions.svelte';
@@ -87,10 +88,12 @@
 
 	let {
 		page,
-		onSaved
+		onSaved,
+		publicHref
 	}: {
 		page: NotePageV1;
 		onSaved?: (page: NotePageV1) => void;
+		publicHref?: string;
 	} = $props();
 
 	let editorHost = $state<HTMLDivElement>();
@@ -122,6 +125,9 @@
 	let publicationState = $state<'loading' | 'unpublished' | 'published' | 'working' | 'error'>(
 		'loading'
 	);
+	let publicationExists = $state(false);
+	let pendingPublicationPage = $state<NotePageV1 | null>(null);
+	let publicationUpdateInFlight = $state(false);
 	let publicationChecked = false;
 	let selectionToolbarFrame = 0;
 	let pointerSelectionActive = false;
@@ -143,13 +149,28 @@
 	);
 	const selectionToolbarFallbackTop = $derived(selectionToolbar.anchor.top);
 	const embedActions = $derived(
-		craftComponentEmbeds.insertable().map(({ id, label, icon }) => ({ id, label, icon }))
+		noteComponentEmbeds.insertable().map(({ id, label, icon }) => ({ id, label, icon }))
 	);
 
 	$effect(() => {
 		if (!auth.ready || !auth.user || publicationChecked) return;
 		publicationChecked = true;
 		void refreshPublicationState();
+	});
+
+	$effect(() => {
+		if (
+			!auth.user ||
+			!publicationExists ||
+			!pendingPublicationPage ||
+			publicationUpdateInFlight ||
+			publicationState === 'error' ||
+			syncState.status !== 'synced'
+		) {
+			return;
+		}
+
+		void updatePublishedCraft();
 	});
 
 	onMount(() => {
@@ -197,7 +218,7 @@
 			const initialContent = getInitialEditorContent(page);
 			const instance = new Editor({
 				element: editorHost,
-				extensions: createEditorExtensions(craftComponentEmbeds, resolveNoteAssetObjectUrl, {
+				extensions: createEditorExtensions(noteComponentEmbeds, resolveNoteAssetObjectUrl, {
 					getBlockHandleElement: () => blockHandleElement ?? null,
 					onBlockHandleTargetChange: (nextTarget) => {
 						blockHandleTarget = nextTarget;
@@ -694,6 +715,7 @@
 			if (notify) onSaved?.(nextPage);
 			lastSavedAt = nextPage.updatedAt;
 			saveState = 'saved';
+			if (publicationExists) pendingPublicationPage = nextPage;
 			return nextPage;
 		} catch {
 			saveState = 'error';
@@ -702,21 +724,47 @@
 
 	async function refreshPublicationState() {
 		try {
-			publicationState = (await getCraftPublication(page.id)) ? 'published' : 'unpublished';
+			const publication = await getCraftPublication(page.id);
+			publicationExists = Boolean(publication);
+			publicationState = publicationExists ? 'published' : 'unpublished';
+			if (publication && isPublishedCraftOutdated(page, publication)) {
+				pendingPublicationPage = page;
+			}
 		} catch {
 			publicationState = 'error';
+		}
+	}
+
+	async function updatePublishedCraft() {
+		const nextPage = pendingPublicationPage;
+		if (!nextPage || publicationUpdateInFlight) return;
+
+		pendingPublicationPage = null;
+		publicationUpdateInFlight = true;
+		publicationState = 'working';
+
+		try {
+			await publishNoteCraft({ pageJson: JSON.stringify(nextPage) });
+			publicationState = 'published';
+		} catch {
+			pendingPublicationPage = nextPage;
+			publicationState = 'error';
+		} finally {
+			publicationUpdateInFlight = false;
 		}
 	}
 
 	async function togglePublication() {
 		if (publicationState === 'working' || publicationState === 'loading') return;
 
-		const wasPublished = publicationState === 'published';
+		const shouldUnpublish = publicationExists && publicationState !== 'error';
 		publicationState = 'working';
 
 		try {
-			if (wasPublished) {
+			if (shouldUnpublish) {
 				await unpublishNoteCraft(page.id);
+				publicationExists = false;
+				pendingPublicationPage = null;
 				publicationState = 'unpublished';
 				return;
 			}
@@ -725,6 +773,8 @@
 			if (!savedPage) throw new Error('Save failed');
 
 			await publishNoteCraft({ pageJson: JSON.stringify(savedPage) });
+			publicationExists = true;
+			pendingPublicationPage = null;
 			publicationState = 'published';
 		} catch {
 			publicationState = 'error';
@@ -843,7 +893,7 @@
 	function insertEmbed(id: string) {
 		if (!editor) return;
 
-		const result = insertRegisteredComponentEmbed(editor, craftComponentEmbeds, id);
+		const result = insertRegisteredComponentEmbed(editor, noteComponentEmbeds, id);
 
 		if (!result.ok) {
 			saveState = 'error';
@@ -1205,6 +1255,7 @@
 		{saveLabel}
 		syncStatus={syncLabelStatus}
 		{publicationState}
+		{publicHref}
 		historyOpen={historyPanelOpen}
 		embeds={embedActions}
 		onCopyMarkdown={copyMarkdown}

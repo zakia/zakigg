@@ -1,5 +1,4 @@
 import { browser } from '$app/environment';
-import type { JSONContent } from '@tiptap/core';
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import { emitLocalMutation } from './sync/signals';
 import {
@@ -248,44 +247,6 @@ export async function saveNotePage(page: NotePageV1): Promise<NotePageV1> {
 	await attachAssetsToPage(next.id, getReferencedAssetIds(next.content));
 
 	return next;
-}
-
-export async function duplicateNotePage(pageId: string) {
-	const page = await loadNotePageById(pageId);
-
-	if (!page) throw new Error('Note page not found');
-
-	const copyTitle = `${page.title} Copy`;
-	// Drop any `slug` property so a fresh slug derives from the copy title;
-	// retitle a `title` property if the note carries one.
-	const properties = page.properties
-		.filter((entry) => entry.key !== 'slug')
-		.map((entry) => (entry.key === 'title' ? { key: 'title', value: copyTitle } : entry));
-
-	return createNotePageRecord({
-		title: copyTitle,
-		tags: page.tags,
-		properties,
-		content: retitleNoteContent(page.content, copyTitle)
-	});
-}
-
-// Metadata lives on the page now, so a duplicate only needs its H1 retitled
-// inside the content.
-function retitleNoteContent(content: JSONContent, title: string): JSONContent {
-	const rootContent = [...(content.content ?? [])];
-	const headingIndex = rootContent.findIndex(
-		(node) => node.type === 'heading' && Number(node.attrs?.level) === 1
-	);
-
-	if (headingIndex >= 0) {
-		rootContent[headingIndex] = {
-			...rootContent[headingIndex],
-			content: [{ type: 'text', text: title }]
-		};
-	}
-
-	return { ...content, content: rootContent };
 }
 
 export async function deleteNotePage(pageId: string): Promise<void> {

@@ -8,7 +8,7 @@ import {
 	saveAssetBlob
 } from '$lib/server/notes-sync/firestore';
 
-// Asset blobs are proxied through the server rather than via signed URLs: one
+// Private page assets are proxied through the server rather than via signed URLs: one
 // origin, no GCS CORS setup, auth via the same session cookie. Cloud Run caps
 // request bodies at 32 MB, which bounds the supported asset size.
 export const GET: RequestHandler = async ({ params }) => {

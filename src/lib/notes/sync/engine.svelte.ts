@@ -124,7 +124,7 @@ async function runSync(): Promise<void> {
 		syncState.status = (await hasPendingSyncWork()) ? 'pending' : 'synced';
 		syncState.lastSyncedAt = new Date().toISOString();
 	} catch (error) {
-		console.error('Notes sync failed', error);
+		console.error('Craft sync failed', error);
 		syncState.status = 'error';
 		backoffTimer = setTimeout(() => {
 			backoffTimer = null;
@@ -231,7 +231,7 @@ async function downloadAssetBlob(assetId: string): Promise<Blob | null> {
 }
 
 function assetBlobUrl(assetId: string) {
-	return `/notes/sync/assets/${encodeURIComponent(assetId)}`;
+	return `/api/pages/assets/${encodeURIComponent(assetId)}`;
 }
 
 function hasEnrolledFlag() {

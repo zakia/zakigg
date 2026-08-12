@@ -231,7 +231,7 @@
 	popover="manual"
 	role="toolbar"
 	tabindex="-1"
-	aria-label={mode === 'link' ? 'Link editor' : 'Notes formatting toolbar'}
+	aria-label={mode === 'link' ? 'Link editor' : 'Craft formatting toolbar'}
 	style={popoverStyle}
 	hidden={!popoverSupported && !visible}
 	onpointerdown={keepEditorSelection}

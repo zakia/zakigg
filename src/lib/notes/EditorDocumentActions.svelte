@@ -33,6 +33,7 @@
 		historyOpen: boolean;
 		embeds?: EmbedAction[];
 		publicationState?: 'loading' | 'unpublished' | 'published' | 'working' | 'error';
+		publicHref?: string;
 		onCopyMarkdown: () => void | Promise<void>;
 		onDownloadMarkdown: () => void;
 		onOpenShortcuts: () => void;
@@ -51,6 +52,7 @@
 		historyOpen,
 		embeds = [],
 		publicationState = 'loading',
+		publicHref,
 		onCopyMarkdown,
 		onDownloadMarkdown,
 		onOpenShortcuts,
@@ -89,15 +91,6 @@
 			}
 		];
 
-		if (onTogglePublication) {
-			items.unshift({
-				title: publicationActionTitle(publicationState),
-				icon: publicationActionIcon(publicationState),
-				active: publicationState === 'published',
-				action: onTogglePublication
-			});
-		}
-
 		if (onInsertVideo) {
 			items.unshift({
 				title: 'Insert Video',
@@ -128,11 +121,19 @@
 	}
 
 	function publicationActionTitle(state: Props['publicationState']) {
-		if (state === 'published') return 'Unpublish Craft';
-		if (state === 'working') return 'Updating Craft…';
-		if (state === 'error') return 'Retry Publishing';
+		if (state === 'published') return 'View public craft';
+		if (state === 'working') return 'Updating public craft…';
+		if (state === 'error') return 'Public update failed · Click to retry';
 		if (state === 'loading') return 'Checking Publication…';
 		return 'Publish as Craft';
+	}
+
+	function publicationActionLabel(state: Props['publicationState']) {
+		if (state === 'published') return 'Published';
+		if (state === 'working') return 'Updating…';
+		if (state === 'error') return 'Retry update';
+		if (state === 'loading') return 'Checking…';
+		return 'Publish';
 	}
 
 	function publicationActionIcon(state: Props['publicationState']) {
@@ -153,6 +154,42 @@
 
 <div class="document-actions" aria-label="Document actions">
 	<SaveStatus state={saveState} label={saveLabel} sync={syncStatus} />
+	{#if onTogglePublication}
+		{#if publicationState === 'published' && publicHref}
+			<div class="publication-controls">
+				<a
+					class="publication-status active"
+					href={publicHref}
+					title={publicationActionTitle(publicationState)}
+				>
+					<Icon icon={publicationActionIcon(publicationState)} />
+					<span>{publicationActionLabel(publicationState)}</span>
+				</a>
+				<button
+					type="button"
+					class="unpublish-action"
+					title="Unpublish craft"
+					aria-label="Unpublish craft"
+					onclick={() => void onTogglePublication()}
+				>
+					<Icon icon="mdi:publish-off" />
+				</button>
+			</div>
+		{:else}
+			<button
+				type="button"
+				class="publication-status"
+				class:error={publicationState === 'error'}
+				title={publicationActionTitle(publicationState)}
+				aria-label={publicationActionTitle(publicationState)}
+				disabled={publicationState === 'working' || publicationState === 'loading'}
+				onclick={() => void onTogglePublication()}
+			>
+				<Icon icon={publicationActionIcon(publicationState)} />
+				<span>{publicationActionLabel(publicationState)}</span>
+			</button>
+		{/if}
+	{/if}
 
 	<div class="action-buttons" role="toolbar" aria-label="Markdown and publishing actions">
 		{#each actions() as item (item.title)}
@@ -198,6 +235,52 @@
 		padding: var(--s-4);
 	}
 
+	.publication-status {
+		align-items: center;
+		backdrop-filter: blur(10px);
+		background: color-mix(in oklch, var(--base-1) 72%, transparent);
+		border: 1px solid color-mix(in oklch, var(--edge) 70%, transparent);
+		border-radius: 999px;
+		font-size: var(--s-1);
+		gap: var(--s-3);
+		height: auto;
+		display: inline-flex;
+		min-height: 2rem;
+		padding: var(--s-4) var(--s-2);
+	}
+
+	.publication-controls {
+		align-items: center;
+		display: flex;
+		gap: var(--s-5);
+	}
+
+	.unpublish-action {
+		backdrop-filter: blur(10px);
+		background: color-mix(in oklch, var(--base-1) 72%, transparent);
+		border: 1px solid color-mix(in oklch, var(--edge) 70%, transparent);
+	}
+
+	.unpublish-action:hover,
+	.unpublish-action:focus-visible {
+		background: color-mix(in oklch, var(--error) 12%, var(--base-1));
+		color: var(--error);
+	}
+
+	.publication-status.active {
+		background: color-mix(in oklch, var(--brand) 15%, var(--base-1));
+		color: var(--content);
+	}
+
+	.publication-status.error {
+		color: var(--error);
+	}
+
+	.publication-status:disabled {
+		cursor: wait;
+		opacity: 0.78;
+	}
+
 	button {
 		background: transparent;
 		border-radius: 999px;
@@ -230,7 +313,7 @@
 		width: 1.1rem;
 	}
 
-	button[aria-label='Updating Craft…'] :global(svg),
+	button[aria-label='Updating public craft…'] :global(svg),
 	button[aria-label='Checking Publication…'] :global(svg) {
 		animation: spin 0.8s linear infinite;
 	}
@@ -247,6 +330,10 @@
 			flex-direction: column-reverse;
 			right: var(--s-1);
 			top: var(--s-1);
+		}
+
+		.publication-status span {
+			display: none;
 		}
 	}
 </style>

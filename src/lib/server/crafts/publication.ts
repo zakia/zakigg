@@ -3,10 +3,12 @@ import { FieldValue } from '@google-cloud/firestore';
 import { error } from '@sveltejs/kit';
 import type { NotePageV1 } from '$lib/notes/types';
 import {
+	countCraftWords,
 	createPublishedCraftDocument,
 	createPublishedCraftSummary,
 	getPublishedCraftAssetIds,
 	rewritePublishedAssetSources,
+	toPublishedCraftSummary,
 	type PublishedCraftMetadata,
 	type PublishedCraftSummary
 } from '$lib/crafts/publication';
@@ -90,13 +92,33 @@ export async function getNoteCraftPublication(ownerId: string, pageId: string) {
 	if (!snapshot.exists) return null;
 
 	const record = snapshot.data() as PublishedCraftMetadata;
-	return record.ownerId === ownerId ? toSummary(record) : null;
+	return record.ownerId === ownerId ? toPublishedCraftSummary(record) : null;
 }
 
 export async function listPublishedCrafts(): Promise<PublishedCraftSummary[]> {
 	const snapshot = await collection().orderBy('date', 'desc').get();
 
-	return snapshot.docs.map((document) => toSummary(document.data() as PublishedCraftMetadata));
+	return Promise.all(
+		snapshot.docs.map(async (document) => {
+			const metadata = document.data() as PublishedCraftMetadata;
+			const summary = toPublishedCraftSummary(metadata);
+			if (typeof summary.wordCount === 'number') return summary;
+
+			try {
+				const publishedDocument = await readPublishedCraftDocument(metadata);
+				return {
+					...summary,
+					wordCount: countCraftWords(publishedDocument.content, metadata.title)
+				};
+			} catch (cause) {
+				console.error(
+					`Could not derive the reading time for published craft ${metadata.slug}`,
+					cause
+				);
+				return summary;
+			}
+		})
+	);
 }
 
 export async function getPublishedCraftMetadata(
@@ -110,24 +132,16 @@ export async function getPublishedCraftMetadata(
 export async function getPublishedCraftDocument(
 	metadata: PublishedCraftMetadata
 ): Promise<CraftDocument> {
+	const document = await readPublishedCraftDocument(metadata);
+	return rewritePublishedAssetSources(document, metadata.slug);
+}
+
+async function readPublishedCraftDocument(
+	metadata: PublishedCraftMetadata
+): Promise<CraftDocument> {
 	const [data] = await getBucket().file(metadata.bodyObject).download();
 	const hash = createHash('sha256').update(data).digest('hex');
 	if (hash !== metadata.bodyHash) throw error(500, 'Published craft failed its integrity check');
 
-	const document = JSON.parse(data.toString('utf8')) as CraftDocument;
-	return rewritePublishedAssetSources(document, metadata.slug);
-}
-
-function toSummary(record: PublishedCraftMetadata): PublishedCraftSummary {
-	return {
-		pageId: record.pageId,
-		slug: record.slug,
-		title: record.title,
-		description: record.description,
-		tags: record.tags,
-		date: record.date,
-		updatedAt: record.updatedAt,
-		draft: false,
-		fullBleed: false
-	};
+	return JSON.parse(data.toString('utf8')) as CraftDocument;
 }

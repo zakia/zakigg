@@ -32,11 +32,16 @@ export function getMediaFiles(data: DataTransfer | null | undefined) {
 }
 
 export function isMediaFile(file: File) {
-	return isImageMime(file.type) || isVideoMime(file.type);
+	return (
+		isImageMime(file.type) ||
+		isVideoMime(file.type) ||
+		IMAGE_URL_RE.test(file.name) ||
+		VIDEO_URL_RE.test(file.name)
+	);
 }
 
 export function getMediaKindForFile(file: File): MediaBlockKind {
-	if (isVideoMime(file.type)) return 'video';
+	if (isVideoMime(file.type) || VIDEO_URL_RE.test(file.name)) return 'video';
 
 	return 'image';
 }

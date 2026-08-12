@@ -161,17 +161,26 @@
 	let mediaError = $state('');
 	let mediaDevicesBefore = $state<MediaDeviceInfo[]>([]);
 	let mediaDevicesAfter = $state<MediaDeviceInfo[]>([]);
+	const MEDIA_PERMISSION_TIMEOUT_MS = 15_000;
 
 	async function requestMedia() {
 		if (!navigator.mediaDevices?.enumerateDevices || !navigator.mediaDevices.getUserMedia) {
 			mediaState = 'unsupported';
 			return;
 		}
-		mediaDevicesBefore = await navigator.mediaDevices.enumerateDevices();
+		let stream: MediaStream | null = null;
+		const mediaRequest = navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+
 		try {
-			const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+			mediaDevicesBefore = await navigator.mediaDevices.enumerateDevices();
+			stream = await withTimeout(
+				mediaRequest,
+				MEDIA_PERMISSION_TIMEOUT_MS,
+				'The browser did not finish the camera and microphone request. Check the address-bar permissions and try again.'
+			);
+			stream.getTracks().forEach((track) => track.stop());
+			stream = null;
 			mediaDevicesAfter = await navigator.mediaDevices.enumerateDevices();
-			stream.getTracks().forEach((t) => t.stop());
 			mediaState = 'granted';
 		} catch (err) {
 			if (err instanceof DOMException && err.name === 'NotAllowedError') {
@@ -180,7 +189,33 @@
 				mediaState = 'error';
 				mediaError = err instanceof Error ? err.message : String(err);
 			}
+		} finally {
+			stream?.getTracks().forEach((track) => track.stop());
+			// A browser permission sheet can outlive our timeout. If it resolves
+			// later, release that stream immediately instead of leaving hardware on.
+			void mediaRequest
+				.then((lateStream) => {
+					lateStream.getTracks().forEach((track) => track.stop());
+				})
+				.catch(() => undefined);
 		}
+	}
+
+	function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+		return new Promise((resolve, reject) => {
+			const timeout = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+
+			promise.then(
+				(value) => {
+					window.clearTimeout(timeout);
+					resolve(value);
+				},
+				(error) => {
+					window.clearTimeout(timeout);
+					reject(error);
+				}
+			);
+		});
 	}
 
 	// Motion / orientation

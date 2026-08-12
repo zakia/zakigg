@@ -6,9 +6,9 @@
 	import { createNotePageRecord, loadNotePageBySlug } from '$lib/notes/storage';
 	import { titleFromSlug, type NotePageV1 } from '$lib/notes/types';
 
-	let { data }: { data: { slug: string } } = $props();
+	let { slug }: { slug: string } = $props();
 
-	let note = $state<NotePageV1 | null>(null);
+	let craft = $state<NotePageV1 | null>(null);
 	let loading = $state(true);
 	let busy = $state('');
 	let toast = $state('');
@@ -17,19 +17,19 @@
 	let tagsInput = $state('');
 
 	$effect(() => {
-		if (loadedSlug === data.slug) return;
+		if (loadedSlug === slug) return;
 
-		loadedSlug = data.slug;
-		void loadPage(data.slug);
+		loadedSlug = slug;
+		void loadPage(slug);
 	});
 
 	async function loadPage(slug: string) {
 		loading = true;
-		note = null;
+		craft = null;
 
 		try {
 			const page = await loadNotePageBySlug(slug);
-			note = page;
+			craft = page;
 			syncMetadataInputs(page);
 		} finally {
 			loading = false;
@@ -37,7 +37,7 @@
 	}
 
 	function syncMetadataInputs(page: NotePageV1 | null) {
-		titleInput = page?.title ?? titleFromSlug(data.slug);
+		titleInput = page?.title ?? titleFromSlug(slug);
 		tagsInput = page?.tags.join(', ') ?? '';
 	}
 
@@ -48,17 +48,17 @@
 		}
 
 		event.preventDefault();
-		void goto(resolve('/notes'));
+		void goto(resolve('/crafts?edit'));
 	}
 
 	function handleSaved(page: NotePageV1) {
-		note = page;
+		craft = page;
 
-		if (page.slug !== data.slug) {
+		if (page.slug !== slug) {
 			// Mark this slug as already loaded so the navigation below doesn't
 			// re-trigger loadPage() and remount the editor mid-edit.
 			loadedSlug = page.slug;
-			void goto(resolve(`/notes/${page.slug}`), {
+			void goto(resolve(`/crafts/${page.slug}?edit`), {
 				replaceState: true,
 				keepFocus: true,
 				noScroll: true
@@ -71,14 +71,14 @@
 
 		try {
 			const page = await createNotePageRecord({
-				title: titleInput || titleFromSlug(data.slug),
-				slug: data.slug,
+				title: titleInput || titleFromSlug(slug),
+				slug,
 				tags: parseTagsInput(tagsInput)
 			});
 
-			note = page;
+			craft = page;
 			syncMetadataInputs(page);
-			await goto(resolve(`/notes/${page.slug}`), { replaceState: true });
+			await goto(resolve(`/crafts/${page.slug}?edit`), { replaceState: true });
 		} finally {
 			busy = '';
 		}
@@ -100,20 +100,21 @@
 </script>
 
 <svelte:head>
-	<title>{note?.title ?? titleFromSlug(data.slug)} | Notes</title>
-	<meta name="description" content="A local-first note page on zaki.gg." />
+	<title>{craft?.title ?? titleFromSlug(slug)} – Edit – zaki.gg</title>
+	<meta name="description" content="Edit this craft on zaki.gg." />
+	<meta name="robots" content="noindex, nofollow" />
 </svelte:head>
 
 {#if loading}
-	<section class="note-state">
-		<p>Loading note...</p>
+	<section class="craft-state">
+		<p>Loading craft...</p>
 	</section>
-{:else if !note}
-	<section class="note-state">
-		<a class="back-link" href={resolve('/notes')}><Icon icon="mdi:arrow-left" /> Notes</a>
-		<div class="missing-note">
-			<h1>{titleFromSlug(data.slug)}</h1>
-			<p>No local page exists at /notes/{data.slug}.</p>
+{:else if !craft}
+	<section class="craft-state">
+		<a class="back-link" href={resolve('/crafts?edit')}><Icon icon="mdi:arrow-left" /> Crafts</a>
+		<div class="missing-craft">
+			<h1>{titleFromSlug(slug)}</h1>
+			<p>No editable craft exists at /crafts/{slug} yet.</p>
 			<form onsubmit={(event) => (event.preventDefault(), void createHere())}>
 				<label>
 					<span>Title</span>
@@ -125,24 +126,28 @@
 				</label>
 				<button type="submit" disabled={busy === 'create'}>
 					<Icon icon="mdi:plus" />
-					Create page
+					Create craft
 				</button>
 			</form>
 		</div>
 	</section>
 {:else}
-	<section class="note-edit-page">
+	<section class="craft-edit-page">
 		<a
 			class="back-button"
-			href={resolve('/notes')}
-			aria-label="Back to notes"
-			title="Back to notes"
+			href={resolve('/crafts?edit')}
+			aria-label="Back to crafts"
+			title="Back to crafts"
 			onclick={goBack}
 		>
 			<Icon icon="mdi:arrow-left" />
 		</a>
-		{#key note.id}
-			<RichNoteEditor page={note} onSaved={handleSaved} />
+		{#key craft.id}
+			<RichNoteEditor
+				page={craft}
+				publicHref={resolve(`/crafts/${craft.slug}`)}
+				onSaved={handleSaved}
+			/>
 		{/key}
 	</section>
 {/if}
@@ -152,7 +157,7 @@
 {/if}
 
 <style>
-	.note-state {
+	.craft-state {
 		align-content: center;
 		display: grid;
 		gap: var(--s1);
@@ -180,7 +185,7 @@
 		width: 1rem;
 	}
 
-	.missing-note button {
+	.missing-craft button {
 		align-items: center;
 		background: var(--base-1);
 		border: 1px solid color-mix(in oklch, var(--edge) 82%, transparent);
@@ -195,20 +200,20 @@
 			transform 0.16s ease;
 	}
 
-	.missing-note button:hover,
-	.missing-note button:focus-visible {
+	.missing-craft button:hover,
+	.missing-craft button:focus-visible {
 		background: color-mix(in oklch, var(--brand) 13%, var(--base-1));
 		border-color: color-mix(in oklch, var(--brand) 36%, var(--edge));
 		color: var(--content);
 		transform: translateY(-1px);
 	}
 
-	.missing-note button :global(svg) {
+	.missing-craft button :global(svg) {
 		height: 1.1rem;
 		width: 1.1rem;
 	}
 
-	.note-edit-page {
+	.craft-edit-page {
 		display: flex;
 		flex: 1;
 		min-height: 100vh;
@@ -252,7 +257,7 @@
 		width: 1.2rem;
 	}
 
-	.missing-note label {
+	.missing-craft label {
 		display: grid;
 		gap: var(--s-5);
 		min-width: 0;
@@ -281,7 +286,7 @@
 		outline: none;
 	}
 
-	.missing-note {
+	.missing-craft {
 		background: var(--base-1);
 		border: 1px solid var(--edge);
 		border-radius: var(--s-2);
@@ -290,17 +295,17 @@
 		padding: var(--s1);
 	}
 
-	.missing-note p {
+	.missing-craft p {
 		color: var(--content-1);
 		margin: 0;
 	}
 
-	.missing-note form {
+	.missing-craft form {
 		display: grid;
 		gap: var(--s-1);
 	}
 
-	.missing-note button {
+	.missing-craft button {
 		background: var(--brand);
 		color: var(--brand-content);
 		font-weight: 700;
@@ -325,7 +330,7 @@
 	}
 
 	@media (max-width: 52rem) {
-		.note-edit-page :global(.document-actions) {
+		.craft-edit-page :global(.document-actions) {
 			right: var(--s0);
 			top: var(--s0);
 			z-index: 6;

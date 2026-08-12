@@ -166,14 +166,20 @@ the foreground.
 ## Local development
 
 ```sh
-cp .env.example .env
 bun run dev
 ```
 
-Fill in the project, bucket, allowlisted email, OAuth client id, and a local
-session secret. Application Default Credentials provide Firestore and Storage
-access. For Firestore-only local work, `FIRESTORE_EMULATOR_HOST` can point the
-server client at the emulator; use a disposable GCS bucket for asset tests.
+The dev command reads the non-secret project, bucket, allowlisted email, and
+OAuth client id from the deployed Cloud Run service. It generates a separate
+session-signing key in memory for each dev-server process; the production key
+remains in Secret Manager. Application Default Credentials provide Firestore
+and Storage access, so run `gcloud auth application-default login` once if
+needed.
+
+Use `bun run dev:local` to bypass Cloud Run discovery and provide configuration
+through a local `.env`. For Firestore-only local work,
+`FIRESTORE_EMULATOR_HOST` can point the server client at the emulator; use a
+disposable GCS bucket for asset tests.
 
 ## Recovery and protection
 

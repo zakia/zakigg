@@ -138,6 +138,10 @@ button:focus:not(:focus-visible) {
 	@media print {
 		display: none;
 	}
+
+	@media (max-width: 48rem) {
+		display: none;
+	}
 }
 
 .brand-gradient {

@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import { auth } from '$lib/auth';
+	import { useGridSettings } from '$lib/grid-settings.svelte';
 	import '$lib/prism.css';
 	import '@fontsource-variable/inter';
 	import '@fontsource/fira-mono';
@@ -11,6 +12,7 @@
 	import Header from '../lib/components/Header.svelte';
 
 	let { children }: { children: Snippet } = $props();
+	useGridSettings();
 
 	onMount(() => {
 		void auth.refresh();
@@ -83,15 +85,21 @@
 		flex: 1;
 	}
 
+	@media (max-width: 48rem) {
+		main {
+			padding-bottom: calc(4rem + env(safe-area-inset-bottom));
+		}
+	}
+
 	.grid-bg {
-		--grid-size: var(--s4);
 		background-color: var(--base);
 		background-image: radial-gradient(
-			circle at calc(var(--grid-size) * 0.5) calc(var(--grid-size) * 0.5),
-			color-mix(in oklch, var(--brand) 15%, transparent) 2px,
+			circle at calc(var(--grid-spacing, var(--s4)) * 0.5)
+				calc(var(--grid-spacing, var(--s4)) * 0.5),
+			color-mix(in oklch, var(--brand) 15%, transparent) var(--grid-dot-size, 2px),
 			transparent 0
 		);
-		background-size: var(--grid-size) var(--grid-size);
+		background-size: var(--grid-spacing, var(--s4)) var(--grid-spacing, var(--s4));
 		background-position: 0 0;
 	}
 </style>

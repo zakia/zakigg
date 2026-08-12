@@ -63,9 +63,10 @@ export const useTheme = () => {
 
 	const toggle = (e?: MouseEvent) => {
 		const newTheme = theme === 'light' ? 'dark' : 'light';
+		const viewport = window.visualViewport;
 
-		const x = e?.clientX ?? window.innerWidth / 2;
-		const y = e?.clientY ?? 0;
+		const x = (e?.clientX ?? window.innerWidth / 2) + (viewport?.offsetLeft ?? 0);
+		const y = (e?.clientY ?? 0) + (viewport?.offsetTop ?? 0);
 		document.documentElement.style.setProperty('--transition-x', `${x}px`);
 		document.documentElement.style.setProperty('--transition-y', `${y}px`);
 

@@ -1,14 +1,9 @@
-const hues = [
+export const themeHues = [
 	{ label: 'red', value: 25 },
-	{ label: 'pink', value: 350 },
-	{ label: 'purple', value: 310 },
-	{ label: 'violet', value: 290 },
-	{ label: 'indigo', value: 270 },
-	{ label: 'blue', value: 240 },
+	{ label: 'orange', value: 50 },
 	{ label: 'green', value: 145 },
-	{ label: 'lime', value: 125 },
-	{ label: 'yellow', value: 100 },
-	{ label: 'orange', value: 75 }
+	{ label: 'blue', value: 240 },
+	{ label: 'violet', value: 290 }
 ];
 
 let theme = $state('light');
@@ -63,27 +58,38 @@ export const useTheme = () => {
 
 	const toggle = (e?: MouseEvent) => {
 		const newTheme = theme === 'light' ? 'dark' : 'light';
-		const viewport = window.visualViewport;
 
-		const x = (e?.clientX ?? window.innerWidth / 2) + (viewport?.offsetLeft ?? 0);
-		const y = (e?.clientY ?? 0) + (viewport?.offsetTop ?? 0);
-		document.documentElement.style.setProperty('--transition-x', `${x}px`);
-		document.documentElement.style.setProperty('--transition-y', `${y}px`);
+		const x = e?.clientX ?? window.innerWidth / 2;
+		const y = e?.clientY ?? window.innerHeight / 2;
+		const originX = `${(x / window.innerWidth) * 100}%`;
+		const originY = `${(y / window.innerHeight) * 100}%`;
 
 		if (!document.startViewTransition) {
 			setTheme(newTheme);
 			return;
 		}
 
-		document.startViewTransition(() => {
+		const transition = document.startViewTransition(async () => {
 			setTheme(newTheme);
 		});
-	};
 
-	const toggleHue = () => {
-		const currentIndex = hues.findIndex((h) => h.value === parseInt(hue));
-		const nextIndex = currentIndex === hues.length - 1 ? 0 : currentIndex + 1;
-		setHue(hues[nextIndex].value.toString());
+		void transition.ready
+			.then(() => {
+				document.documentElement.animate(
+					{
+						clipPath: [
+							`circle(0 at ${originX} ${originY})`,
+							`circle(150% at ${originX} ${originY})`
+						]
+					},
+					{
+						duration: 500,
+						easing: 'ease-out',
+						pseudoElement: '::view-transition-new(root)'
+					} as KeyframeAnimationOptions & { pseudoElement: string }
+				);
+			})
+			.catch(() => {});
 	};
 
 	return {
@@ -95,7 +101,6 @@ export const useTheme = () => {
 		},
 		setTheme,
 		toggle,
-		setHue,
-		toggleHue
+		setHue
 	};
 };

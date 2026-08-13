@@ -5,6 +5,8 @@ export type EditorShortcutId =
 	| 'inlineCode'
 	| 'italic'
 	| 'link'
+	| 'listIndent'
+	| 'listOutdent'
 	| 'openShortcuts'
 	| 'strike'
 	| 'tableNextCell'
@@ -68,6 +70,25 @@ export const EDITOR_SHORTCUT_GROUPS: EditorShortcutGroup[] = [
 				title: 'Link',
 				icon: 'mdi:link-variant',
 				keys: ['Mod', 'K']
+			}
+		]
+	},
+	{
+		title: 'Lists',
+		shortcuts: [
+			{
+				id: 'listIndent',
+				title: 'Indent List Item',
+				description: 'Use the toolbar on phone keyboards',
+				icon: 'mdi:format-indent-increase',
+				keys: ['Tab']
+			},
+			{
+				id: 'listOutdent',
+				title: 'Outdent List Item',
+				description: 'Use the toolbar on phone keyboards',
+				icon: 'mdi:format-indent-decrease',
+				keys: ['Shift', 'Tab']
 			}
 		]
 	},

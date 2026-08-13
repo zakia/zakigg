@@ -31,7 +31,6 @@
 	const ROW_FLIP_DURATION = 150;
 
 	let { properties, onChange }: Props = $props();
-	let collapsed = $state(true);
 	let addPropertyActive = $state(false);
 	let propertyKeyDraft = $state('');
 	let propertyComboboxOpen = $state(false);
@@ -302,111 +301,96 @@
 	});
 </script>
 
-<div class="metadata-shell" class:collapsed>
-	<header class="metadata-header">
-		<button
-			type="button"
-			class="collapse-button"
-			aria-label={collapsed ? 'Show properties' : 'Hide properties'}
-			aria-expanded={!collapsed}
-			onclick={() => (collapsed = !collapsed)}
+<div class="metadata-shell">
+	<div class="metadata-rows">
+		<div
+			class="metadata-dnd-rows"
+			role="list"
+			use:dragHandleZone={{
+				items: dndRows,
+				flipDurationMs: ROW_FLIP_DURATION,
+				dropTargetStyle: {},
+				zoneTabIndex: -1
+			}}
+			onconsider={handleDndConsider}
+			onfinalize={handleDndFinalize}
 		>
-			<Icon icon={collapsed ? 'mdi:chevron-right' : 'mdi:chevron-down'} />
-		</button>
-		<strong>Properties</strong>
-	</header>
+			{#each dndRows as row (row.id)}
+				<div
+					class="metadata-row"
+					data-property-key={row.definition.key}
+					role="listitem"
+					animate:flip={{ duration: ROW_FLIP_DURATION }}
+				>
+					<MetadataPropertyRow
+						definition={row.definition}
+						value={row.value}
+						listDraft={listDrafts[row.definition.key] ?? ''}
+						textDraft={textDrafts[row.definition.key]}
+						onKeyCellKeydown={(event) => handleKeyCellKeydown(event, row.definition.key)}
+						onValueKeydown={(event) => handleValueKeydown(event, row.definition.key)}
+						onListKeydown={(event) => handleListValueKeydown(event, row.definition.key)}
+						onListDraft={(value) => (listDrafts[row.definition.key] = value)}
+						onListCommit={() => commitListDraft(row.definition.key)}
+						onListRemoveItem={(item) => removeListItem(row.definition.key, item)}
+						onToggle={(checked) => updateProperty(row.definition.key, checked)}
+						onTextInput={(value) => updateTextProperty(row.definition.key, value)}
+						onTextBlur={() => clearTextDraft(row.definition.key)}
+						onRemove={() => removeProperty(row.definition.key)}
+					/>
+				</div>
+			{/each}
+		</div>
 
-	{#if !collapsed}
-		<div class="metadata-rows">
-			<div
-				class="metadata-dnd-rows"
-				role="list"
-				use:dragHandleZone={{
-					items: dndRows,
-					flipDurationMs: ROW_FLIP_DURATION,
-					dropTargetStyle: {},
-					zoneTabIndex: -1
-				}}
-				onconsider={handleDndConsider}
-				onfinalize={handleDndFinalize}
-			>
-				{#each dndRows as row (row.id)}
-					<div
-						class="metadata-row"
-						data-property-key={row.definition.key}
-						role="listitem"
-						animate:flip={{ duration: ROW_FLIP_DURATION }}
+		{#if availableProperties.length}
+			{#if showNewPropertyRow}
+				<div class="metadata-row metadata-row-new">
+					<button
+						type="button"
+						class="add-property-plus"
+						tabindex={-1}
+						aria-label="Add property"
+						onclick={beginAddProperty}
 					>
-						<MetadataPropertyRow
-							definition={row.definition}
-							value={row.value}
-							listDraft={listDrafts[row.definition.key] ?? ''}
-							textDraft={textDrafts[row.definition.key]}
-							onKeyCellKeydown={(event) => handleKeyCellKeydown(event, row.definition.key)}
-							onValueKeydown={(event) => handleValueKeydown(event, row.definition.key)}
-							onListKeydown={(event) => handleListValueKeydown(event, row.definition.key)}
-							onListDraft={(value) => (listDrafts[row.definition.key] = value)}
-							onListCommit={() => commitListDraft(row.definition.key)}
-							onListRemoveItem={(item) => removeListItem(row.definition.key, item)}
-							onToggle={(checked) => updateProperty(row.definition.key, checked)}
-							onTextInput={(value) => updateTextProperty(row.definition.key, value)}
-							onTextBlur={() => clearTextDraft(row.definition.key)}
-							onRemove={() => removeProperty(row.definition.key)}
+						<Icon icon="mdi:plus" />
+					</button>
+
+					<div class="property-key-slot">
+						<ComboboxInput
+							bind:inputEl={propertyKeyInput}
+							data-metadata-field
+							options={filteredAvailableProperties.map((definition) => ({
+								id: definition.key,
+								label: definition.label,
+								icon: definition.icon
+							}))}
+							value={propertyKeyDraft}
+							open={propertyComboboxOpen}
+							highlightedIndex={highlightedPropertyIndex}
+							listboxId={propertyOptionsId}
+							label="Property key"
+							onInput={handlePropertyKeyInput}
+							onFocus={() => (propertyComboboxOpen = true)}
+							onBlur={handlePropertyKeyBlur}
+							onKeydown={handlePropertyKeydown}
+							onSelect={selectPropertyKey}
+							onHighlight={(index) => (highlightedPropertyIndex = index)}
 						/>
 					</div>
-				{/each}
-			</div>
 
-			{#if availableProperties.length}
-				{#if showNewPropertyRow}
-					<div class="metadata-row metadata-row-new">
-						<button
-							type="button"
-							class="add-property-plus"
-							tabindex={-1}
-							aria-label="Add property"
-							onclick={beginAddProperty}
-						>
-							<Icon icon="mdi:plus" />
-						</button>
-
-						<div class="property-key-slot">
-							<ComboboxInput
-								bind:inputEl={propertyKeyInput}
-								data-metadata-field
-								options={filteredAvailableProperties.map((definition) => ({
-									id: definition.key,
-									label: definition.label,
-									icon: definition.icon
-								}))}
-								value={propertyKeyDraft}
-								open={propertyComboboxOpen}
-								highlightedIndex={highlightedPropertyIndex}
-								listboxId={propertyOptionsId}
-								label="Property key"
-								onInput={handlePropertyKeyInput}
-								onFocus={() => (propertyComboboxOpen = true)}
-								onBlur={handlePropertyKeyBlur}
-								onKeydown={handlePropertyKeydown}
-								onSelect={selectPropertyKey}
-								onHighlight={(index) => (highlightedPropertyIndex = index)}
-							/>
-						</div>
-
-						<div class="property-value-placeholder">Empty</div>
-						<span class="remove-property-spacer" aria-hidden="true"></span>
-					</div>
-				{:else}
-					<div class="add-property">
-						<button type="button" class="add-property-button" onclick={beginAddProperty}>
-							<Icon icon="mdi:plus" />
-							<span>Add property</span>
-						</button>
-					</div>
-				{/if}
+					<div class="property-value-placeholder">Empty</div>
+					<span class="remove-property-spacer" aria-hidden="true"></span>
+				</div>
+			{:else}
+				<div class="add-property">
+					<button type="button" class="add-property-button" onclick={beginAddProperty}>
+						<Icon icon="mdi:plus" />
+						<span>Add property</span>
+					</button>
+				</div>
 			{/if}
-		</div>
-	{/if}
+		{/if}
+	</div>
 </div>
 
 <style>
@@ -417,22 +401,6 @@
 		margin-block: var(--s-1) var(--s0);
 		max-width: 100%;
 		width: 100%;
-	}
-
-	.metadata-shell.collapsed {
-		margin-block-end: var(--s-1);
-	}
-
-	.metadata-header {
-		align-items: center;
-		display: flex;
-		gap: var(--s-3);
-		min-height: 2rem;
-	}
-
-	.metadata-header strong {
-		font-size: var(--s0);
-		font-weight: 780;
 	}
 
 	button {
@@ -450,7 +418,6 @@
 		outline: none;
 	}
 
-	.collapse-button,
 	.add-property-plus {
 		border-radius: var(--s-5);
 		color: var(--content-1);
@@ -461,7 +428,6 @@
 		width: 1.6rem;
 	}
 
-	.collapse-button:hover,
 	.add-property-plus:hover {
 		background: color-mix(in oklch, var(--base-1) 82%, var(--content) 8%);
 		color: var(--content);
@@ -474,7 +440,10 @@
 	}
 
 	.metadata-dnd-rows {
+		max-height: min(26rem, calc(100dvh - 14rem));
 		outline: none;
+		overflow-y: auto;
+		scrollbar-gutter: stable;
 	}
 
 	.metadata-row {
@@ -536,7 +505,6 @@
 		color: var(--content);
 	}
 
-	.collapse-button :global(svg),
 	.add-property-plus :global(svg),
 	.add-property-button :global(svg) {
 		flex: 0 0 auto;

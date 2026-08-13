@@ -139,6 +139,20 @@
 					command: (e) => e.chain().focus().toggleOrderedList().run()
 				},
 				{
+					title: 'Indent List Item',
+					icon: 'mdi:format-indent-increase',
+					shortcutId: 'listIndent',
+					can: (e) => e.can().chain().focus().sinkListItem('listItem').run(),
+					command: (e) => e.chain().focus().sinkListItem('listItem').run()
+				},
+				{
+					title: 'Outdent List Item',
+					icon: 'mdi:format-indent-decrease',
+					shortcutId: 'listOutdent',
+					can: (e) => e.can().chain().focus().liftListItem('listItem').run(),
+					command: (e) => e.chain().focus().liftListItem('listItem').run()
+				},
+				{
 					title: 'Quote',
 					icon: 'mdi:format-quote-close',
 					active: (e) => e.isActive('blockquote'),

@@ -2,9 +2,7 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import ProfileAccount from '$lib/auth/ProfileAccount.svelte';
 	import { useGridSettings } from '$lib/grid-settings.svelte';
-	import { useTheme } from '$lib/theme.svelte';
 
-	const theme = useTheme();
 	const grid = useGridSettings();
 </script>
 
@@ -20,25 +18,6 @@
 	</header>
 
 	<ProfileAccount />
-
-	<section class="setting-card" aria-labelledby="appearance-heading">
-		<div class="setting-heading">
-			<Icon icon="mdi:palette-outline" />
-			<div>
-				<h2 id="appearance-heading">Appearance</h2>
-				<p>Saved on this device.</p>
-			</div>
-		</div>
-		<div class="button-row">
-			<button type="button" onclick={theme.toggle}>
-				<Icon icon={theme.theme === 'light' ? 'line-md:moon' : 'line-md:sunny'} />
-				{theme.theme === 'light' ? 'Dark mode' : 'Light mode'}
-			</button>
-			<button type="button" onclick={theme.toggleHue}>
-				<Icon icon="line-md:paint-drop-filled" /> Change color
-			</button>
-		</div>
-	</section>
 
 	<section class="setting-card" aria-labelledby="background-heading">
 		<div class="setting-heading">
@@ -117,7 +96,6 @@
 	}
 
 	.setting-heading,
-	.button-row,
 	button,
 	label span {
 		align-items: center;
@@ -141,11 +119,6 @@
 	.setting-heading p {
 		color: var(--content-1);
 		font-size: 0.8rem;
-	}
-
-	.button-row {
-		flex-wrap: wrap;
-		gap: var(--s-2);
 	}
 
 	button {

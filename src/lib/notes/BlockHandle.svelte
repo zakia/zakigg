@@ -198,6 +198,17 @@
 		z-index: 7;
 	}
 
+	/* Keep pointer continuity across floating-ui's gutter offset. Without this
+	   bridge, leaving the editor for the small gap hides the handle before the
+	   pointer can reach it. */
+	.block-handle::after {
+		content: '';
+		inset-block: -0.2rem;
+		position: absolute;
+		right: -0.5rem;
+		width: 0.65rem;
+	}
+
 	.handle-chip,
 	.handle-grip {
 		align-items: center;

@@ -231,21 +231,14 @@
 }
 
 /* --- 5. VIEW TRANSITIONS --- */
-::view-transition-old(root) {
-	animation-delay: 0.5s;
+::view-transition-old(root),
+::view-transition-new(root) {
+	animation: none;
+	mix-blend-mode: normal;
 }
 
 ::view-transition-new(root) {
-	animation: circle-in 0.5s ease;
-}
-
-@keyframes circle-in {
-	from {
-		clip-path: circle(0 at var(--transition-x, 50%) var(--transition-y, 0));
-	}
-	to {
-		clip-path: circle(125% at var(--transition-x, 50%) var(--transition-y, 0));
-	}
+	z-index: 1;
 }
 
 /* --- 6. BASE STYLES & RESETS --- */

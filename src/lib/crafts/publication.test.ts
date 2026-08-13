@@ -56,6 +56,35 @@ describe('published craft snapshots', () => {
 		).toBe(5);
 	});
 
+	it('removes a legacy description heading with the page title', () => {
+		const page = createNotePage({
+			title: 'A Useful Note',
+			properties: [{ key: 'description', value: 'A deliberate description.' }],
+			content: {
+				type: 'doc',
+				content: [
+					{
+						type: 'heading',
+						attrs: { level: 1 },
+						content: [{ type: 'text', text: 'A Useful Note' }]
+					},
+					{
+						type: 'heading',
+						attrs: { level: 4 },
+						content: [{ type: 'text', text: 'A deliberate description.' }]
+					},
+					{ type: 'paragraph', content: [{ type: 'text', text: 'The body.' }] }
+				]
+			}
+		});
+
+		const published = createPublishedCraftDocument(page);
+
+		expect(published.content.content).toEqual([
+			{ type: 'paragraph', content: [{ type: 'text', text: 'The body.' }] }
+		]);
+	});
+
 	it('rewrites local assets anywhere in document attributes', () => {
 		const document = {
 			version: 1 as const,

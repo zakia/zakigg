@@ -18,29 +18,31 @@ export interface MouseState {
 
 export function trackMouse(
 	canvas: HTMLCanvasElement,
-	radius = 150
+	radius = 150,
+	interactionTarget: HTMLElement = canvas
 ): MouseState & { destroy(): void } {
 	const state: MouseState & { destroy(): void } = {
 		x: undefined,
 		y: undefined,
 		radius,
 		destroy() {
-			canvas.removeEventListener('mousemove', onMove);
-			canvas.removeEventListener('mouseleave', onLeave);
+			interactionTarget.removeEventListener('mousemove', onMove);
+			interactionTarget.removeEventListener('mouseleave', onLeave);
 		}
 	};
 
 	function onMove(e: MouseEvent) {
-		state.x = e.offsetX;
-		state.y = e.offsetY;
+		const rect = canvas.getBoundingClientRect();
+		state.x = e.clientX - rect.left;
+		state.y = e.clientY - rect.top;
 	}
 	function onLeave() {
 		state.x = undefined;
 		state.y = undefined;
 	}
 
-	canvas.addEventListener('mousemove', onMove);
-	canvas.addEventListener('mouseleave', onLeave);
+	interactionTarget.addEventListener('mousemove', onMove);
+	interactionTarget.addEventListener('mouseleave', onLeave);
 
 	return state;
 }

@@ -1,13 +1,6 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import ActionTooltip from './ActionTooltip.svelte';
-	import {
-		getEditorShortcut,
-		isAppleShortcutPlatform,
-		shortcutTitle,
-		type EditorShortcut
-	} from './keyboard-shortcuts';
 	import SaveStatus from './SaveStatus.svelte';
 	import type { SaveState, SyncLabelStatus } from './save-state';
 
@@ -15,58 +8,45 @@
 		title: string;
 		icon: string;
 		active?: boolean;
-		shortcut?: EditorShortcut;
 		action: () => void | Promise<void>;
 	};
 
-	type EmbedAction = {
-		id: string;
-		label: string;
-		icon?: string;
-	};
-
 	type Props = {
-		copied: boolean;
 		saveState: SaveState;
 		saveLabel: string;
 		syncStatus?: SyncLabelStatus;
 		historyOpen: boolean;
-		embeds?: EmbedAction[];
+		propertiesOpen: boolean;
 		publicationState?: 'loading' | 'unpublished' | 'published' | 'working' | 'error';
 		publicHref?: string;
-		onCopyMarkdown: () => void | Promise<void>;
 		onDownloadMarkdown: () => void;
-		onOpenShortcuts: () => void;
 		onToggleHistory: () => void;
-		onInsertImage?: () => void;
-		onInsertVideo?: () => void;
-		onInsertEmbed?: (id: string) => void;
+		onToggleProperties: () => void;
 		onTogglePublication?: () => void | Promise<void>;
 	};
 
 	let {
-		copied,
 		saveState,
 		saveLabel,
 		syncStatus = 'disabled',
 		historyOpen,
-		embeds = [],
+		propertiesOpen,
 		publicationState = 'loading',
 		publicHref,
-		onCopyMarkdown,
 		onDownloadMarkdown,
-		onOpenShortcuts,
 		onToggleHistory,
-		onInsertImage,
-		onInsertVideo,
-		onInsertEmbed,
+		onToggleProperties,
 		onTogglePublication
 	}: Props = $props();
 
-	let useAppleKeys = $state(false);
-
 	function actions(): DocumentAction[] {
 		const items: DocumentAction[] = [
+			{
+				title: propertiesOpen ? 'Hide Properties' : 'Show Properties',
+				icon: 'mdi:tune-variant',
+				active: propertiesOpen,
+				action: onToggleProperties
+			},
 			{
 				title: historyOpen ? 'Hide History' : 'Show History',
 				icon: 'mdi:history',
@@ -74,48 +54,11 @@
 				action: onToggleHistory
 			},
 			{
-				title: 'Keyboard Shortcuts',
-				icon: 'mdi:keyboard-outline',
-				shortcut: getEditorShortcut('openShortcuts'),
-				action: onOpenShortcuts
-			},
-			{
-				title: copied ? 'Copied Markdown' : 'Copy Markdown',
-				icon: copied ? 'mdi:check' : 'mdi:content-copy',
-				action: onCopyMarkdown
-			},
-			{
 				title: 'Download Markdown',
 				icon: 'mdi:download-outline',
 				action: onDownloadMarkdown
 			}
 		];
-
-		if (onInsertVideo) {
-			items.unshift({
-				title: 'Insert Video',
-				icon: 'mdi:video-outline',
-				action: onInsertVideo
-			});
-		}
-
-		if (onInsertImage) {
-			items.unshift({
-				title: 'Insert Image',
-				icon: 'mdi:image-outline',
-				action: onInsertImage
-			});
-		}
-
-		if (onInsertEmbed && embeds.length) {
-			items.unshift(
-				...embeds.map((embed) => ({
-					title: `Insert ${embed.label}`,
-					icon: embed.icon ?? 'mdi:application-braces-outline',
-					action: () => onInsertEmbed(embed.id)
-				}))
-			);
-		}
 
 		return items;
 	}
@@ -142,14 +85,6 @@
 		if (state === 'error') return 'mdi:alert-circle-outline';
 		return 'mdi:publish';
 	}
-
-	function actionTitle(item: DocumentAction) {
-		return shortcutTitle(item.title, item.shortcut, useAppleKeys);
-	}
-
-	onMount(() => {
-		useAppleKeys = isAppleShortcutPlatform();
-	});
 </script>
 
 <div class="document-actions" aria-label="Document actions">
@@ -195,15 +130,14 @@
 		{#each actions() as item (item.title)}
 			<button
 				type="button"
-				class:copied={item.title === 'Copied Markdown'}
 				class:active={item.active}
-				title={actionTitle(item)}
-				aria-label={actionTitle(item)}
+				title={item.title}
+				aria-label={item.title}
 				aria-pressed={item.active}
 				onclick={() => void item.action()}
 			>
 				<Icon icon={item.icon} />
-				<ActionTooltip title={item.title} shortcut={item.shortcut} />
+				<ActionTooltip title={item.title} />
 			</button>
 		{/each}
 	</div>
@@ -298,7 +232,6 @@
 
 	button:hover,
 	button:focus-visible,
-	button.copied,
 	button.active {
 		background: color-mix(in oklch, var(--brand) 15%, transparent);
 		color: var(--content);

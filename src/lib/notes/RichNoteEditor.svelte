@@ -8,14 +8,18 @@
 		publishNoteCraft,
 		unpublishNoteCraft
 	} from '$lib/crafts/publication.remote';
-	import { isPublishedCraftOutdated } from '$lib/crafts/publication';
+	import { isPublishedCraftOutdated, stripLeadingPageHeader } from '$lib/crafts/publication';
 	import { insertRegisteredComponentEmbed } from '$lib/editor/component-embeds';
+	import { hideBlockHandle } from '$lib/editor/block-handle';
 	import type { MediaBlockAttrs, MediaBlockKind } from '$lib/editor/media-block';
+	import CraftArticleHeader from '$lib/crafts/CraftArticleHeader.svelte';
 	import EditorDocumentActions from './EditorDocumentActions.svelte';
 	import EditorHistoryPanel from './EditorHistoryPanel.svelte';
 	import EditorSurface from './EditorSurface.svelte';
 	import EditorToolbar from './EditorToolbar.svelte';
 	import BlockHandle from './BlockHandle.svelte';
+	import SlashMenu, { type SlashMenuItem } from './SlashMenu.svelte';
+	import MobileListToolbar from './MobileListToolbar.svelte';
 	import KeyboardShortcutsPanel from './KeyboardShortcutsPanel.svelte';
 	import LinkPopover from './LinkPopover.svelte';
 	import { createEditorExtensions } from './editor-extensions';
@@ -38,12 +42,7 @@
 		type LinkPopoverState
 	} from './link-popover';
 	import { isOpenShortcutsShortcut } from './keyboard-shortcuts';
-	import {
-		getMarkdownFiles,
-		insertEditorMarkdown,
-		looksLikeMarkdown,
-		serializeNotePageMarkdown
-	} from './markdown';
+	import { getMarkdownFiles, insertEditorMarkdown, looksLikeMarkdown } from './markdown';
 	import MetadataPanel from './metadata-block/MetadataPanel.svelte';
 	import {
 		normalizeMetadataEntries,
@@ -60,6 +59,7 @@
 		isMediaFile
 	} from './media';
 	import { formatSaveLabel, type SaveState, type SyncLabelStatus } from './save-state';
+	import { insertTable } from './tables';
 	import { startSyncEngine, syncState } from './sync/engine.svelte';
 	import { auth } from '$lib/auth';
 	import { resolveNoteAssetObjectUrl, saveNoteAsset, saveNotePage } from './storage';
@@ -86,6 +86,16 @@
 		anchor: SelectionAnchor;
 	};
 
+	type SlashMenuState = {
+		visible: boolean;
+		query: string;
+		from: number;
+		to: number;
+		left: number;
+		top: number;
+		activeIndex: number;
+	};
+
 	let {
 		page,
 		onSaved,
@@ -110,13 +120,14 @@
 	let editor = $state<Editor>();
 	let saveState = $state<SaveState>('loading');
 	let lastSavedAt = $state<string>();
-	let copied = $state(false);
 	let editorTick = $state(0);
 	let historyEntries = $state<EditorHistoryEntry[]>([]);
 	let activeHistoryId = $state('');
 	let previewHistoryId = $state('');
 	let historyPanelOpen = $state(false);
 	let shortcutsPanelOpen = $state(false);
+	let propertiesOpen = $state(false);
+	let slashMenu = $state<SlashMenuState>(createHiddenSlashMenu());
 	let blockHandleTarget = $state<import('$lib/editor/block-handle').BlockHandleTarget | null>(null);
 	let editorTickQueued = false;
 	let pendingSave = false;
@@ -134,7 +145,6 @@
 	let historyEntryIndex = 0;
 	let previewReturnContent: JSONContent | null = null;
 	const saveTimer = createTimer();
-	const copyTimer = createTimer();
 	const historyTimer = createTimer();
 	const linkShowTimer = createTimer();
 	const linkHideTimer = createTimer();
@@ -151,6 +161,26 @@
 	const embedActions = $derived(
 		noteComponentEmbeds.insertable().map(({ id, label, icon }) => ({ id, label, icon }))
 	);
+	const slashMenuItems = $derived(
+		getSlashMenuItems().filter((item) =>
+			`${item.label} ${item.description}`.toLowerCase().includes(slashMenu.query.toLowerCase())
+		)
+	);
+	const mobileListActions = $derived.by(() => {
+		editorTick;
+		return {
+			visible: Boolean(editor?.isActive('listItem')),
+			canIndent: Boolean(editor?.can().chain().focus().sinkListItem('listItem').run()),
+			canOutdent: Boolean(editor?.can().chain().focus().liftListItem('listItem').run())
+		};
+	});
+	const headerTitle = $derived(String(getPropertyValue('title') ?? page.title));
+	const headerDescription = $derived(String(getPropertyValue('description') || ''));
+	const headerDate = $derived(String(getPropertyValue('date') || page.createdAt));
+	const wordCount = $derived.by(() => {
+		editorTick;
+		return countWords(`${headerTitle} ${editor?.getText() ?? ''}`);
+	});
 
 	$effect(() => {
 		if (!auth.ready || !auth.user || publicationChecked) return;
@@ -177,14 +207,23 @@
 		startSyncEngine();
 
 		let destroyed = false;
-		const syncVisibleSelectionToolbar = () => {
+		const syncVisibleEditorMenus = () => {
 			if (selectionToolbar.visible) scheduleSelectionToolbarSync();
+			if (slashMenu.visible) syncSlashMenuFromEditor();
 		};
 		const handleDocumentPointerdown = (event: PointerEvent) => {
 			const target = event.target as Element | null;
 
 			if (!target) return;
 			if (target.closest('.selection-toolbar')) return;
+			if (target.closest('.slash-menu')) return;
+			if (
+				!target.closest(
+					'.properties-popover, [aria-label="Show Properties"], [aria-label="Hide Properties"]'
+				)
+			) {
+				propertiesOpen = false;
+			}
 
 			if (editorHost?.contains(target)) {
 				if (event.button === 0) {
@@ -254,8 +293,8 @@
 		}
 
 		void setupEditor();
-		window.addEventListener('resize', syncVisibleSelectionToolbar);
-		document.addEventListener('scroll', syncVisibleSelectionToolbar, true);
+		window.addEventListener('resize', syncVisibleEditorMenus);
+		document.addEventListener('scroll', syncVisibleEditorMenus, true);
 		document.addEventListener('pointerdown', handleDocumentPointerdown, true);
 		document.addEventListener('pointerup', handleDocumentPointerup, true);
 		document.addEventListener('pointercancel', handleDocumentPointercancel, true);
@@ -265,12 +304,11 @@
 			pointerSelectionActive = false;
 			cancelSelectionToolbarSync();
 			saveTimer.cancel();
-			copyTimer.cancel();
 			historyTimer.cancel();
 			cancelLinkPopoverOpen();
 			cancelLinkPopoverClose();
-			window.removeEventListener('resize', syncVisibleSelectionToolbar);
-			document.removeEventListener('scroll', syncVisibleSelectionToolbar, true);
+			window.removeEventListener('resize', syncVisibleEditorMenus);
+			document.removeEventListener('scroll', syncVisibleEditorMenus, true);
 			document.removeEventListener('pointerdown', handleDocumentPointerdown, true);
 			document.removeEventListener('pointerup', handleDocumentPointerup, true);
 			document.removeEventListener('pointercancel', handleDocumentPointercancel, true);
@@ -301,9 +339,14 @@
 		};
 	}
 
+	function createHiddenSlashMenu(): SlashMenuState {
+		return { visible: false, query: '', from: 0, to: 0, left: 0, top: 0, activeIndex: 0 };
+	}
+
 	function createEditorDomHandlers() {
 		return {
 			keydown: (_view: unknown, event: KeyboardEvent) => {
+				if (handleSlashMenuKeydown(event)) return true;
 				if (handleShortcutsKeydown(event)) return true;
 
 				if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
@@ -385,6 +428,7 @@
 
 	function noteEditorChanged() {
 		scheduleSelectionToolbarSync();
+		queueMicrotask(syncSlashMenuFromEditor);
 
 		if (editorTickQueued) return;
 
@@ -393,6 +437,195 @@
 			editorTickQueued = false;
 			editorTick += 1;
 		});
+	}
+
+	function getSlashMenuItems(): SlashMenuItem[] {
+		return [
+			{ id: 'paragraph', label: 'Text', description: 'Plain paragraph', icon: 'mdi:format-text' },
+			{
+				id: 'heading-1',
+				label: 'Heading 1',
+				description: 'Large section heading',
+				icon: 'mdi:format-header-1'
+			},
+			{
+				id: 'heading-2',
+				label: 'Heading 2',
+				description: 'Medium section heading',
+				icon: 'mdi:format-header-2'
+			},
+			{
+				id: 'heading-3',
+				label: 'Heading 3',
+				description: 'Small section heading',
+				icon: 'mdi:format-header-3'
+			},
+			{
+				id: 'bullet-list',
+				label: 'Bullet list',
+				description: 'Create a bulleted list',
+				icon: 'mdi:format-list-bulleted'
+			},
+			{
+				id: 'ordered-list',
+				label: 'Numbered list',
+				description: 'Create a numbered list',
+				icon: 'mdi:format-list-numbered'
+			},
+			{
+				id: 'quote',
+				label: 'Quote',
+				description: 'Emphasize a quotation',
+				icon: 'mdi:format-quote-close'
+			},
+			{
+				id: 'code',
+				label: 'Code block',
+				description: 'Code with syntax highlighting',
+				icon: 'mdi:code-tags'
+			},
+			{ id: 'divider', label: 'Divider', description: 'Separate sections', icon: 'mdi:minus' },
+			{ id: 'table', label: 'Table', description: 'Insert a 3 × 2 table', icon: 'mdi:table' },
+			{
+				id: 'image',
+				label: 'Image',
+				description: 'Upload one or more images',
+				icon: 'mdi:image-outline'
+			},
+			{
+				id: 'video',
+				label: 'Video',
+				description: 'Upload one or more videos',
+				icon: 'mdi:video-outline'
+			},
+			...embedActions.map((embed) => ({
+				id: `component:${embed.id}`,
+				label: embed.label,
+				description: 'Interactive component',
+				icon: embed.icon ?? 'mdi:application-braces-outline'
+			}))
+		];
+	}
+
+	function syncSlashMenuFromEditor() {
+		if (!editor || !editor.state.selection.empty) {
+			closeSlashMenu();
+			return;
+		}
+
+		const cursor = editor.state.selection.$from;
+		if (cursor.parent.type.name !== 'paragraph') {
+			closeSlashMenu();
+			return;
+		}
+
+		const textBefore = cursor.parent.textBetween(0, cursor.parentOffset, undefined, '\ufffc');
+		const match = /^\/([^\s/]*)$/.exec(textBefore);
+		if (!match) {
+			closeSlashMenu();
+			return;
+		}
+
+		const from = cursor.start();
+		const coords = editor.view.coordsAtPos(cursor.pos);
+		const query = match[1] ?? '';
+		const nextItems = getSlashMenuItems().filter((item) =>
+			`${item.label} ${item.description}`.toLowerCase().includes(query.toLowerCase())
+		);
+
+		slashMenu = {
+			visible: true,
+			query,
+			from,
+			to: cursor.pos,
+			left: coords.left,
+			top: coords.bottom + 8,
+			activeIndex: Math.min(slashMenu.activeIndex, Math.max(0, nextItems.length - 1))
+		};
+	}
+
+	function closeSlashMenu() {
+		if (!slashMenu.visible) return;
+		slashMenu = createHiddenSlashMenu();
+	}
+
+	function handleSlashMenuKeydown(event: KeyboardEvent) {
+		if (!slashMenu.visible || event.isComposing) return false;
+
+		if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+			event.preventDefault();
+			const direction = event.key === 'ArrowDown' ? 1 : -1;
+			const count = slashMenuItems.length;
+			if (count) slashMenu.activeIndex = (slashMenu.activeIndex + direction + count) % count;
+			return true;
+		}
+
+		if (event.key === 'Enter' && slashMenuItems[slashMenu.activeIndex]) {
+			event.preventDefault();
+			runSlashMenuItem(slashMenuItems[slashMenu.activeIndex].id);
+			return true;
+		}
+
+		if (event.key === 'Escape') {
+			event.preventDefault();
+			closeSlashMenu();
+			return true;
+		}
+
+		return false;
+	}
+
+	function runSlashMenuItem(id: string) {
+		if (!editor || !slashMenu.visible) return;
+
+		const { from, to } = slashMenu;
+		closeSlashMenu();
+		const chain = editor.chain().focus().deleteRange({ from, to });
+
+		switch (id) {
+			case 'paragraph':
+				chain.setParagraph().run();
+				break;
+			case 'heading-1':
+				chain.setHeading({ level: 1 }).run();
+				break;
+			case 'heading-2':
+				chain.setHeading({ level: 2 }).run();
+				break;
+			case 'heading-3':
+				chain.setHeading({ level: 3 }).run();
+				break;
+			case 'bullet-list':
+				chain.toggleBulletList().run();
+				break;
+			case 'ordered-list':
+				chain.toggleOrderedList().run();
+				break;
+			case 'quote':
+				chain.toggleBlockquote().run();
+				break;
+			case 'code':
+				chain.toggleCodeBlock().run();
+				break;
+			case 'divider':
+				chain.setHorizontalRule().run();
+				break;
+			case 'table':
+				chain.run();
+				insertTable(editor);
+				break;
+			case 'image':
+				chain.run();
+				openImagePicker();
+				break;
+			case 'video':
+				chain.run();
+				openVideoPicker();
+				break;
+			default:
+				chain.run();
+				if (id.startsWith('component:')) insertEmbed(id.slice('component:'.length));
+		}
 	}
 
 	function scheduleSelectionToolbarSync() {
@@ -565,6 +798,18 @@
 		handleMediaDrop(view, event);
 	}
 
+	function handleSurfaceScroll() {
+		if (editor) hideBlockHandle(editor);
+	}
+
+	function indentCurrentListItem() {
+		editor?.chain().focus().sinkListItem('listItem').run();
+	}
+
+	function outdentCurrentListItem() {
+		editor?.chain().focus().liftListItem('listItem').run();
+	}
+
 	function hasDroppableEditorFiles(data: DataTransfer | null | undefined) {
 		return Boolean(getMarkdownFiles(data).length || getMediaFiles(data).length);
 	}
@@ -620,6 +865,25 @@
 		properties = normalizeMetadataEntries(next);
 		noteEditorChanged();
 		scheduleSave();
+	}
+
+	function getPropertyValue(key: string) {
+		return properties.find((property) => property.key === key)?.value;
+	}
+
+	function updateHeaderProperty(key: 'title' | 'description', value: string) {
+		const next = [...normalizeMetadataEntries(properties)];
+		const index = next.findIndex((property) => property.key === key);
+
+		if (index >= 0) next[index] = { key, value };
+		else next.unshift({ key, value });
+
+		updateProperties(next);
+	}
+
+	function countWords(text: string) {
+		const normalized = text.trim();
+		return normalized ? normalized.split(/\s+/).length : 0;
 	}
 
 	function insertMarkdown(markdown: string) {
@@ -1177,21 +1441,6 @@
 		}
 	}
 
-	async function copyMarkdown() {
-		if (!editor) return;
-
-		const content = editor.getJSON();
-		const draftPage = getDraftPage(content);
-		const markdown = serializeNotePageMarkdown(draftPage, content);
-		if (!markdown) return;
-
-		await navigator.clipboard.writeText(markdown);
-		copied = true;
-		copyTimer.schedule(() => {
-			copied = false;
-		}, 1800);
-	}
-
 	function downloadMarkdown() {
 		if (!editor) return;
 
@@ -1225,7 +1474,8 @@
 		// component embed props), and those proxies can't be structuredClone'd
 		// into IndexedDB — which silently breaks every save. Snapshot to plain
 		// objects before the content ever reaches the editor.
-		return $state.snapshot(page.content) as JSONContent;
+		const content = $state.snapshot(page.content) as JSONContent;
+		return stripLeadingPageHeader(content, page.title, page.frontmatter?.description);
 	}
 </script>
 
@@ -1250,23 +1500,24 @@
 	/>
 
 	<EditorDocumentActions
-		{copied}
 		{saveState}
 		{saveLabel}
 		syncStatus={syncLabelStatus}
 		{publicationState}
 		{publicHref}
 		historyOpen={historyPanelOpen}
-		embeds={embedActions}
-		onCopyMarkdown={copyMarkdown}
+		{propertiesOpen}
 		onDownloadMarkdown={downloadMarkdown}
-		onOpenShortcuts={openShortcutsPanel}
 		onToggleHistory={toggleHistoryPanel}
-		onInsertImage={openImagePicker}
-		onInsertVideo={openVideoPicker}
-		onInsertEmbed={insertEmbed}
+		onToggleProperties={() => (propertiesOpen = !propertiesOpen)}
 		onTogglePublication={auth.user ? togglePublication : undefined}
 	/>
+
+	{#if propertiesOpen}
+		<aside class="properties-popover" aria-label="Page properties">
+			<MetadataPanel {properties} onChange={updateProperties} />
+		</aside>
+	{/if}
 
 	<EditorHistoryPanel
 		entries={historyEntries}
@@ -1302,13 +1553,39 @@
 		onSubmitLink={applySelectionLinkEdit}
 	/>
 
+	<SlashMenu
+		visible={slashMenu.visible}
+		items={slashMenuItems}
+		activeIndex={slashMenu.activeIndex}
+		left={slashMenu.left}
+		top={slashMenu.top}
+		onSelect={runSlashMenuItem}
+	/>
+
+	<MobileListToolbar
+		visible={mobileListActions.visible}
+		canIndent={mobileListActions.canIndent}
+		canOutdent={mobileListActions.canOutdent}
+		onIndent={indentCurrentListItem}
+		onOutdent={outdentCurrentListItem}
+	/>
+
 	<EditorSurface
 		onHost={updateEditorHost}
 		onDragOver={handleSurfaceDragOver}
 		onDrop={handleSurfaceDrop}
+		onScroll={handleSurfaceScroll}
 	>
 		{#snippet header()}
-			<MetadataPanel {properties} onChange={updateProperties} />
+			<CraftArticleHeader
+				title={headerTitle}
+				description={headerDescription}
+				date={headerDate}
+				{wordCount}
+				editable
+				onTitleChange={(value) => updateHeaderProperty('title', value)}
+				onDescriptionChange={(value) => updateHeaderProperty('description', value)}
+			/>
 		{/snippet}
 		<BlockHandle
 			{editor}
@@ -1355,5 +1632,28 @@
 
 	.media-file-input {
 		display: none;
+	}
+
+	.properties-popover {
+		backdrop-filter: blur(18px);
+		background: color-mix(in oklch, var(--base-1) 92%, transparent);
+		border: 1px solid color-mix(in oklch, var(--edge) 76%, transparent);
+		border-radius: var(--s-3);
+		box-shadow: 0 1.2rem 3rem rgb(0 0 0 / 0.14);
+		overflow: visible;
+		padding: var(--s-1);
+		position: absolute;
+		right: calc(var(--s0) + env(safe-area-inset-right));
+		top: calc(4rem + env(safe-area-inset-top));
+		width: min(34rem, calc(100vw - var(--s0) * 2));
+		z-index: 10;
+	}
+
+	@media (max-width: 42rem) {
+		.properties-popover {
+			right: var(--s-2);
+			top: calc(3.5rem + env(safe-area-inset-top));
+			width: calc(100vw - var(--s-2) * 2);
+		}
 	}
 </style>

@@ -5,9 +5,18 @@
 	import ComponentEmbedRenderer from './ComponentEmbedRenderer.svelte';
 	import { normalizeCraftDocumentContent } from './document-content';
 	import { renderNode } from './document-renderer';
+	import { stripLeadingPageHeader } from './publication';
 
-	let { document }: { document: CraftDocument } = $props();
-	const content = $derived(normalizeCraftDocumentContent(document.content));
+	let {
+		document,
+		pageTitle = '',
+		pageDescription = ''
+	}: { document: CraftDocument; pageTitle?: string; pageDescription?: string } = $props();
+	const content = $derived(
+		normalizeCraftDocumentContent(
+			stripLeadingPageHeader(document.content, pageTitle, pageDescription)
+		)
+	);
 	const nodes = $derived(content.type === 'doc' ? (content.content ?? []) : [content]);
 
 	function getTextContent(node: JSONContent): string {

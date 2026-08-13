@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import HeroAppearanceControls from '$lib/components/HeroAppearanceControls.svelte';
+	import ParticleSettings from '$lib/components/ParticleSettings.svelte';
 	import {
 		createParticleSystem,
 		trackMouse,
@@ -14,19 +16,19 @@
 	const LINK_RADIUS = 130;
 	const WALL_BOUNCE_FACTOR = 0.01;
 	const DRAG = 0;
-	const RESTITUTION = 0.3;
 
 	let system: { destroy(): void; triggerResize(): void } | undefined;
 	let fps = $state(0);
 	let dpr = $state(0);
 	let canvas = $state<HTMLCanvasElement>();
+	let homepage = $state<HTMLElement>();
 	let particleCount = $state(0);
 	let defaultCount = $state(0);
-	let autoResize = $state(true);
+	let restitution = $state(0.3);
+	let showCollisionMap = $state(false);
+	let collisionOverlay: HTMLCanvasElement | undefined;
 	let frameCount = 0;
 	let lastFpsUpdate = 0;
-
-	const isModified = $derived(particleCount !== defaultCount);
 
 	function measureFps(time: number) {
 		frameCount++;
@@ -59,6 +61,16 @@
 		const descent = metrics.actualBoundingBoxDescent;
 		const y = height / 2 + (ascent - descent) / 2;
 		offCtx.fillText('ZAKI.GG', width / 2, y);
+
+		const overlay = document.createElement('canvas');
+		overlay.width = width;
+		overlay.height = height;
+		const overlayCtx = overlay.getContext('2d')!;
+		overlayCtx.drawImage(offscreen, 0, 0);
+		overlayCtx.globalCompositeOperation = 'source-in';
+		overlayCtx.fillStyle = '#ff2db2';
+		overlayCtx.fillRect(0, 0, width, height);
+		collisionOverlay = overlay;
 
 		return offCtx.getImageData(0, 0, width, height);
 	}
@@ -103,8 +115,8 @@
 				}
 			}
 
-			if (this.x > this.width - this.radius || this.x < this.radius) this.vector.x *= -RESTITUTION;
-			if (this.y > this.height - this.radius || this.y < this.radius) this.vector.y *= -RESTITUTION;
+			if (this.x > this.width - this.radius || this.x < this.radius) this.vector.x *= -restitution;
+			if (this.y > this.height - this.radius || this.y < this.radius) this.vector.y *= -restitution;
 			this.x = Math.max(this.radius, Math.min(this.width - this.radius, this.x));
 			this.y = Math.max(this.radius, Math.min(this.height - this.radius, this.y));
 
@@ -128,15 +140,15 @@
 				const inY = isInText(collisionMap, this.x, leadY);
 
 				if (inX && inY) {
-					this.vector.x *= -RESTITUTION;
-					this.vector.y *= -RESTITUTION;
+					this.vector.x *= -restitution;
+					this.vector.y *= -restitution;
 				} else if (inX) {
-					this.vector.x *= -RESTITUTION;
+					this.vector.x *= -restitution;
 				} else if (inY) {
-					this.vector.y *= -RESTITUTION;
+					this.vector.y *= -restitution;
 				} else {
-					this.vector.x *= -RESTITUTION;
-					this.vector.y *= -RESTITUTION;
+					this.vector.x *= -restitution;
+					this.vector.y *= -restitution;
 				}
 			} else {
 				this.x = nextX;
@@ -149,50 +161,10 @@
 		return document.documentElement.style.getPropertyValue('--hue') || '145';
 	}
 
-	let addParticles: (n: number) => void = () => {};
-	let removeParticles: (n: number) => void = () => {};
-	let resetParticles: () => void = () => {};
-
-	let scrubbing = $state(false);
-	let didScrub = false;
-
-	function startScrub(e: PointerEvent) {
-		const target = e.currentTarget as HTMLElement;
-		target.setPointerCapture(e.pointerId);
-		scrubbing = true;
-		didScrub = false;
-		const startX = e.clientX;
-		const startCount = particleCount;
-
-		function onMove(ev: PointerEvent) {
-			const dx = ev.clientX - startX;
-			if (Math.abs(dx) > 3) didScrub = true;
-			const sign = Math.sign(dx);
-			const abs = Math.abs(dx);
-			const delta = sign * Math.round(Math.pow(abs / 8, 1.4));
-			const target = Math.max(0, startCount + delta);
-			const diff = target - particleCount;
-			if (diff > 0) addParticles(diff);
-			else if (diff < 0) removeParticles(-diff);
-		}
-
-		function cleanup() {
-			scrubbing = false;
-			target.removeEventListener('pointermove', onMove);
-			target.removeEventListener('lostpointercapture', cleanup);
-		}
-
-		target.addEventListener('pointermove', onMove);
-		target.addEventListener('lostpointercapture', cleanup);
-	}
-
-	function handleCountClick() {
-		if (didScrub) return;
-		if (isModified) resetParticles();
-	}
+	let setParticleCount = $state<(count: number) => void>(() => {});
 
 	onMount(() => {
-		if (!canvas) return;
+		if (!canvas || !homepage) return;
 
 		let particles: LinkedParticle[] = [];
 		let collisionMap: ImageData;
@@ -200,10 +172,10 @@
 		let currentHeight = 0;
 		let prevFrameWidth = 0;
 		let prevFrameHeight = 0;
-		const mouse = trackMouse(canvas);
+		const mouse = trackMouse(canvas, 150, homepage);
 
-		function adjustCount(delta: number) {
-			const target = Math.max(0, particles.length + delta);
+		function updateParticleCount(count: number) {
+			const target = Math.max(0, Math.round(count));
 			while (particles.length < target) {
 				particles.push(new LinkedParticle(currentWidth, currentHeight, collisionMap));
 			}
@@ -213,11 +185,7 @@
 			particleCount = particles.length;
 		}
 
-		addParticles = (n: number) => adjustCount(n);
-		removeParticles = (n: number) => adjustCount(-n);
-		resetParticles = () => {
-			adjustCount(defaultCount - particles.length);
-		};
+		setParticleCount = updateParticleCount;
 
 		document.fonts.ready.then(() => {
 			const callbacks: ParticleSystemCallbacks = {
@@ -249,16 +217,6 @@
 					}
 
 					defaultCount = Math.floor((width * height) / 12000);
-					if (autoResize) {
-						const targetCount = defaultCount;
-						while (particles.length < targetCount) {
-							particles.push(new LinkedParticle(width, height, collisionMap));
-						}
-						while (particles.length > targetCount) {
-							particles.pop();
-						}
-						particleCount = particles.length;
-					}
 				},
 
 				frame(ctx, width, height) {
@@ -318,6 +276,13 @@
 					const descent = metrics.actualBoundingBoxDescent;
 					const y = height / 2 + (ascent - descent) / 2;
 					ctx.fillText('ZAKI.GG', width / 2, y);
+
+					if (showCollisionMap && collisionOverlay) {
+						ctx.save();
+						ctx.globalAlpha = 0.65;
+						ctx.drawImage(collisionOverlay, 0, 0, width, height);
+						ctx.restore();
+					}
 				}
 			};
 			system = createParticleSystem(canvas!, callbacks);
@@ -330,30 +295,30 @@
 	});
 </script>
 
-<div class="homepage">
+<div bind:this={homepage} class="homepage" class:collision-debug={showCollisionMap}>
 	<canvas bind:this={canvas}></canvas>
-	<h1>ZAKI.GG</h1>
-	<div class="controls">
-		<button onclick={() => removeParticles(10)}>«</button>
-		<button onclick={() => removeParticles(1)}>‹</button>
-		<button
-			class="count"
-			class:modified={isModified}
-			class:scrubbing
-			onclick={handleCountClick}
-			onpointerdown={startScrub}
-		>
-			{#if isModified}<span class="dot"></span>{/if}
-			{particleCount}
-		</button>
-		<button onclick={() => addParticles(1)}>›</button>
-		<button onclick={() => addParticles(10)}>»</button>
+	<div class="hero-center">
+		<h1>ZAKI.GG</h1>
+		<div class="playground-controls">
+			<HeroAppearanceControls />
+			<ParticleSettings
+				count={particleCount}
+				{defaultCount}
+				{restitution}
+				onCountChange={setParticleCount}
+				onRestitutionChange={(value) => (restitution = value)}
+			/>
+		</div>
 	</div>
 	<div class="debug-panel">
 		<span>{fps} FPS</span>
 		<span>{dpr}x DPR</span>
-		<button class="toggle" class:active={autoResize} onclick={() => (autoResize = !autoResize)}>
-			Auto
+		<button
+			class="toggle"
+			class:active={showCollisionMap}
+			onclick={() => (showCollisionMap = !showCollisionMap)}
+		>
+			Hitbox
 		</button>
 	</div>
 </div>
@@ -381,17 +346,36 @@
 		height: 100%;
 	}
 
-	h1 {
+	.hero-center {
+		left: 50%;
 		position: absolute;
 		top: 50%;
-		left: 50%;
 		transform: translate(-50%, -50%);
-		margin: 0;
-		font-weight: 900;
-		font-size: min(9vw, 15vh);
-		font-family: 'Inter Variable', sans-serif;
+	}
+
+	h1 {
 		color: oklch(75% 0.18 var(--hue));
+		font-family: 'Inter Variable', sans-serif;
+		font-size: min(9vw, 15vh);
+		font-weight: 900;
+		margin: 0;
 		pointer-events: none;
+		white-space: nowrap;
+	}
+
+	.collision-debug h1 {
+		opacity: 0.35;
+	}
+
+	.playground-controls {
+		align-items: center;
+		display: grid;
+		gap: var(--s0);
+		justify-items: center;
+		left: 50%;
+		position: absolute;
+		top: calc(100% + var(--s-1));
+		transform: translateX(-50%);
 	}
 
 	.debug-panel {
@@ -428,65 +412,9 @@
 		}
 	}
 
-	.controls {
-		position: absolute;
-		top: 1rem;
-		left: 50%;
-		transform: translateX(-50%);
-		display: flex;
-		align-items: center;
-		gap: 0.25rem;
-		font-family: var(--font-mono);
-		font-size: 0.85rem;
-
-		button {
-			padding: 0.3rem 0.6rem;
-			border-radius: 4px;
-			border: 1px solid var(--edge);
-			background: var(--base-1);
-			color: var(--content);
-			cursor: pointer;
-			font-size: 1rem;
-			line-height: 1;
-			transition: background 0.1s;
-
-			&:hover {
-				background: var(--base-2);
-			}
-		}
-
-		.count {
-			position: relative;
-			min-width: 3ch;
-			text-align: center;
-			font-size: 0.85rem;
-			cursor: ew-resize;
-			background: none;
-			border: none;
-			padding: 0.3rem 0.6rem;
-
-			&:hover {
-				background: none;
-			}
-
-			&.modified {
-				cursor: ew-resize;
-			}
-
-			&.scrubbing {
-				cursor: ew-resize;
-			}
-		}
-
-		.dot {
-			position: absolute;
-			top: -2px;
-			left: 50%;
-			transform: translateX(-50%);
-			width: 5px;
-			height: 5px;
-			border-radius: 50%;
-			background: oklch(65% 0.2 var(--hue));
+	@media (max-width: 64rem) {
+		.debug-panel {
+			display: none;
 		}
 	}
 </style>

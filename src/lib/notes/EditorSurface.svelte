@@ -5,12 +5,14 @@
 		onHost,
 		onDragOver,
 		onDrop,
+		onScroll,
 		header,
 		children
 	}: {
 		onHost: (host?: HTMLDivElement) => void;
 		onDragOver?: (event: DragEvent) => void;
 		onDrop?: (event: DragEvent) => void;
+		onScroll?: (event: Event) => void;
 		// Content that scrolls above the document within the same column
 		// (aligned to the text width), e.g. the metadata panel.
 		header?: Snippet;
@@ -29,7 +31,13 @@
 	});
 </script>
 
-<div class="editor-surface" role="presentation" ondragover={onDragOver} ondrop={onDrop}>
+<div
+	class="editor-surface"
+	role="presentation"
+	ondragover={onDragOver}
+	ondrop={onDrop}
+	onscroll={onScroll}
+>
 	{#if header}
 		<div class="editor-header">{@render header()}</div>
 	{/if}
@@ -45,6 +53,7 @@
 
 <style>
 	.editor-surface {
+		--editor-inline-padding: clamp(var(--s0), 5vw, var(--s2));
 		display: flex;
 		flex-direction: column;
 		flex: 1;
@@ -77,25 +86,24 @@
 		box-sizing: border-box;
 		flex: 0 0 auto;
 		margin-inline: auto;
-		max-width: 46rem;
-		padding: clamp(var(--s1), 6vw, var(--s3)) clamp(var(--s0), 5vw, var(--s2)) 0;
-		width: min(100%, 46rem);
+		max-width: calc(680px + var(--editor-inline-padding) + var(--editor-inline-padding));
+		padding: clamp(var(--s1), 6vw, var(--s3)) var(--editor-inline-padding) 0;
+		width: 100%;
 	}
 
 	.editor-surface:has(.editor-header) :global(.ProseMirror) {
-		padding-top: var(--s-1);
+		padding-top: var(--s0);
 	}
 
 	.editor-surface :global(.ProseMirror) {
 		box-sizing: border-box;
 		flex: 1;
 		margin-inline: auto;
-		max-width: 46rem;
+		max-width: calc(680px + var(--editor-inline-padding) + var(--editor-inline-padding));
 		min-height: 0;
 		outline: none;
-		padding: clamp(var(--s1), 6vw, var(--s3)) clamp(var(--s0), 5vw, var(--s2))
-			calc(var(--s4) + 5rem);
-		width: min(100%, 46rem);
+		padding: clamp(var(--s1), 6vw, var(--s3)) var(--editor-inline-padding) calc(var(--s4) + 5rem);
+		width: 100%;
 	}
 
 	.editor-surface :global(.ProseMirror p.is-editor-empty:first-child::before) {

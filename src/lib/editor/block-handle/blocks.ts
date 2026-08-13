@@ -33,6 +33,8 @@ export function describeBlockNode(
 			return { label: 'Bullet list', icon: 'mdi:format-list-bulleted' };
 		case 'orderedList':
 			return { label: 'Numbered list', icon: 'mdi:format-list-numbered' };
+		case 'listItem':
+			return { label: 'List item', icon: 'mdi:drag-vertical' };
 		case 'blockquote':
 			return { label: 'Quote', icon: 'mdi:format-quote-close' };
 		case 'codeBlock':

@@ -65,14 +65,34 @@ export const BlockHandle = Extension.create<BlockHandleOptions>({
 			editor: this.editor,
 			element,
 			pluginKey: 'blockHandle',
-			// Top-level blocks only — no drag handles for nested list items etc.
-			nestedOptions: normalizeNestedOptions(false),
+			// Prefer individual list items while retaining top-level block dragging.
+			nestedOptions: normalizeNestedOptions({
+				rules: [
+					{
+						id: 'nested-lists-only',
+						evaluate: ({ depth, $pos }) => {
+							if (depth <= 1) return 0;
+
+							for (let ancestorDepth = 1; ancestorDepth < depth; ancestorDepth += 1) {
+								const name = $pos.node(ancestorDepth).type.name;
+								if (name === 'bulletList' || name === 'orderedList') return 0;
+							}
+
+							return 1000;
+						}
+					}
+				],
+				edgeDetection: 'none'
+			}),
 			computePositionConfig: {
 				placement: 'left-start',
+				// The editor scrolls inside its own viewport. Fixed coordinates keep
+				// floating-ui's viewport measurements aligned after any scroll depth.
+				strategy: 'fixed',
 				// offset sits the handle in the gutter; shift with crossAxis:true
 				// nudges it back horizontally (the cross axis for a left placement)
 				// when the gutter is too narrow, instead of clipping off-screen.
-				middleware: [offset({ mainAxis: 8, crossAxis: 1 }), shift({ padding: 4, crossAxis: true })]
+				middleware: [offset({ mainAxis: 4, crossAxis: 1 }), shift({ padding: 4, crossAxis: true })]
 			},
 			onNodeChange: ({ node, pos }) => {
 				if (!node || isExcludedBlock(node)) {
@@ -103,6 +123,10 @@ export function unlockBlockHandle(editor: Editor) {
 	editor.view.dispatch(editor.state.tr.setMeta('lockDragHandle', false));
 }
 
+export function hideBlockHandle(editor: Editor) {
+	editor.view.dispatch(editor.state.tr.setMeta('hideDragHandle', true));
+}
+
 export function duplicateBlock(editor: Editor, pos: number) {
 	const node = editor.state.doc.nodeAt(pos);
 
@@ -130,9 +154,16 @@ export function insertParagraphBelow(editor: Editor, pos: number) {
 	if (!node || !paragraph) return;
 
 	const insertAt = pos + node.nodeSize;
-	const tr = editor.state.tr.insert(insertAt, paragraph);
+	const insertedNode =
+		node.type.name === 'listItem'
+			? editor.schema.nodes.listItem?.create(null, paragraph)
+			: paragraph;
 
-	tr.setSelection(TextSelection.create(tr.doc, insertAt + 1));
+	if (!insertedNode) return;
+
+	const tr = editor.state.tr.insert(insertAt, insertedNode);
+
+	tr.setSelection(TextSelection.create(tr.doc, insertAt + (node.type.name === 'listItem' ? 2 : 1)));
 	editor.view.dispatch(tr);
 	editor.view.focus();
 }

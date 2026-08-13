@@ -2,34 +2,34 @@
 	import { resolve } from '$app/paths';
 	import { auth } from '$lib/auth';
 	import Icon from '$lib/components/Icon.svelte';
-	import { Temporal } from 'temporal-polyfill';
+	import CraftArticleHeader from '$lib/crafts/CraftArticleHeader.svelte';
 	import CraftDocumentRenderer from '$lib/crafts/CraftDocumentRenderer.svelte';
 	import CraftEditGate from '$lib/crafts/CraftEditGate.svelte';
 	import CraftEditorPage from '$lib/crafts/CraftEditorPage.svelte';
 	import { titleFromSlug } from '$lib/notes/types';
 
 	let { data } = $props();
-
-	const printDate = (iso: string) => {
-		return Temporal.PlainDate.from(iso.split('T')[0]).toLocaleString(undefined, {
-			month: 'long',
-			day: 'numeric',
-			year: 'numeric'
-		});
-	};
 </script>
 
 {#snippet content()}
 	{#if data.mode === 'public'}
 		{#if data.craft.kind === 'document'}
-			<CraftDocumentRenderer document={data.craft.document} />
+			<CraftDocumentRenderer
+				document={data.craft.document}
+				pageTitle={data.meta.title}
+				pageDescription={data.meta.description}
+			/>
 		{:else if data.craft.kind === 'published'}
 			{#await data.craft.document}
 				<div class="document-skeleton" aria-label="Loading craft">
 					<span></span><span></span><span></span><span></span>
 				</div>
 			{:then document}
-				<CraftDocumentRenderer {document} />
+				<CraftDocumentRenderer
+					{document}
+					pageTitle={data.meta.title}
+					pageDescription={data.meta.description}
+				/>
 			{:catch}
 				<p class="document-error" role="alert">This craft could not be loaded.</p>
 			{/await}
@@ -66,17 +66,18 @@
 			<Icon icon="ep:top-left" />Back
 		</a>
 		{#if auth.user}
-			<a class="edit-craft" href={`${resolve('/crafts/[slug]', { slug: data.meta.slug })}?edit`}>
+			<a class="edit-craft" href={`/crafts/${data.meta.slug}?edit`}>
 				<Icon icon="mdi:pencil-outline" /> Edit
 			</a>
 		{/if}
 
 		<article>
-			<hgroup>
-				<h1 class="text-s1">{data.meta.title}</h1>
-				<p class="text-content-1">{data.meta.description}</p>
-				<time class="text-content-1">{printDate(data.meta.date)}</time>
-			</hgroup>
+			<CraftArticleHeader
+				title={data.meta.title}
+				description={data.meta.description}
+				date={data.meta.date}
+				wordCount={data.meta.wordCount}
+			/>
 
 			{@render content()}
 		</article>

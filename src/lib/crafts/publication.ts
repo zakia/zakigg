@@ -22,7 +22,8 @@ export function countCraftWords(content: JSONContent, title = '') {
 }
 
 export function createPublishedCraftSummary(page: NotePageV1): PublishedCraftSummary {
-	const text = getContentText(page.content);
+	const body = stripLeadingPageHeader(page.content, page.title, page.frontmatter?.description);
+	const text = getContentText(body);
 	const description = page.frontmatter?.description?.trim() || createExcerpt(text, page.title);
 
 	return {
@@ -65,7 +66,7 @@ export function createPublishedCraftDocument(page: NotePageV1): CraftDocument {
 	return {
 		version: 1,
 		editor: 'tiptap',
-		content: stripLeadingTitle(page.content, page.title),
+		content: stripLeadingPageHeader(page.content, page.title, page.frontmatter?.description),
 		updatedAt: page.updatedAt
 	};
 }
@@ -88,14 +89,43 @@ function createExcerpt(text: string, title: string) {
 	return `${withoutTitle.slice(0, 177).trimEnd()}…`;
 }
 
-function stripLeadingTitle(content: JSONContent, title: string): JSONContent {
+export function stripLeadingPageHeader(
+	content: JSONContent,
+	title: string,
+	description = ''
+): JSONContent {
 	if (content.type !== 'doc' || !content.content?.length) return content;
 
-	const [first, ...rest] = content.content;
-	if (first.type !== 'heading' || Number(first.attrs?.level) !== 1) return content;
-	if (nodeText(first).trim().replace(/\s+/g, ' ') !== title) return content;
+	const children = [...content.content];
+	const normalizedTitle = normalizeText(title);
+	const normalizedDescription = normalizeText(description);
+	const first = children[0];
+	let removedTitle = false;
 
-	return { ...content, content: rest.length ? rest : [{ type: 'paragraph' }] };
+	if (
+		first?.type === 'heading' &&
+		Number(first.attrs?.level) === 1 &&
+		normalizeText(nodeText(first)) === normalizedTitle
+	) {
+		children.shift();
+		removedTitle = true;
+	}
+
+	const next = children[0];
+	if (
+		removedTitle &&
+		normalizedDescription &&
+		next?.type === 'heading' &&
+		normalizeText(nodeText(next)) === normalizedDescription
+	) {
+		children.shift();
+	}
+
+	return { ...content, content: children.length ? children : [{ type: 'paragraph' }] };
+}
+
+function normalizeText(value: string) {
+	return value.trim().replace(/\s+/g, ' ');
 }
 
 function nodeText(node: JSONContent): string {

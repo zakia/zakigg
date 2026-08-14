@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, tick } from 'svelte';
+	import { onMount, tick, type Snippet } from 'svelte';
 	import { Editor, posToDOMRect, type JSONContent, type Range } from '@tiptap/core';
 	import type { EditorView } from '@tiptap/pm/view';
 	import { noteComponentEmbeds } from '$lib/notes/component-embeds';
@@ -99,11 +99,13 @@
 	let {
 		page,
 		onSaved,
-		publicHref
+		publicHref,
+		navigation
 	}: {
 		page: NotePageV1;
 		onSaved?: (page: NotePageV1) => void;
 		publicHref?: string;
+		navigation?: Snippet;
 	} = $props();
 
 	let editorHost = $state<HTMLDivElement>();
@@ -175,7 +177,6 @@
 		};
 	});
 	const headerTitle = $derived(String(getPropertyValue('title') ?? page.title));
-	const headerDescription = $derived(String(getPropertyValue('description') || ''));
 	const headerDate = $derived(String(getPropertyValue('date') || page.createdAt));
 	const wordCount = $derived.by(() => {
 		editorTick;
@@ -871,7 +872,7 @@
 		return properties.find((property) => property.key === key)?.value;
 	}
 
-	function updateHeaderProperty(key: 'title' | 'description', value: string) {
+	function updateHeaderProperty(key: 'title', value: string) {
 		const next = [...normalizeMetadataEntries(properties)];
 		const index = next.findIndex((property) => property.key === key);
 
@@ -1575,16 +1576,15 @@
 		onDragOver={handleSurfaceDragOver}
 		onDrop={handleSurfaceDrop}
 		onScroll={handleSurfaceScroll}
+		{navigation}
 	>
 		{#snippet header()}
 			<CraftArticleHeader
 				title={headerTitle}
-				description={headerDescription}
 				date={headerDate}
 				{wordCount}
 				editable
 				onTitleChange={(value) => updateHeaderProperty('title', value)}
-				onDescriptionChange={(value) => updateHeaderProperty('description', value)}
 			/>
 		{/snippet}
 		<BlockHandle

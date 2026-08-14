@@ -3,6 +3,7 @@ import { createNotePage } from '$lib/notes/types';
 import {
 	createPublishedCraftDocument,
 	createPublishedCraftSummary,
+	createPublicCraftList,
 	countCraftWords,
 	isPublishedCraftOutdated,
 	rewritePublishedAssetSources,
@@ -152,5 +153,64 @@ describe('published craft snapshots', () => {
 				{ updatedAt: '2025-04-04T12:00:00.000Z' }
 			)
 		).toBe(false);
+	});
+
+	it('builds one ordered public list with published crafts replacing matching registrations', () => {
+		const registered = [
+			{
+				slug: 'registered',
+				title: 'Registered',
+				description: '',
+				tags: ['code'],
+				date: '2025-01-01'
+			},
+			{
+				slug: 'draft',
+				title: 'Draft',
+				description: '',
+				tags: [],
+				date: '2026-01-01',
+				draft: true
+			}
+		];
+		const published = [
+			{
+				pageId: 'page_registered',
+				slug: 'registered',
+				title: 'Published replacement',
+				description: '',
+				tags: ['notes'],
+				date: '2025-02-01',
+				updatedAt: '2025-02-01T12:00:00.000Z'
+			},
+			{
+				pageId: 'page_remote',
+				slug: 'remote',
+				title: 'Remote only',
+				description: '',
+				tags: [],
+				date: '2025-03-01',
+				updatedAt: '2025-03-01T12:00:00.000Z'
+			}
+		];
+
+		expect(createPublicCraftList(registered, published)).toEqual([
+			{
+				id: 'page_remote',
+				slug: 'remote',
+				title: 'Remote only',
+				tags: [],
+				date: '2025-03-01',
+				wordCount: undefined
+			},
+			{
+				id: 'page_registered',
+				slug: 'registered',
+				title: 'Published replacement',
+				tags: ['notes'],
+				date: '2025-02-01',
+				wordCount: undefined
+			}
+		]);
 	});
 });

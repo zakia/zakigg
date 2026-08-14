@@ -1,11 +1,13 @@
 <script lang="ts">
 	import { onDestroy, type Snippet } from 'svelte';
+	import CraftArticleLayout from '$lib/crafts/CraftArticleLayout.svelte';
 
 	let {
 		onHost,
 		onDragOver,
 		onDrop,
 		onScroll,
+		navigation,
 		header,
 		children
 	}: {
@@ -13,6 +15,7 @@
 		onDragOver?: (event: DragEvent) => void;
 		onDrop?: (event: DragEvent) => void;
 		onScroll?: (event: Event) => void;
+		navigation?: Snippet;
 		// Content that scrolls above the document within the same column
 		// (aligned to the text width), e.g. the metadata panel.
 		header?: Snippet;
@@ -39,7 +42,10 @@
 	onscroll={onScroll}
 >
 	{#if header}
-		<div class="editor-header">{@render header()}</div>
+		{#snippet editorHeader()}
+			<div class="editor-header">{@render header()}</div>
+		{/snippet}
+		<CraftArticleLayout {navigation} main={editorHeader} />
 	{/if}
 	<!-- Content-space overlays (the block handle) are absolutely positioned
 	     against this wrapper, whose origin is exactly the document's origin.
@@ -82,15 +88,6 @@
 	/* Align the metadata panel with the document's text column, and give it the
 	   editor's top padding so it sits where content begins. The document's own
 	   top padding is zeroed (below) so the two don't stack. */
-	.editor-header {
-		box-sizing: border-box;
-		flex: 0 0 auto;
-		margin-inline: auto;
-		max-width: calc(680px + var(--editor-inline-padding) + var(--editor-inline-padding));
-		padding: clamp(var(--s1), 6vw, var(--s3)) var(--editor-inline-padding) 0;
-		width: 100%;
-	}
-
 	.editor-surface:has(.editor-header) :global(.ProseMirror) {
 		padding-top: var(--s0);
 	}

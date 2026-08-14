@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import Icon from '$lib/components/Icon.svelte';
+	import CraftBackLink from '$lib/crafts/CraftBackLink.svelte';
 	import RichNoteEditor from '$lib/notes/RichNoteEditor.svelte';
 	import { createNotePageRecord, loadNotePageBySlug } from '$lib/notes/storage';
 	import { titleFromSlug, type NotePageV1 } from '$lib/notes/types';
@@ -108,6 +109,10 @@
 	}
 </script>
 
+{#snippet navigation()}
+	<CraftBackLink href={editCollectionHref} onclick={goBack} />
+{/snippet}
+
 <svelte:head>
 	<title>{craft?.title ?? titleFromSlug(slug)} – Edit – zaki.gg</title>
 	<meta name="description" content="Edit this craft on zaki.gg." />
@@ -120,7 +125,7 @@
 	</section>
 {:else if !craft}
 	<section class="craft-state">
-		<a class="back-link" href={editCollectionHref}><Icon icon="mdi:arrow-left" /> Crafts</a>
+		<CraftBackLink href={editCollectionHref} label="Crafts" />
 		<div class="missing-craft">
 			<h1>{titleFromSlug(slug)}</h1>
 			<p>No editable craft exists at /crafts/{slug} yet.</p>
@@ -142,17 +147,13 @@
 	</section>
 {:else}
 	<section class="craft-edit-page">
-		<a
-			class="back-button"
-			href={editCollectionHref}
-			aria-label="Back to crafts"
-			title="Back to crafts"
-			onclick={goBack}
-		>
-			<Icon icon="mdi:arrow-left" />
-		</a>
 		{#key craft.id}
-			<RichNoteEditor page={craft} publicHref={craftHref(craft.slug)} onSaved={handleSaved} />
+			<RichNoteEditor
+				page={craft}
+				publicHref={craftHref(craft.slug)}
+				onSaved={handleSaved}
+				{navigation}
+			/>
 		{/key}
 	</section>
 {/if}
@@ -171,23 +172,6 @@
 		min-height: 60vh;
 		padding: var(--s2) var(--s0) calc(var(--s4) + 5rem);
 		width: 100%;
-	}
-
-	.back-link {
-		align-items: center;
-		display: flex;
-	}
-
-	.back-link {
-		color: var(--brand);
-		font-weight: 700;
-		gap: var(--s-3);
-		text-decoration: none;
-	}
-
-	.back-link :global(svg) {
-		height: 1rem;
-		width: 1rem;
 	}
 
 	.missing-craft button {
@@ -224,42 +208,6 @@
 		min-height: 100vh;
 		position: relative;
 		width: 100%;
-	}
-
-	.back-button {
-		align-items: center;
-		backdrop-filter: blur(16px);
-		background: color-mix(in oklch, var(--base-1) 76%, transparent);
-		border: 1px solid color-mix(in oklch, var(--edge) 72%, transparent);
-		border-radius: 999px;
-		box-shadow: 0 12px 30px rgb(0 0 0 / 0.08);
-		color: var(--content-1);
-		display: flex;
-		height: 2.5rem;
-		justify-content: center;
-		left: calc(var(--s0) + env(safe-area-inset-left));
-		position: absolute;
-		top: calc(var(--s0) + env(safe-area-inset-top));
-		transition:
-			background-color 0.2s,
-			color 0.2s,
-			transform 0.2s;
-		width: 2.5rem;
-		z-index: 5;
-	}
-
-	.back-button:hover,
-	.back-button:focus-visible {
-		background: color-mix(in oklch, var(--brand) 15%, var(--base-1));
-		color: var(--content);
-		outline: none;
-		transform: translateY(-1px);
-	}
-
-	.back-button :global(svg) {
-		height: 1.2rem;
-		pointer-events: none;
-		width: 1.2rem;
 	}
 
 	.missing-craft label {

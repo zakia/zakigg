@@ -27,8 +27,18 @@
 	let {
 		initialCrafts = [],
 		editable = false,
-		showEditLink = false
-	}: { initialCrafts?: CraftListItem[]; editable?: boolean; showEditLink?: boolean } = $props();
+		showEditLink = false,
+		pending = false,
+		loadError = false,
+		onRetry
+	}: {
+		initialCrafts?: CraftListItem[];
+		editable?: boolean;
+		showEditLink?: boolean;
+		pending?: boolean;
+		loadError?: boolean;
+		onRetry?: () => void;
+	} = $props();
 
 	let pages = $state<CraftListItem[]>(untrack(() => initialCrafts));
 	let loading = $state(untrack(() => editable));
@@ -299,9 +309,15 @@
 	</header>
 
 	<div class="manager-toolbar">
-		<label class="search-field">
+		<label class="search-field" class:disabled={pending || loadError}>
 			<Icon icon="mdi:magnify" />
-			<input type="search" bind:value={query} placeholder="Search" aria-label="Search crafts" />
+			<input
+				type="search"
+				bind:value={query}
+				placeholder="Search"
+				aria-label="Search crafts"
+				disabled={pending || loadError}
+			/>
 		</label>
 		{#if editable && selectionMode}
 			<span class="selection-count">{selectedIds.size} selected</span>
@@ -344,7 +360,22 @@
 		{/if}
 	</div>
 
-	{#if loading}
+	{#if pending}
+		<div class="collection-pending" role="status" aria-label="Loading crafts">
+			{#each Array(6) as _, index}
+				<div class="pending-row" style={`--pending-width: ${88 - index * 7}%`}>
+					<span></span><span></span>
+				</div>
+			{/each}
+		</div>
+	{:else if loadError}
+		<div class="collection-error" role="alert">
+			<p>Crafts couldn’t be loaded.</p>
+			{#if onRetry}
+				<button type="button" class="quiet-button" onclick={onRetry}>Try again</button>
+			{/if}
+		</div>
+	{:else if loading}
 		<p class="empty-state">Loading crafts...</p>
 	{:else if !filteredPages.length}
 		<p class="empty-state">No crafts match this search.</p>
@@ -487,6 +518,10 @@
 
 	.search-field:focus-within {
 		color: var(--content-1);
+	}
+
+	.search-field.disabled {
+		opacity: 0.5;
 	}
 
 	.search-field :global(svg) {
@@ -681,6 +716,63 @@
 		color: var(--content-1);
 		margin-top: var(--s2);
 		text-align: center;
+	}
+
+	.collection-pending {
+		display: grid;
+		gap: var(--s0);
+		padding-top: var(--s2);
+	}
+
+	.pending-row {
+		align-items: center;
+		display: flex;
+		gap: var(--s-1);
+		max-width: var(--pending-width);
+		padding-block: 0.55rem;
+	}
+
+	.pending-row span {
+		animation: pending-pulse 1.4s ease-in-out infinite alternate;
+		background: color-mix(in oklch, var(--content) 9%, transparent);
+		border-radius: 999px;
+		display: block;
+		height: 1rem;
+	}
+
+	.pending-row span:first-child {
+		flex: 1;
+	}
+
+	.pending-row span:last-child {
+		flex: 0 0 4.5rem;
+		opacity: 0.65;
+	}
+
+	.collection-error {
+		align-items: center;
+		color: var(--content-1);
+		display: flex;
+		flex-direction: column;
+		gap: var(--s-2);
+		justify-content: center;
+		padding-top: var(--s2);
+	}
+
+	.collection-error p {
+		margin: 0;
+	}
+
+	@keyframes pending-pulse {
+		to {
+			opacity: 0.42;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.pending-row span {
+			animation: none;
+		}
 	}
 
 	.drop-overlay {

@@ -1,6 +1,6 @@
 import type { JSONContent } from '@tiptap/core';
 import { getContentText, getReferencedAssetIds, type NotePageV1 } from '$lib/notes/types';
-import type { CraftDocument, CraftMeta } from './types';
+import type { CraftDocument, CraftListItem, CraftMeta } from './types';
 
 export type PublishedCraftSummary = CraftMeta & {
 	pageId: string;
@@ -15,6 +15,32 @@ export type PublishedCraftMetadata = PublishedCraftSummary & {
 	bodyObject: string;
 	publishedAt: string;
 };
+
+export function createPublicCraftList(
+	registeredCrafts: Array<CraftMeta & { slug: string }>,
+	publishedCrafts: PublishedCraftSummary[]
+): CraftListItem[] {
+	const publishedBySlug = new Map(publishedCrafts.map((craft) => [craft.slug, craft]));
+	const visibleCrafts = [
+		...registeredCrafts.filter((craft) => !craft.draft && !publishedBySlug.has(craft.slug)),
+		...publishedCrafts
+	].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+
+	return visibleCrafts.map((craft) => ({
+		id: isPublishedCraftSummary(craft) ? craft.pageId : `static:${craft.slug}`,
+		slug: craft.slug,
+		title: craft.title,
+		tags: craft.tags,
+		date: craft.date,
+		wordCount: craft.wordCount
+	}));
+}
+
+function isPublishedCraftSummary(
+	craft: (CraftMeta & { slug: string }) | PublishedCraftSummary
+): craft is PublishedCraftSummary {
+	return 'pageId' in craft && typeof craft.pageId === 'string';
+}
 
 export function countCraftWords(content: JSONContent, title = '') {
 	const text = [title, getContentText(content)].filter(Boolean).join(' ').trim();

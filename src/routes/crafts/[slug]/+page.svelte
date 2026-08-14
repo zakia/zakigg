@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { auth } from '$lib/auth';
+	import CraftArticleLayout from '$lib/crafts/CraftArticleLayout.svelte';
+	import CraftBackLink from '$lib/crafts/CraftBackLink.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import CraftArticleHeader from '$lib/crafts/CraftArticleHeader.svelte';
 	import CraftDocumentRenderer from '$lib/crafts/CraftDocumentRenderer.svelte';
@@ -39,6 +41,32 @@
 	{/if}
 {/snippet}
 
+{#snippet navigation()}
+	<CraftBackLink href={resolve('/crafts')} />
+{/snippet}
+
+{#snippet article()}
+	{#if data.mode === 'public'}
+		<article>
+			<CraftArticleHeader
+				title={data.meta.title}
+				date={data.meta.date}
+				wordCount={data.meta.wordCount}
+			/>
+
+			{@render content()}
+		</article>
+	{/if}
+{/snippet}
+
+{#snippet actions()}
+	{#if data.mode === 'public' && auth.user}
+		<a class="edit-craft" href={`/crafts/${data.meta.slug}?edit`}>
+			<Icon icon="mdi:pencil-outline" /> Edit
+		</a>
+	{/if}
+{/snippet}
+
 <svelte:head>
 	{#if data.mode === 'edit'}
 		<title>{titleFromSlug(data.slug)} – Edit – zaki.gg</title>
@@ -58,57 +86,17 @@
 {:else if data.meta.fullBleed && data.craft.kind === 'component'}
 	{@render content()}
 {:else}
-	<section class="gap-s0 mx-auto grid w-full items-start">
-		<a
-			href={resolve('/crafts')}
-			class="btn text-brand top-(--vertical-spacing) w-fit p-0 md:sticky"
-		>
-			<Icon icon="ep:top-left" />Back
-		</a>
-		{#if auth.user}
-			<a class="edit-craft" href={`/crafts/${data.meta.slug}?edit`}>
-				<Icon icon="mdi:pencil-outline" /> Edit
-			</a>
-		{/if}
-
-		<article>
-			<CraftArticleHeader
-				title={data.meta.title}
-				description={data.meta.description}
-				date={data.meta.date}
-				wordCount={data.meta.wordCount}
-			/>
-
-			{@render content()}
-		</article>
+	<section class="public-craft">
+		<CraftArticleLayout {navigation} main={article} {actions} />
 	</section>
 {/if}
 
 <style>
-	section {
+	.public-craft {
 		--vertical-spacing: var(--s3);
-		display: grid;
-		grid-template-areas: 'back article edit';
-		grid-template-columns: 100px minmax(0, 680px) 100px;
-		max-width: 880px;
 		padding-bottom: calc(var(--vertical-spacing) * 3);
-		padding-inline: var(--s0);
-		padding-top: var(--vertical-spacing);
-
-		> :global(.btn) {
-			grid-area: back;
-		}
-
-		> article {
-			grid-area: article;
-		}
 
 		@media (max-width: 768px) {
-			grid-template-areas:
-				'back edit'
-				'article article';
-			grid-template-columns: minmax(0, 1fr) auto;
-			padding-top: calc(var(--vertical-spacing) / 2);
 			padding-bottom: calc(var(--vertical-spacing) * 2);
 		}
 	}

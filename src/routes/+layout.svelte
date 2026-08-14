@@ -10,6 +10,7 @@
 	import type { Snippet } from 'svelte';
 	import '../app.css';
 	import Header from '../lib/components/Header.svelte';
+	import MobileStatusBar from '../lib/components/MobileStatusBar.svelte';
 
 	let { children }: { children: Snippet } = $props();
 	useGridSettings();
@@ -52,6 +53,7 @@
 </svelte:head>
 
 <div class="app">
+	<MobileStatusBar />
 	<Header />
 	<main id="main" class="grid-bg">
 		{@render children()}
@@ -70,6 +72,9 @@
 
 <style>
 	.app {
+		--mobile-nav-content-height: 3.25rem;
+		--mobile-nav-height: calc(var(--mobile-nav-content-height) + env(safe-area-inset-bottom, 0px));
+		--mobile-status-height: calc(2.5rem + env(safe-area-inset-top, 0px));
 		display: flex;
 		flex-direction: column;
 		min-height: 100vh;
@@ -87,7 +92,28 @@
 
 	@media (max-width: 48rem) {
 		main {
-			padding-bottom: calc(4rem + env(safe-area-inset-bottom));
+			padding-bottom: var(--mobile-nav-height);
+		}
+	}
+
+	@media (max-width: 48rem) and (display-mode: standalone),
+		(max-width: 48rem) and (display-mode: fullscreen) {
+		.app::before {
+			background: linear-gradient(to bottom, rgb(0 0 0 / 0.24), transparent);
+			content: '';
+			height: env(safe-area-inset-top, 0px);
+			left: 0;
+			pointer-events: none;
+			position: fixed;
+			right: 0;
+			top: 0;
+			z-index: 998;
+		}
+	}
+
+	@media (max-width: 48rem) and (display-mode: fullscreen) {
+		.app::before {
+			height: var(--mobile-status-height);
 		}
 	}
 

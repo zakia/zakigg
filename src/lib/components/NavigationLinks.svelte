@@ -81,11 +81,11 @@
 	}
 
 	:global(.mobile-nav) a {
-		min-height: 3.25rem;
+		height: var(--mobile-nav-content-height);
 	}
 
 	:global(.mobile-nav) a :global(svg) {
-		height: 1.6rem;
-		width: 1.6rem;
+		height: 1.5rem;
+		width: 1.5rem;
 	}
 </style>

@@ -166,15 +166,19 @@
 		}
 
 		.mobile-nav {
-			backdrop-filter: blur(18px);
-			background: color-mix(in oklch, var(--base-1) 92%, transparent);
-			border-top: 1px solid color-mix(in oklch, var(--edge) 82%, transparent);
+			-webkit-backdrop-filter: blur(24px) saturate(1.2);
+			backdrop-filter: blur(24px) saturate(1.2);
+			background: color-mix(in oklch, var(--base-1) 82%, transparent);
+			border-top: 1px solid color-mix(in oklch, var(--edge) 68%, transparent);
+			box-sizing: border-box;
+			box-shadow: 0 -0.5rem 1.5rem rgb(0 0 0 / 0.04);
 			bottom: 0;
 			display: grid;
 			grid-template-columns: repeat(4, 1fr);
+			height: var(--mobile-nav-height);
 			left: 0;
-			padding: var(--s-2) max(var(--s-2), env(safe-area-inset-right))
-				calc(var(--s-2) + env(safe-area-inset-bottom)) max(var(--s-2), env(safe-area-inset-left));
+			padding: 0 max(var(--s-2), env(safe-area-inset-right)) env(safe-area-inset-bottom)
+				max(var(--s-2), env(safe-area-inset-left));
 			position: fixed;
 			right: 0;
 			z-index: 999;

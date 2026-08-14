@@ -417,4 +417,11 @@
 			display: none;
 		}
 	}
+
+	@media (max-width: 48rem) {
+		.homepage {
+			bottom: var(--mobile-nav-height);
+			height: auto;
+		}
+	}
 </style>

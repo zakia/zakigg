@@ -1,24 +1,27 @@
 <script lang="ts">
 	import { auth } from '$lib/auth';
 	import Icon from '$lib/components/Icon.svelte';
+	import { useTheme } from '$lib/theme.svelte';
 	import { renderAuthProviderButton } from './provider-buttons';
 
+	const theme = useTheme();
 	let buttonContainer = $state<HTMLElement>();
 	let message = $state('');
 
 	$effect(() => {
 		if (!buttonContainer || !auth.ready || auth.user) return;
-		void renderSignInButton();
+		void renderSignInButton(theme.theme === 'dark' ? 'dark' : 'light');
 	});
 
-	async function renderSignInButton() {
+	async function renderSignInButton(colorScheme: 'light' | 'dark') {
 		if (!buttonContainer) return;
 		buttonContainer.replaceChildren();
 		try {
 			await renderAuthProviderButton(
 				'google',
 				buttonContainer,
-				(credentials) => void completeSignIn(credentials)
+				(credentials) => void completeSignIn(credentials),
+				{ colorScheme }
 			);
 		} catch {
 			message = 'Google sign-in is unavailable right now.';
@@ -62,7 +65,9 @@
 		</div>
 	{:else}
 		<p class="muted">Sign in to edit, sync, and publish crafts.</p>
-		<div class="provider-button" bind:this={buttonContainer}></div>
+		{#key theme.theme}
+			<div class="provider-button" bind:this={buttonContainer}></div>
+		{/key}
 	{/if}
 
 	{#if message}<p class="error" role="alert">{message}</p>{/if}
@@ -135,8 +140,9 @@
 	}
 
 	.provider-button {
+		align-items: center;
 		display: flex;
-		min-height: 2.5rem;
+		min-height: 2.75rem;
 	}
 
 	.error {

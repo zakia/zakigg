@@ -7,8 +7,19 @@ type GoogleAccountsId = {
 	}): void;
 	renderButton(
 		container: HTMLElement,
-		options: { type?: string; theme?: string; size?: string; text?: string; shape?: string }
+		options: {
+			type?: 'standard' | 'icon';
+			theme?: 'outline' | 'outline_dark' | 'filled_blue' | 'filled_black';
+			size?: 'small' | 'medium' | 'large';
+			text?: 'signin_with' | 'signup_with' | 'continue_with' | 'signin';
+			shape?: 'rectangular' | 'pill' | 'circle' | 'square';
+			logo_alignment?: 'left' | 'center';
+		}
 	): void;
+};
+
+type GoogleButtonOptions = {
+	colorScheme: 'light' | 'dark';
 };
 
 declare global {
@@ -20,6 +31,8 @@ declare global {
 const GIS_SRC = 'https://accounts.google.com/gsi/client';
 
 let scriptPromise: Promise<GoogleAccountsId> | null = null;
+let initializedClientId: string | null = null;
+let credentialHandler: ((credential: string) => void) | null = null;
 
 function loadGis(): Promise<GoogleAccountsId> {
 	scriptPromise ??= new Promise((resolve, reject) => {
@@ -46,19 +59,30 @@ function loadGis(): Promise<GoogleAccountsId> {
 
 export async function renderGoogleSignInButton(
 	container: HTMLElement,
-	onCredential: (credential: string) => void
+	onCredential: (credential: string) => void,
+	options: GoogleButtonOptions
 ): Promise<void> {
 	const clientId = env.PUBLIC_GOOGLE_CLIENT_ID;
 
 	if (!clientId) throw new Error('Authentication is not configured');
 
 	const gis = await loadGis();
+	credentialHandler = onCredential;
 
-	gis.initialize({ client_id: clientId, callback: ({ credential }) => onCredential(credential) });
+	if (initializedClientId !== clientId) {
+		gis.initialize({
+			client_id: clientId,
+			callback: ({ credential }) => credentialHandler?.(credential)
+		});
+		initializedClientId = clientId;
+	}
+
 	gis.renderButton(container, {
 		type: 'standard',
-		theme: 'outline',
-		size: 'medium',
-		shape: 'pill'
+		theme: options.colorScheme === 'dark' ? 'outline_dark' : 'outline',
+		size: 'large',
+		text: 'continue_with',
+		shape: 'pill',
+		logo_alignment: 'left'
 	});
 }

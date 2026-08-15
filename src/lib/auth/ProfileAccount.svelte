@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { auth } from '$lib/auth';
-	import Icon from '$lib/components/Icon.svelte';
 	import { useTheme } from '$lib/theme.svelte';
 	import { renderAuthProviderButton } from './provider-buttons';
 
@@ -42,13 +41,10 @@
 	}
 </script>
 
-<section class="setting-card" aria-labelledby="account-heading">
-	<div class="setting-heading">
-		<Icon icon="mdi:account-circle-outline" />
-		<div>
-			<h2 id="account-heading">Account</h2>
-			<p>Your private crafts and publishing controls.</p>
-		</div>
+<section class="settings-section" aria-labelledby="account-heading">
+	<div class="section-heading">
+		<h2 id="account-heading">Account</h2>
+		<p>Private crafts and publishing.</p>
 	</div>
 
 	{#if !auth.ready}
@@ -59,9 +55,7 @@
 				<span class="eyebrow">Signed in as</span>
 				<strong>{auth.user.email}</strong>
 			</div>
-			<button type="button" onclick={() => void signOut()}>
-				<Icon icon="mdi:logout" /> Sign out
-			</button>
+			<button type="button" onclick={() => void signOut()}> Sign out </button>
 		</div>
 	{:else}
 		<p class="muted">Sign in to edit, sync, and publish crafts.</p>
@@ -74,30 +68,23 @@
 </section>
 
 <style>
-	.setting-card {
-		background: color-mix(in oklch, var(--base-1) 82%, transparent);
-		border: 1px solid var(--edge);
-		border-radius: var(--s-1);
+	.settings-section {
+		border-top: 1px solid var(--edge);
 		display: grid;
-		gap: var(--s0);
-		padding: var(--s1);
+		gap: var(--s1);
+		padding-block: var(--s1);
 	}
 
-	.setting-heading,
+	.section-heading,
 	.account-row,
 	button {
 		align-items: center;
 		display: flex;
 	}
 
-	.setting-heading {
-		gap: var(--s-1);
-	}
-
-	.setting-heading :global(svg) {
-		color: var(--brand);
-		height: 1.5rem;
-		width: 1.5rem;
+	.section-heading {
+		display: grid;
+		gap: var(--s-5);
 	}
 
 	h2,
@@ -109,7 +96,7 @@
 		font-size: 1rem;
 	}
 
-	.setting-heading p,
+	.section-heading p,
 	.muted,
 	.eyebrow {
 		color: var(--content-1);
@@ -126,17 +113,15 @@
 	}
 
 	button {
-		background: var(--base-2);
-		border: 1px solid var(--edge);
-		border-radius: 999px;
-		color: var(--content);
-		gap: var(--s-3);
-		padding: var(--s-2) var(--s0);
+		background: transparent;
+		border: 0;
+		color: var(--content-1);
+		font-size: 0.8rem;
+		padding: var(--s-2) 0;
 	}
 
-	button :global(svg) {
-		height: 1rem;
-		width: 1rem;
+	button:hover {
+		color: var(--brand);
 	}
 
 	.provider-button {

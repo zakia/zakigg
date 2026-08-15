@@ -1,12 +1,15 @@
 const GRID_SPACING_KEY = 'zaki.gg:grid-spacing';
 const GRID_DOT_SIZE_KEY = 'zaki.gg:grid-dot-size';
+const GRID_FIXED_KEY = 'zaki.gg:grid-fixed';
 
 export const DEFAULT_GRID_SPACING = 64;
 export const DEFAULT_GRID_DOT_SIZE = 2;
+export const DEFAULT_GRID_FIXED = false;
 
 const state = $state({
 	spacing: DEFAULT_GRID_SPACING,
 	dotSize: DEFAULT_GRID_DOT_SIZE,
+	fixed: DEFAULT_GRID_FIXED,
 	ready: false
 });
 
@@ -19,6 +22,7 @@ export function useGridSettings() {
 
 		state.spacing = readNumber(GRID_SPACING_KEY, DEFAULT_GRID_SPACING, 24, 112);
 		state.dotSize = readNumber(GRID_DOT_SIZE_KEY, DEFAULT_GRID_DOT_SIZE, 0, 6);
+		state.fixed = readBoolean(GRID_FIXED_KEY, DEFAULT_GRID_FIXED);
 		state.ready = true;
 		applyGridSettings();
 	});
@@ -35,9 +39,16 @@ export function useGridSettings() {
 		applyGridSettings();
 	}
 
+	function setFixed(value: boolean) {
+		state.fixed = value;
+		persist(GRID_FIXED_KEY, value);
+		applyGridSettings();
+	}
+
 	function reset() {
 		setSpacing(DEFAULT_GRID_SPACING);
 		setDotSize(DEFAULT_GRID_DOT_SIZE);
+		setFixed(DEFAULT_GRID_FIXED);
 	}
 
 	return {
@@ -47,11 +58,15 @@ export function useGridSettings() {
 		get dotSize() {
 			return state.dotSize;
 		},
+		get fixed() {
+			return state.fixed;
+		},
 		get ready() {
 			return state.ready;
 		},
 		setSpacing,
 		setDotSize,
+		setFixed,
 		reset
 	};
 }
@@ -59,6 +74,10 @@ export function useGridSettings() {
 function applyGridSettings() {
 	document.documentElement.style.setProperty('--grid-spacing', `${state.spacing}px`);
 	document.documentElement.style.setProperty('--grid-dot-size', `${state.dotSize}px`);
+	document.documentElement.style.setProperty(
+		'--grid-background-attachment',
+		state.fixed ? 'fixed' : 'scroll'
+	);
 }
 
 function readNumber(key: string, fallback: number, min: number, max: number) {
@@ -73,7 +92,16 @@ function readNumber(key: string, fallback: number, min: number, max: number) {
 	}
 }
 
-function persist(key: string, value: number) {
+function readBoolean(key: string, fallback: boolean) {
+	try {
+		const stored = localStorage.getItem(key);
+		return stored === null ? fallback : stored === 'true';
+	} catch {
+		return fallback;
+	}
+}
+
+function persist(key: string, value: number | boolean) {
 	try {
 		localStorage.setItem(key, String(value));
 	} catch {

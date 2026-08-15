@@ -118,6 +118,7 @@
 	}
 
 	.grid-bg {
+		background-attachment: var(--grid-background-attachment, scroll);
 		background-color: var(--base);
 		background-image: radial-gradient(
 			circle at calc(var(--grid-spacing, var(--s4)) * 0.5)

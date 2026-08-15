@@ -19,12 +19,18 @@
 				const h = localStorage.getItem('hue');
 				const gridSpacing = localStorage.getItem('zaki.gg:grid-spacing');
 				const gridDotSize = localStorage.getItem('zaki.gg:grid-dot-size');
+				const gridFixed = localStorage.getItem('zaki.gg:grid-fixed');
 				if (t) document.documentElement.setAttribute('data-theme', t);
 				if (h) document.documentElement.style.setProperty('--hue', h);
 				if (gridSpacing)
 					document.documentElement.style.setProperty('--grid-spacing', `${gridSpacing}px`);
 				if (gridDotSize)
 					document.documentElement.style.setProperty('--grid-dot-size', `${gridDotSize}px`);
+				if (gridFixed)
+					document.documentElement.style.setProperty(
+						'--grid-background-attachment',
+						gridFixed === 'true' ? 'fixed' : 'scroll'
+					);
 
 				const themeColor = document.querySelector('#theme-color');
 				if (themeColor) themeColor.setAttribute('content', t === 'dark' ? '#050605' : '#f6f9f6');

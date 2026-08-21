@@ -6,71 +6,66 @@ export const themeHues = [
 	{ label: 'violet', value: 290 }
 ];
 
-let theme = $state('light');
-let hue = $state('145');
-let themeColorFrame: number | undefined;
+type ThemeMode = 'light' | 'dark';
 
 const syncSystemThemeColor = () => {
-	if (themeColorFrame) cancelAnimationFrame(themeColorFrame);
+	const meta = document.querySelector<HTMLMetaElement>('#theme-color');
+	if (!meta) return;
 
-	themeColorFrame = requestAnimationFrame(() => {
-		const meta = document.querySelector<HTMLMetaElement>('#theme-color');
-		if (!meta) return;
-
-		const backgroundColor = getComputedStyle(document.body).backgroundColor;
-		const canvas = document.createElement('canvas');
-		canvas.width = 1;
-		canvas.height = 1;
-
-		const context = canvas.getContext('2d', { willReadFrequently: true });
-		if (!context) {
-			meta.content = backgroundColor;
-			return;
-		}
-
-		context.fillStyle = backgroundColor;
-		context.fillRect(0, 0, 1, 1);
-		const [red, green, blue] = context.getImageData(0, 0, 1, 1).data;
-		meta.content = `rgb(${red} ${green} ${blue})`;
-	});
+	meta.content = getComputedStyle(document.body).backgroundColor;
 };
 
-export const useTheme = () => {
-	$effect(() => {
-		theme = document.documentElement.dataset.theme || 'light';
-		hue = document.documentElement.style.getPropertyValue('--hue') || '145';
-		syncSystemThemeColor();
-	});
+class ThemeController {
+	#mode = $state<ThemeMode>('light');
+	#hue = $state('145');
+	#initialized = false;
 
-	const setTheme = (newTheme: string) => {
+	get mode() {
+		return this.#mode;
+	}
+
+	get hue() {
+		return this.#hue;
+	}
+
+	initialize = () => {
+		if (this.#initialized || typeof document === 'undefined') return;
+		this.#initialized = true;
+
+		this.#mode = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+		this.#hue = document.documentElement.style.getPropertyValue('--hue').trim() || '145';
+		syncSystemThemeColor();
+	};
+
+	setTheme = (newTheme: ThemeMode) => {
 		localStorage.setItem('theme', newTheme);
 		document.documentElement.dataset.theme = newTheme;
-		theme = newTheme;
+		this.#mode = newTheme;
 		syncSystemThemeColor();
 	};
 
-	const setHue = (newHue: string) => {
+	setHue = (newHue: string) => {
 		localStorage.setItem('hue', newHue);
 		document.documentElement.style.setProperty('--hue', newHue);
-		hue = newHue;
+		this.#hue = newHue;
 		syncSystemThemeColor();
 	};
 
-	const toggle = (e?: MouseEvent) => {
-		const newTheme = theme === 'light' ? 'dark' : 'light';
+	toggle = (event?: MouseEvent) => {
+		const newTheme = this.#mode === 'light' ? 'dark' : 'light';
 
-		const x = e?.clientX ?? window.innerWidth / 2;
-		const y = e?.clientY ?? window.innerHeight / 2;
+		const x = event?.clientX ?? window.innerWidth / 2;
+		const y = event?.clientY ?? window.innerHeight / 2;
 		const originX = `${(x / window.innerWidth) * 100}%`;
 		const originY = `${(y / window.innerHeight) * 100}%`;
 
 		if (!document.startViewTransition) {
-			setTheme(newTheme);
+			this.setTheme(newTheme);
 			return;
 		}
 
 		const transition = document.startViewTransition(async () => {
-			setTheme(newTheme);
+			this.setTheme(newTheme);
 		});
 
 		void transition.ready
@@ -91,16 +86,6 @@ export const useTheme = () => {
 			})
 			.catch(() => {});
 	};
+}
 
-	return {
-		get theme() {
-			return theme;
-		},
-		get hue() {
-			return hue;
-		},
-		setTheme,
-		toggle,
-		setHue
-	};
-};
+export const theme = new ThemeController();

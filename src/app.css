@@ -1,11 +1,13 @@
 @import './globals.css';
 @import './content.css';
 
-@utility btn {
-	@apply gap-s-2 px-s0 py-s-2 inline-flex items-center justify-center rounded-md font-medium transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50;
+@layer components {
+	.btn {
+		@apply gap-s-2 px-s0 py-s-2 inline-flex items-center justify-center rounded-md font-medium transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50;
 
-	&:hover:not(:disabled) {
-		transform: translateY(-2px);
+		&:hover:not(:disabled) {
+			transform: translateY(-2px);
+		}
 	}
 }
 

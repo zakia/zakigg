@@ -4,9 +4,10 @@
 	import { onMount } from 'svelte';
 	import { auth } from '$lib/auth';
 	import { useGridSettings } from '$lib/grid-settings.svelte';
+	import { theme } from '$lib/theme.svelte';
 	import '$lib/prism.css';
-	import '@fontsource-variable/inter';
-	import '@fontsource/fira-mono';
+	import '@fontsource-variable/inter/index.css';
+	import '@fontsource/fira-mono/400.css';
 	import type { Snippet } from 'svelte';
 	import '../app.css';
 	import Header from '../lib/components/Header.svelte';
@@ -14,6 +15,7 @@
 
 	let { children }: { children: Snippet } = $props();
 	useGridSettings();
+	if (browser) theme.initialize();
 
 	onMount(() => {
 		void auth.refresh();

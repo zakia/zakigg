@@ -1,8 +1,6 @@
 <script lang="ts">
 	import Icon from '$lib/components/Icon.svelte';
-	import { themeHues, useTheme } from '$lib/theme.svelte';
-
-	const theme = useTheme();
+	import { theme, themeHues } from '$lib/theme.svelte';
 </script>
 
 <section class="appearance-controls" aria-label="Appearance playground">
@@ -28,10 +26,10 @@
 			type="button"
 			class="theme-toggle"
 			onclick={theme.toggle}
-			aria-label={theme.theme === 'light' ? 'Use dark mode' : 'Use light mode'}
-			title={theme.theme === 'light' ? 'Dark mode' : 'Light mode'}
+			aria-label={theme.mode === 'light' ? 'Use dark mode' : 'Use light mode'}
+			title={theme.mode === 'light' ? 'Dark mode' : 'Light mode'}
 		>
-			<Icon icon={theme.theme === 'light' ? 'line-md:moon' : 'line-md:sunny'} />
+			<Icon icon={theme.mode === 'light' ? 'line-md:moon' : 'line-md:sunny'} />
 		</button>
 
 		<div class="presets" role="group" aria-label="Color presets">

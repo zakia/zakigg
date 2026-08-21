@@ -1,19 +1,20 @@
 <script lang="ts">
 	import { auth } from '$lib/auth';
-	import { useTheme } from '$lib/theme.svelte';
+	import { theme } from '$lib/theme.svelte';
 	import { renderAuthProviderButton } from './provider-buttons';
 
-	const theme = useTheme();
 	let buttonContainer = $state<HTMLElement>();
 	let message = $state('');
 
 	$effect(() => {
 		if (!buttonContainer || !auth.ready || auth.user) return;
-		void renderSignInButton(theme.theme === 'dark' ? 'dark' : 'light');
+		void renderSignInButton(theme.mode);
 	});
 
 	async function renderSignInButton(colorScheme: 'light' | 'dark') {
 		if (!buttonContainer) return;
+		// The provider SDK owns the contents of this host element.
+		// eslint-disable-next-line svelte/no-dom-manipulating
 		buttonContainer.replaceChildren();
 		try {
 			await renderAuthProviderButton(
@@ -59,7 +60,7 @@
 		</div>
 	{:else}
 		<p class="muted">Sign in to edit, sync, and publish crafts.</p>
-		{#key theme.theme}
+		{#key theme.mode}
 			<div class="provider-button" bind:this={buttonContainer}></div>
 		{/key}
 	{/if}

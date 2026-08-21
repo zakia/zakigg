@@ -81,9 +81,10 @@ describe('published craft snapshots', () => {
 
 		const published = createPublishedCraftDocument(page);
 
-		expect(published.content.content).toEqual([
+		expect(published.content.content).toMatchObject([
 			{ type: 'paragraph', content: [{ type: 'text', text: 'The body.' }] }
 		]);
+		expect(published.content.content?.[0].attrs?.blockId).toEqual(expect.any(String));
 	});
 
 	it('rewrites local assets anywhere in document attributes', () => {

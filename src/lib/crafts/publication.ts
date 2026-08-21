@@ -1,5 +1,6 @@
 import type { JSONContent } from '@tiptap/core';
 import { getContentText, getReferencedAssetIds, type NotePageV1 } from '$lib/notes/types';
+import { normalizePageBody } from '$lib/notes/page-content';
 import type { CraftDocument, CraftListItem, CraftMeta } from './types';
 
 export type PublishedCraftSummary = CraftMeta & {
@@ -48,7 +49,7 @@ export function countCraftWords(content: JSONContent, title = '') {
 }
 
 export function createPublishedCraftSummary(page: NotePageV1): PublishedCraftSummary {
-	const body = stripLeadingPageHeader(page.content, page.title, page.frontmatter?.description);
+	const body = normalizePageBody(page.content, page.title, page.frontmatter?.description);
 	const text = getContentText(body);
 	const description = page.frontmatter?.description?.trim() || createExcerpt(text, page.title);
 
@@ -59,7 +60,7 @@ export function createPublishedCraftSummary(page: NotePageV1): PublishedCraftSum
 		description,
 		tags: page.tags,
 		date: page.frontmatter?.date?.trim() || page.createdAt.slice(0, 10),
-		wordCount: countCraftWords(page.content),
+		wordCount: countCraftWords(body, page.title),
 		updatedAt: page.updatedAt,
 		draft: false,
 		fullBleed: false
@@ -92,7 +93,7 @@ export function createPublishedCraftDocument(page: NotePageV1): CraftDocument {
 	return {
 		version: 1,
 		editor: 'tiptap',
-		content: stripLeadingPageHeader(page.content, page.title, page.frontmatter?.description),
+		content: normalizePageBody(page.content, page.title, page.frontmatter?.description),
 		updatedAt: page.updatedAt
 	};
 }
@@ -120,44 +121,7 @@ export function stripLeadingPageHeader(
 	title: string,
 	description = ''
 ): JSONContent {
-	if (content.type !== 'doc' || !content.content?.length) return content;
-
-	const children = [...content.content];
-	const normalizedTitle = normalizeText(title);
-	const normalizedDescription = normalizeText(description);
-	const first = children[0];
-	let removedTitle = false;
-
-	if (
-		first?.type === 'heading' &&
-		Number(first.attrs?.level) === 1 &&
-		normalizeText(nodeText(first)) === normalizedTitle
-	) {
-		children.shift();
-		removedTitle = true;
-	}
-
-	const next = children[0];
-	if (
-		removedTitle &&
-		normalizedDescription &&
-		next?.type === 'heading' &&
-		normalizeText(nodeText(next)) === normalizedDescription
-	) {
-		children.shift();
-	}
-
-	return { ...content, content: children.length ? children : [{ type: 'paragraph' }] };
-}
-
-function normalizeText(value: string) {
-	return value.trim().replace(/\s+/g, ' ');
-}
-
-function nodeText(node: JSONContent): string {
-	if (node.text) return node.text;
-
-	return (node.content ?? []).map(nodeText).join('');
+	return normalizePageBody(content, title, description);
 }
 
 function rewriteValue(value: unknown, slug: string): unknown {

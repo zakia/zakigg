@@ -2,35 +2,39 @@
 
 ## Summary
 
-`/notes` is a public, local-first document manager on zaki.gg. Documents, metadata, and media
-assets are managed entirely in the browser with IndexedDB. Markdown remains the portable export
-format, while the canonical editing model is versioned Tiptap JSON stored in a page object store.
+`/crafts` combines a public collection with a private, local-first document manager on zaki.gg.
+Editable documents, metadata, and media assets are browser-first in IndexedDB; signed-in users can
+synchronize and publish immutable reader snapshots. Markdown remains the portable export format,
+while the canonical editing model is versioned Tiptap JSON stored in a page object store.
 
-The product principle is: **rich text UX, browser-owned documents, markdown portability**.
+The product principle is: **rich block editing, clear ownership boundaries, markdown portability**.
 
 ## Product Direction
 
 - Keep the app in SvelteKit.
-- Use Tiptap as the editor engine because it gives us structured blocks, rich editing,
-  keyboard/input rules, custom-node room, and a Yjs-compatible path later.
+- Use Tiptap as the text-editing/render adapter beneath an app-owned block architecture. Product
+  commands, block definitions, page state, persistence, and collaboration must not be owned by
+  Tiptap components.
 - Treat markdown as an import/export/source compatibility format, not the canonical internal model.
 - Store pages and assets in IndexedDB with a versioned schema that can migrate from earlier
   single-note storage.
-- Keep `/notes` as the manager/admin surface and `/notes/<slug>` as the durable page URL.
+- Keep `/crafts?edit` as the manager surface, `/crafts/<slug>?edit` as the private editor URL, and
+  `/crafts/<slug>` as the durable published URL.
 
 ## Current Scope
 
-- Add a local document manager at `/notes`.
-- Serve `/notes/<slug>` as an always-editable WYSIWYG page. There is no separate read-only
-  view: documents live in each visitor's own browser, so the author is the only reader.
-- Make metadata structural, not optional: every document begins with a required metadata
-  (properties) block above the first H1, enforced by the editor schema so it cannot be
-  deleted. An empty block renders as a compact "Add property" row.
-- Source page metadata from the content itself:
-  - Title (metadata `title` property, else the first H1)
-  - Slug (metadata `slug` property, else derived from the title)
-  - Tags, description, date, and draft as metadata block properties
+- Provide the local document manager at `/crafts?edit` behind the edit gate.
+- Serve `/crafts/<slug>?edit` as the WYSIWYG editor and `/crafts/<slug>` as the published reader.
+- Keep page metadata alongside the editor document in the page envelope. Properties are edited in
+  the properties panel rather than represented as a document node.
+- Source page metadata from page properties:
+  - Title (property value, else the page envelope title)
+  - Slug (property value, else derived from the title)
+  - Tags, description, date, and draft
   - Created and updated timestamps
+- Render the page title once in the article header. Body H1 nodes are ordinary section headings.
+- Give every addressable document block and list item a stable identity.
+- Use one block catalog for insertion, gutter labels, conversion, and custom edit behavior.
 - Round-trip metadata as standard top-of-file YAML frontmatter in markdown.
 - Support local page administration:
   - Create pages
@@ -55,15 +59,9 @@ The product principle is: **rich text UX, browser-owned documents, markdown port
 
 ## Non-Goals
 
-- No authentication.
-- No server persistence.
-- No file-system publishing from `/notes`.
-- No Craft editing interop from `/notes`.
-- No cloud sync.
-- No collaboration.
-
-The app is public but local-only: anyone can visit `/notes`, but their documents live in their own
-browser storage.
+- No file-system publishing from the editor.
+- No simultaneous multiplayer editing yet.
+- No second persisted shadow block model beside Tiptap JSON.
 
 ## Data Model
 
@@ -77,6 +75,7 @@ type NotePageV1 = {
 	slug: string;
 	title: string;
 	tags: string[];
+	properties: MetadataEntry[];
 	content: JSONContent;
 	createdAt: string;
 	updatedAt: string;
@@ -96,31 +95,26 @@ type NotesAssetV1 = {
 };
 ```
 
-Future versions should migrate toward an app-owned block model, roughly:
+Addressable nodes in `content` carry stable identity:
 
 ```ts
-type NoteBlock = {
-	id: string;
-	type: 'paragraph' | 'heading' | 'timer' | 'canvas';
-	content?: unknown;
-	attrs?: Record<string, unknown>;
-	layout?: {
-		mode: 'flow' | 'canvas';
-		x?: number;
-		y?: number;
-		width?: number;
-	};
+type AddressableBlockAttrs = {
+	blockId: string;
 };
 ```
+
+See [Editor Architecture](./editor-architecture.md) for the ownership model, invariants, and
+collaboration path.
 
 ## Roadmap
 
 - V2 (shipped): import/restore from notes export zips.
-- V3: local-first CRDT persistence with Yjs and y-indexeddb.
-- V4: background cloud sync through Y-Sweet or a similar Yjs sync service.
-- V5: authenticated private notes and explicit sharing.
-- V6: custom blocks such as checklist, richer embeds, and richer code blocks.
-- V7: spatial mode where selected document blocks can be arranged on a canvas and collapsed back
+- V3 (shipped): authenticated snapshot synchronization.
+- V4 (shipped): custom embeds, media blocks, tables, code blocks, and unified block controls.
+- V5 (current): stable block identity and explicit editor ownership boundaries.
+- V6: block operation journal, replay, and OT transform rules.
+- V7: real-time multi-user presence and editing.
+- V8: spatial mode where selected document blocks can be arranged on a canvas and collapsed back
   into document order.
 
 ## Testing Checklist
@@ -133,8 +127,8 @@ type NoteBlock = {
 
 ### Manager
 
-- Open `/notes`.
-- Confirm `/notes/default` exists after migration.
+- Open `/crafts?edit`.
+- Confirm the migrated default craft exists.
 - Create a page with title and tags.
 - Search and tag-filter pages.
 - Duplicate and delete a page.
@@ -144,11 +138,12 @@ type NoteBlock = {
 
 ### Editor
 
-- Open `/notes/<slug>` and confirm the editor loads with the metadata block above the H1.
-- Confirm the metadata block cannot be deleted and an empty one stays compact.
+- Open `/crafts/<slug>?edit` and confirm the article header shows exactly one page title.
 - Edit content and confirm autosave returns to saved state.
-- Edit the H1 or the metadata title/slug properties, then confirm the URL follows slug changes.
-- Paste markdown with YAML frontmatter and confirm properties merge into the metadata block.
+- Edit the title or slug property, then confirm the URL follows slug changes.
+- Add a body H1 and confirm it does not rename the page.
+- Paste markdown with YAML frontmatter and confirm properties merge into page properties.
+- Insert, duplicate, convert, and move blocks; confirm each serialized block has one unique ID.
 - Refresh and confirm content and assets return.
 
 ### Assets And Export

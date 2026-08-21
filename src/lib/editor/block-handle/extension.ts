@@ -2,13 +2,13 @@ import { Extension, type Editor } from '@tiptap/core';
 import { TextSelection } from '@tiptap/pm/state';
 import { DragHandlePlugin, normalizeNestedOptions } from '@tiptap/extension-drag-handle';
 import { offset, shift } from '@floating-ui/dom';
-import type { ComponentEmbedRegistry } from '$lib/editor/component-embeds';
 import {
-	canTurnBlockInto,
-	describeBlockNode,
-	isExcludedBlock,
-	type BlockDescriptor
-} from './blocks';
+	createBlockCatalog,
+	runBlockTurn,
+	type BlockCatalog,
+	type BlockDescriptor,
+	type BlockTurnTarget
+} from '$lib/editor/blocks';
 
 // The hovered block, described for the handle UI. Positioning is owned by the
 // drag-handle extension (floating-ui), so no coordinates travel with the
@@ -19,18 +19,8 @@ export type BlockHandleTarget = BlockDescriptor & {
 	turnable: boolean;
 };
 
-export type BlockTurnTarget =
-	| 'text'
-	| 'heading-1'
-	| 'heading-2'
-	| 'heading-3'
-	| 'bullet-list'
-	| 'ordered-list'
-	| 'quote'
-	| 'code';
-
 type BlockHandleOptions = {
-	registry?: ComponentEmbedRegistry;
+	catalog: BlockCatalog;
 	// The DOM element the drag-handle positions and makes draggable. It is
 	// owned by the Svelte layer (BlockHandle.svelte) and handed in here so the
 	// extension can bind ProseMirror's native drag to the visible grip.
@@ -47,7 +37,7 @@ export const BlockHandle = Extension.create<BlockHandleOptions>({
 
 	addOptions() {
 		return {
-			registry: undefined,
+			catalog: createBlockCatalog(),
 			getElement: undefined,
 			onTargetChange: undefined
 		};
@@ -59,7 +49,7 @@ export const BlockHandle = Extension.create<BlockHandleOptions>({
 		// No handle element yet (e.g. server render) — run without the plugin.
 		if (!element) return [];
 
-		const { registry, onTargetChange } = this.options;
+		const { catalog, onTargetChange } = this.options;
 
 		const { plugin } = DragHandlePlugin({
 			editor: this.editor,
@@ -95,16 +85,16 @@ export const BlockHandle = Extension.create<BlockHandleOptions>({
 				middleware: [offset({ mainAxis: 4, crossAxis: 1 }), shift({ padding: 4, crossAxis: true })]
 			},
 			onNodeChange: ({ node, pos }) => {
-				if (!node || isExcludedBlock(node)) {
+				if (!node || catalog.isExcluded(node)) {
 					onTargetChange?.(null);
 					return;
 				}
 
 				onTargetChange?.({
-					...describeBlockNode(node, registry),
+					...catalog.describe(node),
 					pos,
 					nodeTypeName: node.type.name,
-					turnable: canTurnBlockInto(node)
+					turnable: catalog.canTurn(node)
 				});
 			}
 		});
@@ -132,7 +122,7 @@ export function openBlockEditMode(editor: Editor, pos: number) {
 
 	if (!(dom instanceof HTMLElement)) return;
 
-	dom.dispatchEvent(new CustomEvent('component-embed-edit'));
+	dom.dispatchEvent(new CustomEvent('editor-block-edit'));
 }
 
 export function duplicateBlock(editor: Editor, pos: number) {
@@ -187,26 +177,6 @@ export function turnBlockInto(editor: Editor, pos: number, target: BlockTurnTarg
 		.setTextSelection(pos + 1)
 		.focus();
 
-	switch (target) {
-		case 'text':
-			chain.setParagraph().run();
-			return;
-		case 'heading-1':
-		case 'heading-2':
-		case 'heading-3':
-			chain.setHeading({ level: Number(target.slice(-1)) as 1 | 2 | 3 }).run();
-			return;
-		case 'bullet-list':
-			chain.setParagraph().toggleBulletList().run();
-			return;
-		case 'ordered-list':
-			chain.setParagraph().toggleOrderedList().run();
-			return;
-		case 'quote':
-			chain.setParagraph().toggleBlockquote().run();
-			return;
-		case 'code':
-			chain.toggleCodeBlock().run();
-			return;
-	}
+	chain.run();
+	runBlockTurn(editor, target);
 }

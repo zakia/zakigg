@@ -1,12 +1,6 @@
 <script lang="ts">
 	import Icon from '$lib/components/Icon.svelte';
-
-	export type SlashMenuItem = {
-		id: string;
-		label: string;
-		description: string;
-		icon: string;
-	};
+	import type { BlockPaletteItem } from '$lib/editor/blocks';
 
 	let {
 		visible,
@@ -17,7 +11,7 @@
 		onSelect
 	}: {
 		visible: boolean;
-		items: SlashMenuItem[];
+		items: BlockPaletteItem[];
 		activeIndex: number;
 		left: number;
 		top: number;

@@ -60,7 +60,7 @@ async function importTextCraft(file: File) {
 	return createNotePageRecord({
 		title,
 		properties: normalizeMetadataEntries(parsed.properties),
-		content: withLeadingTitle(parsed.content, title)
+		content: parsed.content
 	});
 }
 
@@ -71,7 +71,6 @@ async function importMediaCraft(file: File) {
 	const content: JSONContent = {
 		type: 'doc',
 		content: [
-			headingNode(title),
 			{
 				type: 'mediaBlock',
 				attrs: normalizeMediaBlockAttrs({
@@ -95,7 +94,6 @@ async function importAttachmentCraft(file: File) {
 	const content: JSONContent = {
 		type: 'doc',
 		content: [
-			headingNode(title),
 			{
 				type: 'componentEmbed',
 				attrs: {
@@ -113,28 +111,6 @@ async function importAttachmentCraft(file: File) {
 
 	return saveNotePage({ ...page, content });
 }
-
-function withLeadingTitle(content: JSONContent, title: string): JSONContent {
-	const nodes = [...(content.content ?? [])];
-	const first = nodes[0];
-
-	if (first?.type === 'heading' && Number(first.attrs?.level) === 1) {
-		nodes[0] = headingNode(title);
-	} else {
-		nodes.unshift(headingNode(title));
-	}
-
-	return { ...content, type: 'doc', content: nodes };
-}
-
-function headingNode(title: string): JSONContent {
-	return {
-		type: 'heading',
-		attrs: { level: 1 },
-		content: [{ type: 'text', text: title }]
-	};
-}
-
 function titleFromFile(file: File) {
 	return titleFromSlug(file.name.replace(/\.[^.]+$/, ''));
 }

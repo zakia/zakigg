@@ -1,4 +1,5 @@
 import type { JSONContent } from '@tiptap/core';
+import { normalizeBlockIdentities } from '$lib/editor/blocks/identity';
 import { getLocalAssetId } from './media';
 import {
 	metadataEntriesToRecord,
@@ -8,6 +9,7 @@ import {
 	type MetadataEntry,
 	type MetadataProperties
 } from './metadata-block';
+import { normalizePageBody } from './page-content';
 
 export const NOTES_DOC_VERSION = 1;
 export const NOTES_PAGE_VERSION = 1;
@@ -79,7 +81,7 @@ export function createNotesDoc(
 	return {
 		version: NOTES_DOC_VERSION,
 		editor: NOTES_EDITOR,
-		content,
+		content: normalizeBlockIdentities(content),
 		updatedAt
 	};
 }
@@ -87,10 +89,10 @@ export function createNotesDoc(
 export function createNotePage(input: Partial<NotePageV1> = {}): NotePageV1 {
 	const now = new Date().toISOString();
 	const id = input.id || createPageId();
-	const content =
+	const sourceContent =
 		input.content && isJSONContent(input.content)
 			? stripLegacyMetadataBlocks(input.content)
-			: createInitialNotePageContent(input.title);
+			: createInitialNotePageContent();
 	// Seed the ordered metadata from explicit properties, else from a
 	// frontmatter/tags record (imports, legacy notes carry these instead).
 	const properties = normalizeMetadataEntries(
@@ -104,14 +106,19 @@ export function createNotePage(input: Partial<NotePageV1> = {}): NotePageV1 {
 		editor: NOTES_EDITOR,
 		id,
 		slug: normalizePageSlug(input.slug || DEFAULT_NOTE_SLUG),
-		title: normalizePageTitle(input.title || getFirstLevelOneHeadingText(content)),
+		title: normalizePageTitle(input.title || getFirstLevelOneHeadingText(sourceContent)),
 		tags: normalizePageTags(input.tags),
 		properties,
-		content,
+		content: sourceContent,
 		createdAt: normalizeDate(input.createdAt) || now,
 		updatedAt: normalizeDate(input.updatedAt) || now
 	};
-	const metadata = resolveNotePageMetadata(base, content);
+	const metadata = resolveNotePageMetadata(base, sourceContent);
+	const content = normalizePageBody(
+		sourceContent,
+		metadata.title,
+		metadata.frontmatter?.description
+	);
 
 	return {
 		...base,
@@ -119,12 +126,13 @@ export function createNotePage(input: Partial<NotePageV1> = {}): NotePageV1 {
 		title: metadata.title,
 		tags: metadata.tags,
 		...(metadata.frontmatter ? { frontmatter: metadata.frontmatter } : {}),
+		content: normalizeBlockIdentities(content),
 		createdAt: metadata.createdAt
 	};
 }
 
 export function createDefaultNotePage(legacyNote?: NotesDocV1 | null): NotePageV1 {
-	const content = legacyNote?.content ?? createInitialNotePageContent('Default');
+	const content = legacyNote?.content ?? createInitialNotePageContent();
 	const updatedAt = legacyNote?.updatedAt ?? new Date().toISOString();
 
 	return createNotePage({
@@ -188,7 +196,7 @@ export function parseStoredNote(value: unknown): NotesDocV1 | null {
 	return {
 		version: NOTES_DOC_VERSION,
 		editor: NOTES_EDITOR,
-		content: note.content,
+		content: normalizeBlockIdentities(note.content, createMigratedBlockIdFactory('legacy_note')),
 		updatedAt: note.updatedAt
 	};
 }
@@ -212,6 +220,7 @@ export function parseStoredPage(value: unknown): NotePageV1 | null {
 	}
 
 	const frontmatter = normalizeNotePageFrontmatter(page.frontmatter);
+	const title = normalizePageTitle(page.title);
 	// Migrate legacy records that stored metadata as a leading `metadataBlock`
 	// node: lift its properties to page state and strip it from the content.
 	// New records already carry `properties`; fall back to stored frontmatter/
@@ -231,11 +240,14 @@ export function parseStoredPage(value: unknown): NotePageV1 | null {
 		editor: NOTES_EDITOR,
 		id: page.id,
 		slug: normalizePageSlug(page.slug),
-		title: normalizePageTitle(page.title),
+		title,
 		tags: normalizePageTags(page.tags),
 		properties,
 		...(frontmatter ? { frontmatter } : {}),
-		content: stripLegacyMetadataBlocks(page.content),
+		content: normalizeBlockIdentities(
+			normalizePageBody(stripLegacyMetadataBlocks(page.content), title, frontmatter?.description),
+			createMigratedBlockIdFactory(page.id)
+		),
 		createdAt: page.createdAt,
 		updatedAt: page.updatedAt
 	};
@@ -302,19 +314,18 @@ export function getFirstLevelOneHeadingText(content: JSONContent) {
 
 export function resolveNotePageMetadata(
 	page: NotePageV1,
-	content: JSONContent,
+	_content: JSONContent,
 	patch: NotePageMetadataPatch = {}
 ): Pick<NotePageV1, 'title' | 'slug' | 'tags' | 'createdAt'> & {
 	frontmatter?: NotePageFrontmatter;
 } {
-	// Page-level `properties` are the single source of truth; the first H1 is
-	// the title fallback when no `title` property is set.
+	// Page-level properties and the page envelope own metadata. Body headings
+	// are ordinary content and must never rename the document during a save.
 	const propertiesFrontmatter = metadataPropertiesToNotePageFrontmatter(
 		metadataEntriesToRecord(normalizeMetadataEntries(page.properties))
 	);
 	const frontmatter = normalizeNotePageFrontmatter({ ...propertiesFrontmatter, ...patch });
-	const firstHeadingTitle = getFirstLevelOneHeadingText(content);
-	const title = normalizePageTitle(frontmatter?.title || firstHeadingTitle || page.title);
+	const title = normalizePageTitle(frontmatter?.title || page.title);
 	const slug = normalizePageSlug(frontmatter?.slug || title || page.slug);
 	const createdAt = frontmatter?.date ? normalizeDate(frontmatter.date) : page.createdAt;
 	const tags = normalizePageTags(frontmatter?.tags ?? page.tags);
@@ -422,24 +433,15 @@ export function summarizeNotePage(page: NotePageV1): NotePageSummary {
 	};
 }
 
-function createInitialNotePageContent(title: unknown): JSONContent {
-	const normalizedTitle = typeof title === 'string' ? title.trim().replace(/\s+/g, ' ') : '';
+function createInitialNotePageContent(): JSONContent {
+	return normalizeBlockIdentities(EMPTY_TIPTAP_DOC);
+}
 
-	if (!normalizedTitle) return EMPTY_TIPTAP_DOC;
+function createMigratedBlockIdFactory(seed: string) {
+	const safeSeed = seed.replace(/[^a-zA-Z0-9_-]/g, '_') || 'page';
+	let index = 0;
 
-	return {
-		type: 'doc',
-		content: [
-			{
-				type: 'heading',
-				attrs: { level: 1 },
-				content: [{ type: 'text', text: normalizedTitle }]
-			},
-			{
-				type: 'paragraph'
-			}
-		]
-	};
+	return () => `block_migrated_${safeSeed}_${++index}`;
 }
 
 function normalizeTag(value: unknown) {

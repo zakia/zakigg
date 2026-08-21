@@ -9,9 +9,9 @@
 		openBlockEditMode,
 		turnBlockInto,
 		unlockBlockHandle,
-		type BlockHandleTarget,
-		type BlockTurnTarget
+		type BlockHandleTarget
 	} from '$lib/editor/block-handle';
+	import { BLOCK_TURN_TARGETS, type BlockTurnTarget } from '$lib/editor/blocks';
 
 	type Props = {
 		editor?: Editor;
@@ -35,17 +35,6 @@
 
 		return () => onElement?.(undefined);
 	});
-
-	const TURN_TARGETS: { id: BlockTurnTarget; label: string; icon: string }[] = [
-		{ id: 'text', label: 'Text', icon: 'mdi:format-text' },
-		{ id: 'heading-1', label: 'Heading 1', icon: 'mdi:format-header-1' },
-		{ id: 'heading-2', label: 'Heading 2', icon: 'mdi:format-header-2' },
-		{ id: 'heading-3', label: 'Heading 3', icon: 'mdi:format-header-3' },
-		{ id: 'bullet-list', label: 'Bullet list', icon: 'mdi:format-list-bulleted' },
-		{ id: 'ordered-list', label: 'Numbered list', icon: 'mdi:format-list-numbered' },
-		{ id: 'quote', label: 'Quote', icon: 'mdi:format-quote-close' },
-		{ id: 'code', label: 'Code', icon: 'mdi:code-tags' }
-	];
 
 	function openMenu() {
 		if (!target || !editor) return;
@@ -138,7 +127,7 @@
 
 				{#if pinnedTarget.turnable}
 					<div class="menu-turn-row" role="group" aria-label="Turn into">
-						{#each TURN_TARGETS as turn (turn.id)}
+						{#each BLOCK_TURN_TARGETS as turn (turn.id)}
 							<button
 								type="button"
 								class="turn-button"

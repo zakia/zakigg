@@ -3,6 +3,7 @@ import { Document } from '@tiptap/extension-document';
 import { Placeholder } from '@tiptap/extension-placeholder';
 import { StarterKit } from '@tiptap/starter-kit';
 import { BlockHandle, type BlockHandleTarget } from '$lib/editor/block-handle';
+import { BlockIdentity, type BlockCatalog } from '$lib/editor/blocks';
 import { ComponentEmbed, type ComponentEmbedRegistry } from '$lib/editor/component-embeds';
 import { CodeBlock } from '../editor/code-block';
 import { MediaBlock, type MediaBlockAssetResolver } from '../editor/media-block';
@@ -11,6 +12,7 @@ import { ListContinuity, ListMarkerInput } from './lists';
 import { Table, TableCell, TableHeader, TableKit, TableRow } from './tables';
 
 export type EditorExtensionOptions = {
+	blockCatalog?: BlockCatalog;
 	onBlockHandleTargetChange?: (target: BlockHandleTarget | null) => void;
 	// Resolves the DOM element the block-drag-handle positions and drags. It is
 	// owned by the Svelte layer and read once, when ProseMirror plugins init.
@@ -41,8 +43,9 @@ export function createEditorExtensions(
 		ComponentEmbed.configure({
 			registry: componentEmbedRegistry
 		}),
+		BlockIdentity,
 		BlockHandle.configure({
-			registry: componentEmbedRegistry,
+			...(options.blockCatalog ? { catalog: options.blockCatalog } : {}),
 			getElement: options.getBlockHandleElement,
 			onTargetChange: options.onBlockHandleTargetChange
 		}),
@@ -72,10 +75,7 @@ export function createEditorExtensions(
 			}
 		}),
 		Placeholder.configure({
-			placeholder: ({ node }) =>
-				node.type.name === 'heading' && Number(node.attrs.level) === 1
-					? 'Untitled'
-					: 'Start writing...'
+			placeholder: ({ node }) => (node.type.name === 'heading' ? 'Heading' : 'Start writing...')
 		})
 	];
 }

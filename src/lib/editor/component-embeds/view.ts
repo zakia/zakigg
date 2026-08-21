@@ -54,7 +54,7 @@ export function createComponentEmbedNodeView(editor: Editor, registry: Component
 		root.className = 'component-embed-node';
 		root.setAttribute('data-component-embed', String(currentNode.attrs.component ?? ''));
 		root.contentEditable = 'false';
-		root.addEventListener('component-embed-edit', openEditMode);
+		root.addEventListener('editor-block-edit', openEditMode);
 
 		const component = mount(ComponentEmbedNodeView, {
 			target: root,
@@ -96,7 +96,7 @@ export function createComponentEmbedNodeView(editor: Editor, registry: Component
 			},
 
 			destroy() {
-				root.removeEventListener('component-embed-edit', openEditMode);
+				root.removeEventListener('editor-block-edit', openEditMode);
 				void unmount(component);
 			}
 		};

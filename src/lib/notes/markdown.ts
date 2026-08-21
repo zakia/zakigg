@@ -188,7 +188,7 @@ export function getNotePageFrontmatter(
 	const metadata = resolveNotePageMetadata(page, content);
 
 	return {
-		...(page.frontmatter?.title ? { title: metadata.title } : {}),
+		title: metadata.title,
 		...(page.frontmatter?.slug ? { slug: metadata.slug } : {}),
 		...(page.frontmatter?.description ? { description: page.frontmatter.description } : {}),
 		tags: metadata.tags,

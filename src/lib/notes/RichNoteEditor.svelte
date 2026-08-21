@@ -3,22 +3,17 @@
 	import { Editor, posToDOMRect, type JSONContent, type Range } from '@tiptap/core';
 	import type { EditorView } from '@tiptap/pm/view';
 	import { componentEmbeds } from '$lib/embeds';
-	import {
-		getCraftPublication,
-		publishNoteCraft,
-		unpublishNoteCraft
-	} from '$lib/crafts/publication.remote';
-	import { isPublishedCraftOutdated, stripLeadingPageHeader } from '$lib/crafts/publication';
-	import { insertRegisteredComponentEmbed } from '$lib/editor/component-embeds';
+	import { createBlockCatalog } from '$lib/editor/blocks';
 	import { hideBlockHandle } from '$lib/editor/block-handle';
 	import type { MediaBlockAttrs, MediaBlockKind } from '$lib/editor/media-block';
 	import CraftArticleHeader from '$lib/crafts/CraftArticleHeader.svelte';
+	import { CraftEditorSession } from '$lib/crafts/editor-session.svelte';
 	import EditorDocumentActions from './EditorDocumentActions.svelte';
 	import EditorHistoryPanel from './EditorHistoryPanel.svelte';
 	import EditorSurface from './EditorSurface.svelte';
 	import EditorToolbar from './EditorToolbar.svelte';
 	import BlockHandle from './BlockHandle.svelte';
-	import SlashMenu, { type SlashMenuItem } from './SlashMenu.svelte';
+	import SlashMenu from './SlashMenu.svelte';
 	import MobileListToolbar from './MobileListToolbar.svelte';
 	import KeyboardShortcutsPanel from './KeyboardShortcutsPanel.svelte';
 	import LinkPopover from './LinkPopover.svelte';
@@ -44,11 +39,6 @@
 	import { isOpenShortcutsShortcut } from './keyboard-shortcuts';
 	import { getMarkdownFiles, insertEditorMarkdown, looksLikeMarkdown } from './markdown';
 	import MetadataPanel from './metadata-block/MetadataPanel.svelte';
-	import {
-		normalizeMetadataEntries,
-		type MetadataEntry,
-		type MetadataProperties
-	} from './metadata-block';
 	import { downloadNotePageExport } from './export';
 	import {
 		createLocalAssetSrc,
@@ -58,13 +48,10 @@
 		getMediaKindForUrl,
 		isMediaFile
 	} from './media';
-	import { formatSaveLabel, type SaveState, type SyncLabelStatus } from './save-state';
 	import { insertTable } from './tables';
-	import { startSyncEngine, syncState } from './sync/engine.svelte';
-	import { auth } from '$lib/auth';
-	import { resolveNoteAssetObjectUrl, saveNoteAsset, saveNotePage } from './storage';
+	import { resolveNoteAssetObjectUrl, saveNoteAsset } from './storage';
 	import { createTimer } from '../editor/timers';
-	import { resolveNotePageMetadata, type NotePageV1 } from './types';
+	import type { NotePageV1 } from './types';
 
 	type SelectionToolbarMode = 'format' | 'link';
 
@@ -109,19 +96,11 @@
 	} = $props();
 
 	let editorHost = $state<HTMLDivElement>();
-	// Ordered page metadata, edited by the properties panel (source of truth).
-	// Seeded once — the route remounts this component per note ({#key note.id}).
-	// svelte-ignore state_referenced_locally
-	let properties = $state<MetadataEntry[]>(
-		normalizeMetadataEntries($state.snapshot(page.properties))
-	);
 	// The handle element the drag-handle extension positions and binds drag to.
 	let blockHandleElement = $state<HTMLElement>();
 	let imageInput = $state<HTMLInputElement>();
 	let videoInput = $state<HTMLInputElement>();
 	let editor = $state<Editor>();
-	let saveState = $state<SaveState>('loading');
-	let lastSavedAt = $state<string>();
 	let editorTick = $state(0);
 	let historyEntries = $state<EditorHistoryEntry[]>([]);
 	let activeHistoryId = $state('');
@@ -132,27 +111,22 @@
 	let slashMenu = $state<SlashMenuState>(createHiddenSlashMenu());
 	let blockHandleTarget = $state<import('$lib/editor/block-handle').BlockHandleTarget | null>(null);
 	let editorTickQueued = false;
-	let pendingSave = false;
 	let linkPopover = $state<LinkPopoverState>(createHiddenLinkPopover());
 	let selectionToolbar = $state<SelectionToolbarState>(createHiddenSelectionToolbar());
-	let publicationState = $state<'loading' | 'unpublished' | 'published' | 'working' | 'error'>(
-		'loading'
-	);
-	let publicationExists = $state(false);
-	let pendingPublicationPage = $state<NotePageV1 | null>(null);
-	let publicationUpdateInFlight = $state(false);
-	let publicationChecked = false;
 	let selectionToolbarFrame = 0;
 	let pointerSelectionActive = false;
 	let historyEntryIndex = 0;
 	let previewReturnContent: JSONContent | null = null;
-	const saveTimer = createTimer();
 	const historyTimer = createTimer();
 	const linkShowTimer = createTimer();
 	const linkHideTimer = createTimer();
-
-	const syncLabelStatus = $derived<SyncLabelStatus>(auth.user ? syncState.status : 'disabled');
-	const saveLabel = $derived(formatSaveLabel(saveState, lastSavedAt, syncLabelStatus));
+	const blockCatalog = createBlockCatalog(componentEmbeds);
+	const session = new CraftEditorSession({
+		getPage: () => page,
+		getContent: () => previewReturnContent ?? editor?.getJSON(),
+		onDraftChange: noteEditorChanged,
+		onSaved: (nextPage) => onSaved?.(nextPage)
+	});
 	const selectionAnchorStyle = $derived(
 		`left: ${selectionToolbar.anchor.left}px; top: ${selectionToolbar.anchor.top}px; width: ${selectionToolbar.anchor.width}px; height: ${selectionToolbar.anchor.height}px;`
 	);
@@ -160,13 +134,12 @@
 		selectionToolbar.anchor.left + selectionToolbar.anchor.width / 2
 	);
 	const selectionToolbarFallbackTop = $derived(selectionToolbar.anchor.top);
-	const embedActions = $derived(
-		componentEmbeds.insertable().map(({ id, label, icon }) => ({ id, label, icon }))
-	);
 	const slashMenuItems = $derived(
-		getSlashMenuItems().filter((item) =>
-			`${item.label} ${item.description}`.toLowerCase().includes(slashMenu.query.toLowerCase())
-		)
+		blockCatalog
+			.insertable()
+			.filter((item) =>
+				`${item.label} ${item.description}`.toLowerCase().includes(slashMenu.query.toLowerCase())
+			)
 	);
 	const mobileListActions = $derived.by(() => {
 		void editorTick;
@@ -176,37 +149,12 @@
 			canOutdent: Boolean(editor?.can().chain().focus().liftListItem('listItem').run())
 		};
 	});
-	const headerTitle = $derived(String(getPropertyValue('title') ?? page.title));
-	const headerDate = $derived(String(getPropertyValue('date') || page.createdAt));
 	const wordCount = $derived.by(() => {
 		void editorTick;
-		return countWords(`${headerTitle} ${editor?.getText() ?? ''}`);
-	});
-
-	$effect(() => {
-		if (!auth.ready || !auth.user || publicationChecked) return;
-		publicationChecked = true;
-		void refreshPublicationState();
-	});
-
-	$effect(() => {
-		if (
-			!auth.user ||
-			!publicationExists ||
-			!pendingPublicationPage ||
-			publicationUpdateInFlight ||
-			publicationState === 'error' ||
-			syncState.status !== 'synced'
-		) {
-			return;
-		}
-
-		void updatePublishedCraft();
+		return countWords(`${session.title} ${editor?.getText() ?? ''}`);
 	});
 
 	onMount(() => {
-		startSyncEngine();
-
 		let destroyed = false;
 		const syncVisibleEditorMenus = () => {
 			if (selectionToolbar.visible) scheduleSelectionToolbarSync();
@@ -259,15 +207,14 @@
 			const instance = new Editor({
 				element: editorHost,
 				extensions: createEditorExtensions(componentEmbeds, resolveNoteAssetObjectUrl, {
+					blockCatalog,
 					getBlockHandleElement: () => blockHandleElement ?? null,
 					onBlockHandleTargetChange: (nextTarget) => {
 						blockHandleTarget = nextTarget;
 					}
 				}),
 				content: initialContent,
-				// Position 1 is inside the leading H1 — land there on a fresh,
-				// untitled note so the user starts typing the title.
-				autofocus: startsWithEmptyTitle(initialContent) ? 1 : 'end',
+				autofocus: 'end',
 				editorProps: {
 					attributes: {
 						'aria-label': `${page.title} editor`,
@@ -279,7 +226,7 @@
 				},
 				onUpdate: () => {
 					noteEditorChanged();
-					scheduleSave();
+					session.scheduleSave();
 					scheduleHistorySnapshot();
 				},
 				onSelectionUpdate: noteEditorChanged,
@@ -288,8 +235,6 @@
 
 			recordHistorySnapshotFromContent(initialContent);
 			editor = instance;
-			lastSavedAt = page.updatedAt;
-			saveState = 'saved';
 			noteEditorChanged();
 		}
 
@@ -304,7 +249,6 @@
 			destroyed = true;
 			pointerSelectionActive = false;
 			cancelSelectionToolbarSync();
-			saveTimer.cancel();
 			historyTimer.cancel();
 			cancelLinkPopoverOpen();
 			cancelLinkPopoverClose();
@@ -317,7 +261,7 @@
 			// teardown save would rewrite the record (bumping updatedAt) on
 			// every visit, and can persist a transient editor state — e.g. a
 			// mid-HMR or mid-destroy document — over real content.
-			if (pendingSave) void persistNow({ notify: false });
+			session.destroy();
 			editor?.destroy();
 		};
 	});
@@ -440,74 +384,6 @@
 		});
 	}
 
-	function getSlashMenuItems(): SlashMenuItem[] {
-		return [
-			{ id: 'paragraph', label: 'Text', description: 'Plain paragraph', icon: 'mdi:format-text' },
-			{
-				id: 'heading-1',
-				label: 'Heading 1',
-				description: 'Large section heading',
-				icon: 'mdi:format-header-1'
-			},
-			{
-				id: 'heading-2',
-				label: 'Heading 2',
-				description: 'Medium section heading',
-				icon: 'mdi:format-header-2'
-			},
-			{
-				id: 'heading-3',
-				label: 'Heading 3',
-				description: 'Small section heading',
-				icon: 'mdi:format-header-3'
-			},
-			{
-				id: 'bullet-list',
-				label: 'Bullet list',
-				description: 'Create a bulleted list',
-				icon: 'mdi:format-list-bulleted'
-			},
-			{
-				id: 'ordered-list',
-				label: 'Numbered list',
-				description: 'Create a numbered list',
-				icon: 'mdi:format-list-numbered'
-			},
-			{
-				id: 'quote',
-				label: 'Quote',
-				description: 'Emphasize a quotation',
-				icon: 'mdi:format-quote-close'
-			},
-			{
-				id: 'code',
-				label: 'Code block',
-				description: 'Code with syntax highlighting',
-				icon: 'mdi:code-tags'
-			},
-			{ id: 'divider', label: 'Divider', description: 'Separate sections', icon: 'mdi:minus' },
-			{ id: 'table', label: 'Table', description: 'Insert a 3 × 2 table', icon: 'mdi:table' },
-			{
-				id: 'image',
-				label: 'Image',
-				description: 'Upload one or more images',
-				icon: 'mdi:image-outline'
-			},
-			{
-				id: 'video',
-				label: 'Video',
-				description: 'Upload one or more videos',
-				icon: 'mdi:video-outline'
-			},
-			...embedActions.map((embed) => ({
-				id: `component:${embed.id}`,
-				label: embed.label,
-				description: 'Interactive component',
-				icon: embed.icon ?? 'mdi:application-braces-outline'
-			}))
-		];
-	}
-
 	function syncSlashMenuFromEditor() {
 		if (!editor || !editor.state.selection.empty) {
 			closeSlashMenu();
@@ -530,9 +406,11 @@
 		const from = cursor.start();
 		const coords = editor.view.coordsAtPos(cursor.pos);
 		const query = match[1] ?? '';
-		const nextItems = getSlashMenuItems().filter((item) =>
-			`${item.label} ${item.description}`.toLowerCase().includes(query.toLowerCase())
-		);
+		const nextItems = blockCatalog
+			.insertable()
+			.filter((item) =>
+				`${item.label} ${item.description}`.toLowerCase().includes(query.toLowerCase())
+			);
 
 		slashMenu = {
 			visible: true,
@@ -579,54 +457,17 @@
 	function runSlashMenuItem(id: string) {
 		if (!editor || !slashMenu.visible) return;
 
+		const activeEditor = editor;
 		const { from, to } = slashMenu;
 		closeSlashMenu();
-		const chain = editor.chain().focus().deleteRange({ from, to });
-
-		switch (id) {
-			case 'paragraph':
-				chain.setParagraph().run();
-				break;
-			case 'heading-1':
-				chain.setHeading({ level: 1 }).run();
-				break;
-			case 'heading-2':
-				chain.setHeading({ level: 2 }).run();
-				break;
-			case 'heading-3':
-				chain.setHeading({ level: 3 }).run();
-				break;
-			case 'bullet-list':
-				chain.toggleBulletList().run();
-				break;
-			case 'ordered-list':
-				chain.toggleOrderedList().run();
-				break;
-			case 'quote':
-				chain.toggleBlockquote().run();
-				break;
-			case 'code':
-				chain.toggleCodeBlock().run();
-				break;
-			case 'divider':
-				chain.setHorizontalRule().run();
-				break;
-			case 'table':
-				chain.run();
-				insertTable(editor);
-				break;
-			case 'image':
-				chain.run();
-				openImagePicker();
-				break;
-			case 'video':
-				chain.run();
-				openVideoPicker();
-				break;
-			default:
-				chain.run();
-				if (id.startsWith('component:')) insertEmbed(id.slice('component:'.length));
-		}
+		blockCatalog.insert(id, {
+			editor: activeEditor,
+			range: { from, to },
+			services: {
+				insertTable: () => insertTable(activeEditor),
+				requestMedia: (kind) => (kind === 'image' ? openImagePicker() : openVideoPicker())
+			}
+		});
 	}
 
 	function scheduleSelectionToolbarSync() {
@@ -857,29 +698,8 @@
 
 			insertMarkdown(markdown);
 		} catch {
-			saveState = 'error';
+			session.markError();
 		}
-	}
-
-	// Panel edits and pasted/imported frontmatter both flow through here.
-	function updateProperties(next: MetadataEntry[]) {
-		properties = normalizeMetadataEntries(next);
-		noteEditorChanged();
-		scheduleSave();
-	}
-
-	function getPropertyValue(key: string) {
-		return properties.find((property) => property.key === key)?.value;
-	}
-
-	function updateHeaderProperty(key: 'title', value: string) {
-		const next = [...normalizeMetadataEntries(properties)];
-		const index = next.findIndex((property) => property.key === key);
-
-		if (index >= 0) next[index] = { key, value };
-		else next.unshift({ key, value });
-
-		updateProperties(next);
 	}
 
 	function countWords(text: string) {
@@ -890,31 +710,16 @@
 	function insertMarkdown(markdown: string) {
 		const result = insertEditorMarkdown(editor, markdown);
 
-		if (result.properties) mergePageProperties(result.properties);
+		if (result.properties) session.mergeProperties(result.properties);
 
 		return result.inserted || Boolean(result.frontmatter);
-	}
-
-	// Pasted/dropped frontmatter merges into page properties; incoming values
-	// win per key, everything else is kept.
-	function mergePageProperties(incoming: MetadataProperties) {
-		const merged = [...normalizeMetadataEntries(properties)];
-
-		for (const entry of normalizeMetadataEntries(incoming)) {
-			const index = merged.findIndex((existing) => existing.key === entry.key);
-
-			if (index >= 0) merged[index] = entry;
-			else merged.push(entry);
-		}
-
-		updateProperties(merged);
 	}
 
 	async function insertMediaFiles(files: File[]) {
 		if (!editor || !files.length) return;
 
 		try {
-			saveState = 'saving';
+			session.markSaving();
 
 			for (const file of files) {
 				const media = await resolveMediaFile(file);
@@ -927,7 +732,7 @@
 				});
 			}
 		} catch {
-			saveState = 'error';
+			session.markError();
 		}
 	}
 
@@ -950,100 +755,6 @@
 		if (!editor || !attrs.src) return;
 
 		editor.chain().focus().insertMediaBlock(attrs).run();
-	}
-
-	function scheduleSave() {
-		saveState = 'saving';
-		pendingSave = true;
-		saveTimer.schedule(() => {
-			void persistNow();
-		}, 350);
-	}
-
-	async function persistNow({ notify = true }: { notify?: boolean } = {}) {
-		if (!editor) return;
-
-		pendingSave = false;
-
-		try {
-			const content = previewReturnContent ?? editor.getJSON();
-			// saveNotePage re-derives title/slug/tags/frontmatter from properties
-			// and the document's first H1.
-			const nextPage = await saveNotePage({
-				...page,
-				properties: $state.snapshot(properties) as MetadataEntry[],
-				content
-			});
-			// On teardown we save but must not notify: onSaved -> the page's
-			// slug-change redirect would fire during route transitions and revert
-			// navigation away from the editor.
-			if (notify) onSaved?.(nextPage);
-			lastSavedAt = nextPage.updatedAt;
-			saveState = 'saved';
-			if (publicationExists) pendingPublicationPage = nextPage;
-			return nextPage;
-		} catch {
-			saveState = 'error';
-		}
-	}
-
-	async function refreshPublicationState() {
-		try {
-			const publication = await getCraftPublication(page.id);
-			publicationExists = Boolean(publication);
-			publicationState = publicationExists ? 'published' : 'unpublished';
-			if (publication && isPublishedCraftOutdated(page, publication)) {
-				pendingPublicationPage = page;
-			}
-		} catch {
-			publicationState = 'error';
-		}
-	}
-
-	async function updatePublishedCraft() {
-		const nextPage = pendingPublicationPage;
-		if (!nextPage || publicationUpdateInFlight) return;
-
-		pendingPublicationPage = null;
-		publicationUpdateInFlight = true;
-		publicationState = 'working';
-
-		try {
-			await publishNoteCraft({ pageJson: JSON.stringify(nextPage) });
-			publicationState = 'published';
-		} catch {
-			pendingPublicationPage = nextPage;
-			publicationState = 'error';
-		} finally {
-			publicationUpdateInFlight = false;
-		}
-	}
-
-	async function togglePublication() {
-		if (publicationState === 'working' || publicationState === 'loading') return;
-
-		const shouldUnpublish = publicationExists && publicationState !== 'error';
-		publicationState = 'working';
-
-		try {
-			if (shouldUnpublish) {
-				await unpublishNoteCraft(page.id);
-				publicationExists = false;
-				pendingPublicationPage = null;
-				publicationState = 'unpublished';
-				return;
-			}
-
-			const savedPage = await persistNow();
-			if (!savedPage) throw new Error('Save failed');
-
-			await publishNoteCraft({ pageJson: JSON.stringify(savedPage) });
-			publicationExists = true;
-			pendingPublicationPage = null;
-			publicationState = 'published';
-		} catch {
-			publicationState = 'error';
-		}
 	}
 
 	function scheduleHistorySnapshot() {
@@ -1153,16 +864,6 @@
 
 		editor.view.dispatch(transaction);
 		noteEditorChanged();
-	}
-
-	function insertEmbed(id: string) {
-		if (!editor) return;
-
-		const result = insertRegisteredComponentEmbed(editor, componentEmbeds, id);
-
-		if (!result.ok) {
-			saveState = 'error';
-		}
 	}
 
 	function showLinkPopover(range: Range, editing = false) {
@@ -1447,26 +1148,7 @@
 
 		const content = editor.getJSON();
 
-		void downloadNotePageExport(getDraftPage(content), content);
-	}
-
-	function getDraftPage(content: JSONContent): NotePageV1 {
-		const draft: NotePageV1 = {
-			...page,
-			properties: $state.snapshot(properties) as MetadataEntry[],
-			content
-		};
-
-		return { ...draft, ...resolveNotePageMetadata(draft, content) };
-	}
-
-	function startsWithEmptyTitle(content: JSONContent) {
-		// The document now leads with the title H1 (metadata lives on the page).
-		const first = content.type === 'doc' ? content.content?.[0] : undefined;
-
-		return (
-			first?.type === 'heading' && Number(first.attrs?.level) === 1 && !(first.content ?? []).length
-		);
+		void downloadNotePageExport(session.getDraftPage(content), content);
 	}
 
 	function getInitialEditorContent(page: NotePageV1): JSONContent {
@@ -1476,7 +1158,7 @@
 		// into IndexedDB — which silently breaks every save. Snapshot to plain
 		// objects before the content ever reaches the editor.
 		const content = $state.snapshot(page.content) as JSONContent;
-		return stripLeadingPageHeader(content, page.title, page.frontmatter?.description);
+		return content;
 	}
 </script>
 
@@ -1501,22 +1183,25 @@
 	/>
 
 	<EditorDocumentActions
-		{saveState}
-		{saveLabel}
-		syncStatus={syncLabelStatus}
-		{publicationState}
+		saveState={session.saveState}
+		saveLabel={session.saveLabel}
+		syncStatus={session.syncLabelStatus}
+		publicationState={session.publicationState}
 		{publicHref}
 		historyOpen={historyPanelOpen}
 		{propertiesOpen}
 		onDownloadMarkdown={downloadMarkdown}
 		onToggleHistory={toggleHistoryPanel}
 		onToggleProperties={() => (propertiesOpen = !propertiesOpen)}
-		onTogglePublication={auth.user ? togglePublication : undefined}
+		onTogglePublication={session.canPublish ? () => session.togglePublication() : undefined}
 	/>
 
 	{#if propertiesOpen}
 		<aside class="properties-popover" aria-label="Page properties">
-			<MetadataPanel {properties} onChange={updateProperties} />
+			<MetadataPanel
+				properties={session.properties}
+				onChange={(next) => session.updateProperties(next)}
+			/>
 		</aside>
 	{/if}
 
@@ -1580,11 +1265,11 @@
 	>
 		{#snippet header()}
 			<CraftArticleHeader
-				title={headerTitle}
-				date={headerDate}
+				title={session.title}
+				date={session.date}
 				{wordCount}
 				editable
-				onTitleChange={(value) => updateHeaderProperty('title', value)}
+				onTitleChange={(value) => session.updateTitle(value)}
 			/>
 		{/snippet}
 		<BlockHandle

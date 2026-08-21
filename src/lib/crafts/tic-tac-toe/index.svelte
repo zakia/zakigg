@@ -1,5 +1,5 @@
 <script lang="ts">
-	import TicTacToeGame from './TicTacToeGame.svelte';
+	import TicTacToeGame from '$lib/embeds/tic-tac-toe/TicTacToeGame.svelte';
 </script>
 
 <TicTacToeGame />

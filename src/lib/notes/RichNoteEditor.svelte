@@ -2,7 +2,7 @@
 	import { onMount, tick, type Snippet } from 'svelte';
 	import { Editor, posToDOMRect, type JSONContent, type Range } from '@tiptap/core';
 	import type { EditorView } from '@tiptap/pm/view';
-	import { noteComponentEmbeds } from '$lib/notes/component-embeds';
+	import { componentEmbeds } from '$lib/embeds';
 	import {
 		getCraftPublication,
 		publishNoteCraft,
@@ -161,7 +161,7 @@
 	);
 	const selectionToolbarFallbackTop = $derived(selectionToolbar.anchor.top);
 	const embedActions = $derived(
-		noteComponentEmbeds.insertable().map(({ id, label, icon }) => ({ id, label, icon }))
+		componentEmbeds.insertable().map(({ id, label, icon }) => ({ id, label, icon }))
 	);
 	const slashMenuItems = $derived(
 		getSlashMenuItems().filter((item) =>
@@ -169,7 +169,7 @@
 		)
 	);
 	const mobileListActions = $derived.by(() => {
-		editorTick;
+		void editorTick;
 		return {
 			visible: Boolean(editor?.isActive('listItem')),
 			canIndent: Boolean(editor?.can().chain().focus().sinkListItem('listItem').run()),
@@ -179,7 +179,7 @@
 	const headerTitle = $derived(String(getPropertyValue('title') ?? page.title));
 	const headerDate = $derived(String(getPropertyValue('date') || page.createdAt));
 	const wordCount = $derived.by(() => {
-		editorTick;
+		void editorTick;
 		return countWords(`${headerTitle} ${editor?.getText() ?? ''}`);
 	});
 
@@ -258,7 +258,7 @@
 			const initialContent = getInitialEditorContent(page);
 			const instance = new Editor({
 				element: editorHost,
-				extensions: createEditorExtensions(noteComponentEmbeds, resolveNoteAssetObjectUrl, {
+				extensions: createEditorExtensions(componentEmbeds, resolveNoteAssetObjectUrl, {
 					getBlockHandleElement: () => blockHandleElement ?? null,
 					onBlockHandleTargetChange: (nextTarget) => {
 						blockHandleTarget = nextTarget;
@@ -1158,7 +1158,7 @@
 	function insertEmbed(id: string) {
 		if (!editor) return;
 
-		const result = insertRegisteredComponentEmbed(editor, noteComponentEmbeds, id);
+		const result = insertRegisteredComponentEmbed(editor, componentEmbeds, id);
 
 		if (!result.ok) {
 			saveState = 'error';

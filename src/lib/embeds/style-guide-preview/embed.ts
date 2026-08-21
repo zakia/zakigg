@@ -4,7 +4,7 @@ import type { ComponentEmbedConfig } from '$lib/editor/component-embeds';
 export const styleGuideSections = ['colors', 'buttons', 'cards', 'forms'] as const;
 export type StyleGuideSection = (typeof styleGuideSections)[number];
 
-export const styleGuidePreviewEmbed = {
+export const embed = {
 	id: 'style-guide.preview',
 	label: 'Style Guide Preview',
 	icon: 'mdi:palette-outline',

@@ -1,17 +1,26 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import { getLocalAssetId } from '$lib/notes/media';
-	import { resolveNoteAssetObjectUrl } from '$lib/notes/storage';
+	import { createLocalAssetSrc, getLocalAssetId } from '$lib/notes/media';
+	import { resolveNoteAssetObjectUrl, saveNoteAsset } from '$lib/notes/storage';
 
 	let {
 		src,
 		name,
 		mediaType,
-		size
-	}: { src: string; name: string; mediaType: string; size: number } = $props();
+		size,
+		updateProps
+	}: {
+		src: string;
+		name: string;
+		mediaType: string;
+		size: number;
+		updateProps?: (props: Record<string, unknown>) => void;
+	} = $props();
 
 	let localUrl = $state('');
+	let fileInput = $state<HTMLInputElement>();
+	let uploading = $state(false);
 	let ownedObjectUrl = '';
 	const href = $derived(getLocalAssetId(src) ? localUrl : src);
 
@@ -42,16 +51,61 @@
 		const value = bytes / 1024 ** exponent;
 		return `${value >= 10 || exponent === 0 ? Math.round(value) : value.toFixed(1)} ${units[exponent]}`;
 	}
+
+	async function attach(file?: File) {
+		if (!file || !updateProps) return;
+
+		uploading = true;
+		try {
+			const asset = await saveNoteAsset(file);
+			updateProps({
+				src: createLocalAssetSrc(asset.id),
+				name: asset.name,
+				mediaType: asset.mediaType,
+				size: asset.size
+			});
+		} finally {
+			uploading = false;
+		}
+	}
 </script>
 
-<a class="attachment" class:loading={!href} href={href || undefined} download={name}>
-	<span class="attachment-icon"><Icon icon="mdi:file-outline" /></span>
-	<span class="attachment-copy">
-		<strong>{name}</strong>
-		<span>{[mediaType, formatSize(size)].filter(Boolean).join(' · ')}</span>
-	</span>
-	<Icon icon="mdi:download-outline" class="download-icon" />
-</a>
+{#if src}
+	<!-- This is an authored file URL or a local object URL, not an app route. -->
+	<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+	<a class="attachment" class:loading={!href} href={href || undefined} download={name}>
+		<span class="attachment-icon"><Icon icon="mdi:file-outline" /></span>
+		<span class="attachment-copy">
+			<strong>{name || 'Attachment'}</strong>
+			<span>{[mediaType, formatSize(size)].filter(Boolean).join(' · ')}</span>
+		</span>
+		<Icon icon="mdi:download-outline" class="download-icon" />
+	</a>
+{:else if updateProps}
+	<div class="attachment attachment-empty">
+		<input
+			bind:this={fileInput}
+			type="file"
+			onchange={(event) => {
+				void attach(event.currentTarget.files?.[0]);
+				event.currentTarget.value = '';
+			}}
+		/>
+		<span class="attachment-icon"><Icon icon="mdi:file-plus-outline" /></span>
+		<span class="attachment-copy">
+			<strong>Add an attachment</strong>
+			<span>Select any file to store with this craft.</span>
+		</span>
+		<button type="button" disabled={uploading} onclick={() => fileInput?.click()}>
+			{uploading ? 'Uploading…' : 'Choose file'}
+		</button>
+	</div>
+{:else}
+	<div class="attachment attachment-empty">
+		<span class="attachment-icon"><Icon icon="mdi:file-alert-outline" /></span>
+		<span class="attachment-copy"><strong>Attachment unavailable</strong></span>
+	</div>
+{/if}
 
 <style>
 	.attachment {
@@ -80,6 +134,19 @@
 		cursor: wait;
 		opacity: 0.65;
 		pointer-events: none;
+	}
+
+	.attachment-empty input {
+		display: none;
+	}
+
+	.attachment-empty button {
+		background: var(--brand);
+		border: 0;
+		border-radius: var(--s-3);
+		color: var(--base);
+		font: inherit;
+		padding: var(--s-3) var(--s-1);
 	}
 
 	.attachment-icon {

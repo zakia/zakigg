@@ -1,11 +1,11 @@
 <script lang="ts">
 	import type { EmbedComponent } from '$lib/editor/component-embeds';
-	import { noteComponentEmbeds } from '$lib/notes/component-embeds';
+	import { componentEmbeds } from '$lib/embeds';
 
 	let { attrs }: { attrs: unknown } = $props();
 	let LoadedComponent = $state<EmbedComponent | null>(null);
 
-	const embed = $derived(noteComponentEmbeds.parseAttrs(attrs));
+	const embed = $derived(componentEmbeds.parseAttrs(attrs));
 	const embedId = $derived(embed.ok ? embed.entry.id : '');
 
 	$effect(() => {
@@ -16,7 +16,7 @@
 
 		let cancelled = false;
 
-		noteComponentEmbeds.resolveComponent(embedId).then((component) => {
+		componentEmbeds.resolveComponent(embedId).then((component) => {
 			if (!cancelled) LoadedComponent = component;
 		});
 

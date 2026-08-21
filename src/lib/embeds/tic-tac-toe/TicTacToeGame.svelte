@@ -90,7 +90,7 @@
 	<div
 		class="gap-s-4 relative mx-auto grid h-100 w-100 max-w-full grid-cols-3 place-items-center select-none"
 	>
-		{#each board as cell, i}
+		{#each board as cell, i (i)}
 			<button
 				aria-label={`cell_${i}`}
 				class="box"

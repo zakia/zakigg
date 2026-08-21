@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Icon from '$lib/components/Icon.svelte';
-	import { quotes } from '$lib/crafts/quotes/quotes';
+	import { quotes } from './quotes';
 	import { fade } from 'svelte/transition';
 
 	let quoteIndex = $state(Math.floor(Math.random() * quotes.length));

@@ -127,6 +127,14 @@ export function hideBlockHandle(editor: Editor) {
 	editor.view.dispatch(editor.state.tr.setMeta('hideDragHandle', true));
 }
 
+export function openBlockEditMode(editor: Editor, pos: number) {
+	const dom = editor.view.nodeDOM(pos);
+
+	if (!(dom instanceof HTMLElement)) return;
+
+	dom.dispatchEvent(new CustomEvent('component-embed-edit'));
+}
+
 export function duplicateBlock(editor: Editor, pos: number) {
 	const node = editor.state.doc.nodeAt(pos);
 

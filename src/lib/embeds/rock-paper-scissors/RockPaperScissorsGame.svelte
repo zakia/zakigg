@@ -1,6 +1,11 @@
 <script module lang="ts">
 	declare const brain: {
-		recurrent: { LSTMTimeStep: new () => { train: Function; run: Function } };
+		recurrent: {
+			LSTMTimeStep: new () => {
+				train: (data: number[][], options?: { iterations?: number }) => void;
+				run: (input: number[]) => number;
+			};
+		};
 	};
 
 	// brain.js ships no ESM build; load the CDN script once no matter how many
@@ -147,8 +152,8 @@
 	}
 
 	$effect(() => {
-		game.scoreTracker.length;
-		if (scores) {
+		const scoreCount = game.scoreTracker.length;
+		if (scores && scoreCount) {
 			scores.scrollTo({
 				behavior: 'smooth',
 				left: scores.scrollWidth,
@@ -177,7 +182,7 @@
 	</div>
 
 	<div class="pr-1/4 gap-s-2 p-s0 flex w-full max-w-md overflow-x-auto" bind:this={scores}>
-		{#each game.scoreTracker as match, i}
+		{#each game.scoreTracker as match, i (`${i}-${match.human}-${match.ai}`)}
 			<div
 				class="p-s-2 flex flex-col items-center rounded-md"
 				class:bg-success={match.winner === 'human'}

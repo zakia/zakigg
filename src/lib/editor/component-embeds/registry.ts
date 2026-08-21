@@ -17,6 +17,7 @@ export type ComponentEmbedConfig<TSchema extends v.GenericSchema = v.GenericSche
 	id: string;
 	label: string;
 	icon?: string;
+	editLabel?: string;
 	props: TSchema;
 	initialProps?: () => v.InferInput<TSchema>;
 	insertable?: boolean;

@@ -17,6 +17,9 @@ export function createComponentEmbedNodeView(editor: Editor, registry: Component
 		let currentNode = node;
 		const root = document.createElement('div');
 		const nodeStore = writable(currentNode);
+		const editingStore = writable(false);
+		const setEditing = (editing: boolean) => editingStore.set(editing);
+		const openEditMode = () => setEditing(true);
 
 		const updateAttributes = (attributes: Record<string, unknown>) => {
 			const position = getPos();
@@ -51,13 +54,16 @@ export function createComponentEmbedNodeView(editor: Editor, registry: Component
 		root.className = 'component-embed-node';
 		root.setAttribute('data-component-embed', String(currentNode.attrs.component ?? ''));
 		root.contentEditable = 'false';
+		root.addEventListener('component-embed-edit', openEditMode);
 
 		const component = mount(ComponentEmbedNodeView, {
 			target: root,
 			props: {
 				node: nodeStore,
 				registry,
-				updateProps
+				updateProps,
+				editing: editingStore,
+				setEditing
 			}
 		});
 		flushSync();
@@ -90,6 +96,7 @@ export function createComponentEmbedNodeView(editor: Editor, registry: Component
 			},
 
 			destroy() {
+				root.removeEventListener('component-embed-edit', openEditMode);
 				void unmount(component);
 			}
 		};

@@ -1,29 +1,6 @@
-<script module lang="ts">
-	import * as v from 'valibot';
-	import type { ComponentEmbedConfig } from '$lib/editor/component-embeds';
-
-	export const timerPropsSchema = v.object({
-		endIsoTimestamp: v.pipe(
-			v.string(),
-			v.isoTimestamp('Use an ISO timestamp like 2026-06-21T18:00:00.000Z.')
-		)
-	});
-
-	export type TimerProps = v.InferOutput<typeof timerPropsSchema>;
-
-	export const timerEmbed = {
-		id: 'core.Timer',
-		label: 'Timer',
-		icon: 'mdi:timer-outline',
-		props: timerPropsSchema,
-		initialProps: () => ({
-			endIsoTimestamp: new Date(Date.now() + 60 * 60 * 1000).toISOString()
-		})
-	} satisfies ComponentEmbedConfig<typeof timerPropsSchema>;
-</script>
-
 <script lang="ts">
 	import Icon from '$lib/components/Icon.svelte';
+	import type { TimerProps } from './embed';
 
 	type Props = TimerProps & {
 		// Provided when rendered inside an editor; enables inline adjustment.

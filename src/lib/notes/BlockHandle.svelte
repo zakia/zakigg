@@ -6,6 +6,7 @@
 		duplicateBlock,
 		insertParagraphBelow,
 		lockBlockHandle,
+		openBlockEditMode,
 		turnBlockInto,
 		unlockBlockHandle,
 		type BlockHandleTarget,
@@ -150,6 +151,18 @@
 							</button>
 						{/each}
 					</div>
+				{/if}
+
+				{#if pinnedTarget.editLabel}
+					<button
+						type="button"
+						class="menu-item"
+						role="menuitem"
+						onclick={() => runAction(openBlockEditMode)}
+					>
+						<Icon icon="mdi:pencil-outline" />
+						{pinnedTarget.editLabel}
+					</button>
 				{/if}
 
 				<button

@@ -4,6 +4,7 @@ import type { ComponentEmbedRegistry } from '$lib/editor/component-embeds';
 export type BlockDescriptor = {
 	label: string;
 	icon: string;
+	editLabel?: string;
 };
 
 // Node types the gutter handle never appears on. The metadata block is the
@@ -46,7 +47,11 @@ export function describeBlockNode(
 		case 'componentEmbed': {
 			const entry = registry?.get(String(node.attrs.component ?? ''));
 
-			return { label: entry?.label ?? 'Component', icon: entry?.icon ?? 'mdi:puzzle-outline' };
+			return {
+				label: entry?.label ?? 'Component',
+				icon: entry?.icon ?? 'mdi:puzzle-outline',
+				editLabel: entry?.editLabel
+			};
 		}
 		case 'table':
 			return { label: 'Table', icon: 'mdi:table' };

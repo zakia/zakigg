@@ -9,9 +9,11 @@
 		node: Readable<ProseMirrorNode>;
 		registry: ComponentEmbedRegistry;
 		updateProps: (props: Record<string, unknown>) => UpdateResult;
+		editing: Readable<boolean>;
+		setEditing: (editing: boolean) => void;
 	};
 
-	let { node, registry, updateProps }: Props = $props();
+	let { node, registry, updateProps, editing, setEditing }: Props = $props();
 	let updateError = $state('');
 	let LoadedComponent = $state<EmbedComponent | null>(null);
 	let loadError = $state('');
@@ -65,7 +67,12 @@
 <div class="component-embed-shell" data-component-embed-controls>
 	{#if embed.ok}
 		{#if LoadedComponent}
-			<LoadedComponent {...embed.props} updateProps={handlePropsChange} />
+			<LoadedComponent
+				{...embed.props}
+				updateProps={handlePropsChange}
+				editing={$editing}
+				{setEditing}
+			/>
 		{:else if loadError}
 			<div class="component-embed-missing">
 				<span>Component failed to load</span>

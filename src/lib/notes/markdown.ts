@@ -1,7 +1,7 @@
 import { Editor, type JSONContent } from '@tiptap/core';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import { normalizeMediaBlockAttrs } from '$lib/editor/media-block/config';
-import { noteComponentEmbeds } from './component-embeds';
+import { componentEmbeds } from '$lib/embeds';
 import { createEditorExtensions } from './editor-extensions';
 import { normalizeMetadataProperties, type MetadataProperties } from './metadata-block';
 import {
@@ -88,7 +88,7 @@ export function insertEditorMarkdown(
 export function parseEditorMarkdown(markdown: string) {
 	const parsed = parseMarkdownFrontmatter(markdown);
 	const editor = new Editor({
-		extensions: createEditorExtensions(noteComponentEmbeds).filter(
+		extensions: createEditorExtensions(componentEmbeds).filter(
 			(extension) => extension.name !== 'blockHandle' && extension.name !== 'placeholder'
 		),
 		content: { type: 'doc', content: [{ type: 'paragraph' }] }

@@ -35,7 +35,7 @@
 		<label class="preview-picker">
 			<span>Preview</span>
 			<select value={section} onchange={(event) => changeSection(event.currentTarget.value)}>
-				{#each styleGuideSections as option}
+				{#each styleGuideSections as option (option)}
 					<option value={option}>{option}</option>
 				{/each}
 			</select>
@@ -44,10 +44,10 @@
 
 	{#if section === 'colors'}
 		<div class="color-grid">
-			{#each colorGroups as group}
+			{#each colorGroups as group (group.label)}
 				<div class="color-group">
 					<h3>{group.label}</h3>
-					{#each group.values as color}
+					{#each group.values as color (color)}
 						<div class="color-row">
 							<span class="swatch" style={`background-color: var(--color-${color})`}></span>
 							<code>{color}</code>
@@ -58,7 +58,7 @@
 		</div>
 	{:else if section === 'buttons'}
 		<div class="button-grid">
-			{#each buttonVariants as variant}
+			{#each buttonVariants as variant (variant.label)}
 				<button type="button" class={`btn ${variant.class}`}>
 					{variant.label}
 					{#if variant.icon}<Icon icon={variant.icon} class="h-4 w-4" />{/if}

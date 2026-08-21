@@ -1,7 +1,7 @@
 import * as v from 'valibot';
 import type { ComponentEmbedConfig } from '$lib/editor/component-embeds';
 
-export const chessPuzzlesEmbed = {
+export const embed = {
 	id: 'chess.puzzles',
 	label: 'Chess Puzzles',
 	icon: 'mdi:chess-knight',

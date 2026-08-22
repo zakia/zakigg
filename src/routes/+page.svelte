@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import HeroAppearanceControls from '$lib/components/HeroAppearanceControls.svelte';
+	import ThemeControls from '$lib/components/ThemeControls.svelte';
 	import ParticleSettings from '$lib/components/ParticleSettings.svelte';
 	import {
 		createParticleSystem,
@@ -300,7 +300,7 @@
 	<div class="hero-center">
 		<h1>ZAKI.GG</h1>
 		<div class="playground-controls">
-			<HeroAppearanceControls />
+			<ThemeControls />
 			<ParticleSettings
 				count={particleCount}
 				{defaultCount}

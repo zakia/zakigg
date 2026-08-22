@@ -45,7 +45,7 @@ The product principle is: **rich block editing, clear ownership boundaries, mark
   - See page, word, asset, and orphan-asset counts
   - Delete orphaned assets
 - Persist page content and media assets in IndexedDB.
-- Migrate the old single default note into `/notes/default`.
+- Migrate the old single default note into the crafts page store.
 - Export one page as a zip containing:
   - `page.md`
   - `page.json`
@@ -111,8 +111,8 @@ collaboration path.
 - V2 (shipped): import/restore from notes export zips.
 - V3 (shipped): authenticated snapshot synchronization.
 - V4 (shipped): custom embeds, media blocks, tables, code blocks, and unified block controls.
-- V5 (current): stable block identity and explicit editor ownership boundaries.
-- V6: block operation journal, replay, and OT transform rules.
+- V5 (shipped): stable block identity and explicit editor ownership boundaries.
+- V6 (current): block operation journal, replay, and OT transform rules.
 - V7: real-time multi-user presence and editing.
 - V8: spatial mode where selected document blocks can be arranged on a canvas and collapsed back
   into document order.

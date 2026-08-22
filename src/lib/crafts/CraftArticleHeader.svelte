@@ -9,13 +9,7 @@
 		onTitleChange?: (value: string) => void;
 	};
 
-	let {
-		title,
-		date = '',
-		wordCount,
-		editable = false,
-		onTitleChange
-	}: Props = $props();
+	let { title, date = '', wordCount, editable = false, onTitleChange }: Props = $props();
 
 	const formattedDate = $derived(formatDate(date));
 	const readingTime = $derived(

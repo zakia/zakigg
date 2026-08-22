@@ -245,6 +245,10 @@
 						<div
 							class="title"
 							contenteditable="true"
+							role="textbox"
+							tabindex="0"
+							aria-label={`Title for ${craft.slug}`}
+							aria-multiline="false"
 							spellcheck="false"
 							onblur={(e) => handleTitleBlur(e, craft)}
 							onkeydown={(e) => {
@@ -260,6 +264,9 @@
 						<div
 							class="description"
 							contenteditable="true"
+							role="textbox"
+							tabindex="0"
+							aria-label={`Description for ${craft.slug}`}
 							spellcheck="false"
 							onblur={(e) => handleDescBlur(e, craft)}
 						>

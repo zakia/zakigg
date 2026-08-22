@@ -102,7 +102,7 @@ terraform -chdir=infra output -raw hosting_preview_url
 Before changing DNS, verify both URLs:
 
 - `/healthz` returns `{"ok":true}`.
-- `/notes` loads normally.
+- `/crafts?edit` loads normally.
 - Google sign-in works on the `web.app` URL.
 - A local note can be created and remains after a reload.
 - The browser shows a registered service worker.
@@ -136,7 +136,7 @@ Use this cutover sequence:
 4. Confirm the Cloud Run and `web.app` previews still pass the checks above.
 5. Replace only the old A/AAAA/CNAME serving records with Firebase's requested
    serving records. Keep the TXT verification record.
-6. Verify `https://zaki.gg/healthz`, `/notes`, Google sign-in, the manifest,
+6. Verify `https://zaki.gg/healthz`, `/crafts?edit`, Google sign-in, the manifest,
    and the service worker from a clean browser profile and the installed PWA.
 
 Rollback is simply restoring the old serving records. Firestore and Cloud
@@ -144,7 +144,7 @@ Storage remain untouched, so no note data is rolled back or discarded.
 
 ## 6. First sync and multi-device test
 
-Open `/notes`, sign in with the allowlisted Google account, and wait for the
+Open `/crafts?edit`, sign in with the allowlisted Google account, and wait for the
 cloud indicator to show synced. Existing local records are enrolled on first
 sign-in. Complete note bodies and binary assets go to Cloud Storage; Firestore
 only holds metadata, version pointers, tombstones, and the change log.

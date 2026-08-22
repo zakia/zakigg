@@ -1,39 +1,41 @@
-# create-svelte
+# zaki.gg
 
-Everything you need to build a Svelte project, powered by [`create-svelte`](https://github.com/sveltejs/kit/tree/main/packages/create-svelte).
+The source for zaki.gg: a SvelteKit PWA for publishing interactive crafts and editing local-first,
+block-based documents.
 
-## Creating a project
+## Development
 
-If you're seeing this, you've probably already done this step. Congrats!
+Requirements:
 
-```bash
-# create a new project in the current directory
-npm create svelte@latest
+- Bun 1.3+
+- Node.js 22+
+- Google Cloud Application Default Credentials for cloud-backed development
 
-# create a new project in my-app
-npm create svelte@latest my-app
-```
+Install dependencies and start the configured development server:
 
-## Developing
-
-Install dependencies and start the development server with Bun:
-
-```bash
+```sh
 bun install
 bun run dev
-
-# or start the server and open the app in a new browser tab
-bun run dev -- --open
 ```
 
-## Building
+Use `bun run dev:local` when configuration is provided through a local `.env` instead of the
+deployed Cloud Run service.
 
-To create a production version of your app:
+## Quality checks
 
-```bash
+```sh
+bun run check
+bun run test
+bun run lint
 bun run build
 ```
 
-You can preview the production build with `bun run preview`.
+## Architecture
 
-> To deploy your app, you may need to install an [adapter](https://kit.svelte.dev/docs/adapters) for your target environment.
+- [Editor architecture](docs/editor-architecture.md)
+- [Craft editor product requirements](docs/notes-prd.md)
+- [Deployment and infrastructure](docs/deployment.md)
+- [Number Snug puzzle](docs/puzzle.md)
+
+The public reader lives at `/crafts/<slug>`. The private manager and editor live at
+`/crafts?edit` and `/crafts/<slug>?edit`.

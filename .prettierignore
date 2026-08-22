@@ -2,3 +2,15 @@
 package-lock.json
 pnpm-lock.yaml
 yarn.lock
+
+# Dependencies and generated output
+node_modules/
+.svelte-kit/
+build/
+.pnpm-store/
+infra/.terraform/
+
+# Tool-owned worktrees and generated puzzle-search data
+.claude/worktrees/
+.claude/settings.local.json
+scripts/puzzle-design/*.json

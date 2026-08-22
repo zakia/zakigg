@@ -175,11 +175,7 @@ function findAdjacentListJoinPosition(doc: ProseMirrorNode) {
 
 		const next = parent.maybeChild(index + 1);
 
-		if (
-			next &&
-			canMergeAdjacentLists(node, next) &&
-			canJoin(doc, position + node.nodeSize)
-		) {
+		if (next && canMergeAdjacentLists(node, next) && canJoin(doc, position + node.nodeSize)) {
 			joinPosition = position + node.nodeSize;
 			return false;
 		}

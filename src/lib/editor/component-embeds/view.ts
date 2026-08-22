@@ -53,6 +53,7 @@ export function createComponentEmbedNodeView(editor: Editor, registry: Component
 
 		root.className = 'component-embed-node';
 		root.setAttribute('data-component-embed', String(currentNode.attrs.component ?? ''));
+		root.setAttribute('data-component-embed-frame', '');
 		root.contentEditable = 'false';
 		root.addEventListener('editor-block-edit', openEditMode);
 

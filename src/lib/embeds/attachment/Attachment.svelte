@@ -116,7 +116,7 @@
 		color: var(--content);
 		display: flex;
 		gap: var(--s-1);
-		margin-block: var(--s0);
+		margin: 0;
 		padding: var(--s-1) var(--s0);
 		text-decoration: none;
 		transition: 0.16s ease;

@@ -384,14 +384,22 @@
 			padding: var(--s-1) var(--s0);
 		}
 
-		& img,
-		& video {
+		/* Raw document media participates in prose rhythm. Images and videos
+		   inside component embeds belong to the component's own layout instead. */
+		& :is(img, video):not([data-component-embed-frame] *) {
 			border-radius: var(--radius-md);
 			margin-block: var(--s2);
 			margin-inline: auto;
 			width: 100%;
 			height: auto;
 			border: 1px solid var(--edge);
+		}
+
+		/* The document owns spacing between blocks. An embed frame owns only
+		   its available width; the component inside owns its internal layout. */
+		& > [data-component-embed-frame] {
+			min-width: 0;
+			width: 100%;
 		}
 
 		& hr {

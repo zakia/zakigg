@@ -43,7 +43,7 @@
 		display: grid;
 		gap: var(--s1);
 		justify-items: center;
-		margin-block: var(--s1);
+		margin: 0;
 		min-height: 20rem;
 		padding: var(--s1);
 	}

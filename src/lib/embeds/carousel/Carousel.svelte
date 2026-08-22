@@ -396,7 +396,7 @@
 
 <style>
 	.image-carousel {
-		margin-block: var(--s0);
+		margin: 0;
 		width: 100%;
 	}
 	.stage {
@@ -429,8 +429,12 @@
 		position: relative;
 	}
 	figure img {
+		border: 0;
+		border-radius: 0;
 		display: block;
 		height: 100%;
+		margin: 0;
+		max-width: none;
 		object-fit: cover;
 		width: 100%;
 	}
@@ -626,7 +630,10 @@
 		box-shadow: 0 0 0 2px color-mix(in oklch, var(--brand) 28%, transparent);
 	}
 	.thumbnails img {
+		border: 0;
+		border-radius: 0;
 		height: 100%;
+		margin: 0;
 		object-fit: cover;
 		width: 100%;
 	}

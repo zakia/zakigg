@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onDestroy, type Snippet } from 'svelte';
 	import CraftArticleLayout from '$lib/crafts/CraftArticleLayout.svelte';
+	import CraftPageShell from '$lib/crafts/CraftPageShell.svelte';
 
 	let {
 		onHost,
@@ -34,8 +35,8 @@
 	});
 </script>
 
-<div
-	class="editor-surface"
+<CraftPageShell
+	scrollable
 	role="presentation"
 	ondragover={onDragOver}
 	ondrop={onDrop}
@@ -48,62 +49,53 @@
 		<CraftArticleLayout {navigation} main={editorHeader} />
 	{/if}
 	<!-- Content-space overlays (the block handle) are absolutely positioned
-	     against this wrapper, whose origin is exactly the document's origin.
-	     They must NOT be positioned against .editor-surface: anything rendered
+	     against .editor-body, whose origin is exactly the document's origin.
+	     They must NOT be positioned against the page shell: anything rendered
 	     above the document (the header) would offset them by its height. -->
-	<div class="editor-body">
+	<div class:has-header={Boolean(header)} class="editor-body">
 		<div class="editor-host" bind:this={host}></div>
 		{@render children?.()}
 	</div>
-</div>
+</CraftPageShell>
 
 <style>
-	.editor-surface {
+	.editor-body {
 		--editor-inline-padding: clamp(var(--s0), 5vw, var(--s2));
 		display: flex;
 		flex-direction: column;
-		flex: 1;
+		flex: 1 0 auto;
 		min-height: 0;
-		overflow: auto;
 		position: relative;
 	}
 
-	/* Positioned so it — not .editor-surface — is the offset parent for
+	/* Positioned so it — not the page shell — is the offset parent for
 	   content-space overlays, keeping their origin pinned to the document. */
-	.editor-body {
-		display: flex;
-		flex-direction: column;
-		flex: 1;
-		min-height: 0;
-		position: relative;
-	}
-
 	.editor-host {
 		display: flex;
 		flex-direction: column;
-		flex: 1;
+		flex: 1 0 auto;
 		min-height: 0;
 	}
 
 	/* Align the metadata panel with the document's text column, and give it the
 	   editor's top padding so it sits where content begins. The document's own
 	   top padding is zeroed (below) so the two don't stack. */
-	.editor-surface:has(.editor-header) :global(.ProseMirror) {
+	.editor-body.has-header :global(.ProseMirror) {
 		padding-top: var(--s0);
 	}
 
-	.editor-surface :global(.ProseMirror) {
+	.editor-body :global(.ProseMirror) {
 		box-sizing: border-box;
-		flex: 1;
+		flex: 1 0 auto;
 		margin-inline: auto;
 		max-width: calc(680px + var(--editor-inline-padding) + var(--editor-inline-padding));
 		min-height: 0;
 		outline: none;
-		padding: clamp(var(--s1), 6vw, var(--s3)) var(--editor-inline-padding) calc(var(--s4) + 5rem);
+		padding: clamp(var(--s1), 6vw, var(--s3)) var(--editor-inline-padding) 0;
 		width: 100%;
 	}
 
-	.editor-surface :global(.ProseMirror p.is-editor-empty:first-child::before) {
+	.editor-body :global(.ProseMirror p.is-editor-empty:first-child::before) {
 		color: var(--content-1);
 		content: attr(data-placeholder);
 		float: left;
@@ -111,7 +103,7 @@
 		pointer-events: none;
 	}
 
-	.editor-surface :global(.ProseMirror [data-component-embed]:not(.component-embed-node)) {
+	.editor-body :global(.ProseMirror [data-component-embed]:not(.component-embed-node)) {
 		align-items: center;
 		background: color-mix(in oklch, var(--base-1) 82%, var(--brand) 6%);
 		border: 1px solid color-mix(in oklch, var(--edge) 78%, var(--brand) 12%);
@@ -127,7 +119,7 @@
 		user-select: none;
 	}
 
-	.editor-surface :global(.ProseMirror [data-component-embed]:not(.component-embed-node)::before) {
+	.editor-body :global(.ProseMirror [data-component-embed]:not(.component-embed-node)::before) {
 		color: var(--brand);
 		content: 'Component';
 		font-size: var(--s-2);
@@ -135,23 +127,23 @@
 		text-transform: uppercase;
 	}
 
-	.editor-surface :global(.ProseMirror .ProseMirror-selectednode[data-component-embed]) {
+	.editor-body :global(.ProseMirror .ProseMirror-selectednode[data-component-embed]) {
 		border-color: var(--brand);
 		box-shadow: 0 0 0 2px color-mix(in oklch, var(--brand) 22%, transparent);
 	}
 
-	.editor-surface :global(.ProseMirror .component-embed-node.ProseMirror-selectednode) {
+	.editor-body :global(.ProseMirror .component-embed-node.ProseMirror-selectednode) {
 		border-radius: var(--s-4);
 		box-shadow: 0 0 0 2px color-mix(in oklch, var(--brand) 22%, transparent);
-		width: fit-content;
+		width: 100%;
 	}
 
-	.editor-surface :global(.ProseMirror .media-block-node.ProseMirror-selectednode) {
+	.editor-body :global(.ProseMirror .media-block-node.ProseMirror-selectednode) {
 		border-radius: var(--radius);
 		box-shadow: 0 0 0 2px color-mix(in oklch, var(--brand) 22%, transparent);
 	}
 
-	.editor-surface :global(.ProseMirror .metadata-block-node.ProseMirror-selectednode) {
+	.editor-body :global(.ProseMirror .metadata-block-node.ProseMirror-selectednode) {
 		border-radius: var(--s-3);
 		box-shadow: 0 0 0 2px color-mix(in oklch, var(--brand) 22%, transparent);
 	}

@@ -26,18 +26,25 @@
 	});
 </script>
 
-{#if embed.ok}
-	{#if LoadedComponent}
-		<LoadedComponent {...embed.props} />
+<div class="component-embed-frame" data-component-embed-frame>
+	{#if embed.ok}
+		{#if LoadedComponent}
+			<LoadedComponent {...embed.props} />
+		{/if}
+	{:else}
+		<div class="component-embed-error" role="note">
+			<strong>Component embed unavailable</strong>
+			<span>{embed.message}</span>
+		</div>
 	{/if}
-{:else}
-	<div class="component-embed-error" role="note">
-		<strong>Component embed unavailable</strong>
-		<span>{embed.message}</span>
-	</div>
-{/if}
+</div>
 
 <style>
+	.component-embed-frame {
+		min-width: 0;
+		width: 100%;
+	}
+
 	.component-embed-error {
 		background: color-mix(in oklch, var(--error, crimson) 9%, transparent);
 		border: 1px solid color-mix(in oklch, var(--error, crimson) 34%, transparent);
@@ -45,7 +52,7 @@
 		color: var(--content);
 		display: grid;
 		gap: var(--s-5);
-		margin-block: var(--s0);
+		margin: 0;
 		padding: var(--s-1);
 	}
 

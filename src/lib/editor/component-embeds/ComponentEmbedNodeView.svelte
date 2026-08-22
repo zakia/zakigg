@@ -95,11 +95,11 @@
 
 <style>
 	.component-embed-shell {
-		display: inline-grid;
-		margin-block: var(--s-3);
+		display: grid;
+		margin: 0;
 		max-width: 100%;
-		vertical-align: middle;
-		width: fit-content;
+		min-width: 0;
+		width: 100%;
 	}
 
 	.component-embed-loading {

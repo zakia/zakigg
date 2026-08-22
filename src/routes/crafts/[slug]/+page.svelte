@@ -2,6 +2,7 @@
 	import { resolve } from '$app/paths';
 	import { auth } from '$lib/auth';
 	import CraftArticleLayout from '$lib/crafts/CraftArticleLayout.svelte';
+	import CraftPageShell from '$lib/crafts/CraftPageShell.svelte';
 	import CraftBackLink from '$lib/crafts/CraftBackLink.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import CraftArticleHeader from '$lib/crafts/CraftArticleHeader.svelte';
@@ -61,7 +62,7 @@
 
 {#snippet actions()}
 	{#if data.mode === 'public' && auth.user}
-		<a class="edit-craft" href={`/crafts/${data.meta.slug}?edit`}>
+		<a class="edit-craft" href={resolve(`/crafts/${data.meta.slug}?edit`)}>
 			<Icon icon="mdi:pencil-outline" /> Edit
 		</a>
 	{/if}
@@ -86,21 +87,12 @@
 {:else if data.meta.fullBleed && data.craft.kind === 'component'}
 	{@render content()}
 {:else}
-	<section class="public-craft">
+	<CraftPageShell>
 		<CraftArticleLayout {navigation} main={article} {actions} />
-	</section>
+	</CraftPageShell>
 {/if}
 
 <style>
-	.public-craft {
-		--vertical-spacing: var(--s3);
-		padding-bottom: calc(var(--vertical-spacing) * 3);
-
-		@media (max-width: 768px) {
-			padding-bottom: calc(var(--vertical-spacing) * 2);
-		}
-	}
-
 	.edit-craft {
 		align-items: center;
 		color: var(--brand);

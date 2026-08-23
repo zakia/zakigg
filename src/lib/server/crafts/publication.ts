@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { FieldValue } from '@google-cloud/firestore';
 import { error } from '@sveltejs/kit';
-import type { NotePageV1 } from '$lib/notes/types';
+import type { NotePageV1 } from '$lib/editor/document/model';
 import {
 	countCraftWords,
 	createPublishedCraftDocument,

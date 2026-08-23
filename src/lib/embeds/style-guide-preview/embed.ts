@@ -1,5 +1,5 @@
 import * as v from 'valibot';
-import type { ComponentEmbedConfig } from '$lib/editor/component-embeds';
+import type { ComponentEmbedConfig } from '$lib/editor/core';
 
 export const styleGuideSections = ['colors', 'buttons', 'cards', 'forms'] as const;
 export type StyleGuideSection = (typeof styleGuideSections)[number];

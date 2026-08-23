@@ -1,4 +1,37 @@
-# Editor Architecture
+# Editor architecture
+
+The editor follows a one-way dependency model inspired by Gutenberg:
+
+```text
+application route
+    ↓
+document editor
+    ↓
+editor core
+```
+
+## Core
+
+`src/lib/editor/core` owns the reusable block-editing mechanics: Tiptap extensions, block
+identity and handles, formatting controls, links, lists, tables, media blocks, and the component
+embed contract. It operates on editor content and an injected embed registry. It must not import
+document persistence, synchronization, publication, application routes, or craft modules.
+
+## Document
+
+`src/lib/editor/document` composes the core into a complete document editing experience. It owns
+the document model, metadata, history, import/export, local persistence, asset storage, and sync.
+Publication is optional and supplied through `DocumentPublicationAdapter`; the document editor does
+not know which application feature publishes it.
+
+## Application
+
+Routes own screen layout, navigation, authentication gates, URLs, and publication implementations.
+They provide the document editor with its embed registry and optional adapters. Code in
+`src/lib/editor` must never import from `src/lib/crafts` or from a route.
+
+Public consumers should prefer the entry points at `src/lib/editor/core/index.ts` and
+`src/lib/editor/document/index.ts` instead of reaching into implementation folders.
 
 ## Direction
 
@@ -6,14 +39,14 @@ The editor uses an app-owned block architecture with Tiptap as its text-editing 
 adapter. Tiptap is not the product data model, command registry, persistence coordinator, or
 collaboration protocol.
 
-This keeps the mature ProseMirror editing behavior we already rely on while creating the same
+This keeps the mature ProseMirror editing behavior we already rely on while preserving the
 important boundaries found in block-native editors: stable block identity, a unified block
 catalog, independent embed lifecycles, and block-addressable operations.
 
-## Ownership Boundaries
+## Ownership details
 
 ```text
-NotePageV1 (page envelope)
+Document model
 ├── title, properties, slug, timestamps
 └── content (body-only Tiptap JSON)
     └── addressable blocks with stable blockId attributes
@@ -30,22 +63,28 @@ Tiptap adapter
 ├── selection and keyboard behavior
 └── NodeViews for isolated embeds
 
-CraftEditorSession
-├── autosave and persistence
-├── page properties
-├── sync presentation state
-└── publication lifecycle
+Editor command service
+├── typed block insertion and block-menu commands
+├── media, table, and list commands
+└── translates product intent into Tiptap operations
 
-Svelte editor surface
-├── menus, toolbars, overlays, and panels
-└── translates user intent into catalog/editor/session commands
+Document session
+├── autosave and persistence
+├── document properties
+├── sync presentation state
+└── optional publication adapter
+
+Svelte document editor
+├── composes menus, toolbars, overlays, and panels
+├── delegates slash-menu and history state to interaction controllers
+└── translates user intent into command-service and session calls
 ```
 
 ## Invariants
 
-- The page title is owned by the page envelope/properties and is rendered once by the article
-  header. An H1 inside `content` is an ordinary body heading.
-- Markdown frontmatter maps to page properties. Markdown body maps to editor content.
+- The document title is owned by the document envelope/properties and is rendered once by the
+  document header. An H1 inside `content` is an ordinary body heading.
+- Markdown frontmatter maps to document properties. Markdown body maps to editor content.
 - Every document-level block has a durable `blockId`. List items also have IDs because they are
   independently movable and mutable.
 - Paragraphs inside list items, quotes, and table cells do not receive independent IDs. Their
@@ -58,16 +97,14 @@ Svelte editor surface
   from one block catalog.
 - Embedded components own their internal state and edit lifecycle through NodeViews. The editor
   communicates with them using generic block events rather than component-specific branches.
-- Page persistence, cloud-sync labels, and publication do not belong to the editor UI component.
+- Persistence, cloud-sync labels, and publication do not belong to editor core.
 
-## Canonical Data
+## Canonical data
 
-`NotePageV1.content` remains versioned Tiptap JSON for now. Persisting a second shadow block tree
-would create two sources of truth and more migration risk without improving the current product.
-Stable IDs make the existing tree block-addressable; `buildBlockIndex` supplies the flat lookup
-needed by commands and future synchronization.
-
-Example:
+The current document content remains versioned Tiptap JSON. Persisting a second shadow block tree
+would create two sources of truth without improving the product. Stable IDs make the existing tree
+block-addressable; `buildBlockIndex` supplies the flat lookup needed by commands and future
+synchronization.
 
 ```ts
 {
@@ -82,28 +119,24 @@ Example:
 }
 ```
 
-## Compatibility And Migration
+## Normalization
 
-Normalization happens whenever a page is created, imported, or read from storage:
+Normalization happens whenever a document is created, imported, or read from storage:
 
-1. Legacy in-document metadata nodes are lifted into page properties.
-2. A legacy leading H1 is removed only when it matches the page title.
-3. A legacy presentation-only description heading is removed only alongside that matching title.
+1. Legacy in-document metadata nodes are lifted into document properties.
+2. A leading H1 is removed only when it matches the document title.
+3. A presentation-only description heading is removed only alongside that matching title.
 4. Stable block IDs are added and collisions are repaired.
 
-The page schema remains version 1 because these attributes are backward-compatible and legacy
-records are normalized on read. A version bump is reserved for a non-compatible envelope or
-content migration.
+## Collaboration path
 
-## Collaboration Path
-
-The current cloud sync remains page-record synchronization. The next collaboration layer should
-operate on block-addressed mutations instead of shipping opaque editor transactions:
+The current cloud sync remains document-record synchronization. A future collaboration layer
+should operate on block-addressed mutations instead of shipping opaque editor transactions:
 
 ```ts
 type BlockOperation = {
 	operationId: string;
-	pageId: string;
+	documentId: string;
 	blockId: string;
 	baseVersion: number;
 	kind: 'insert' | 'move' | 'update-content' | 'update-attrs' | 'delete';
@@ -111,18 +144,18 @@ type BlockOperation = {
 };
 ```
 
-An OT engine can then transform structural operations by `blockId`, while inline text operations
-use positions relative to the addressed text block. Cursor presence should likewise be expressed
-as `{ blockId, anchorOffset, headOffset }`, never as a raw document-wide position.
+An OT engine can transform structural operations by `blockId`, while inline text operations use
+positions relative to the addressed text block. Cursor presence should likewise use
+`{ blockId, anchorOffset, headOffset }`, never a raw document-wide position.
 
 OT is intentionally a later layer. Stable identity and explicit commands must exist first;
 otherwise the sync engine would be forced to infer product intent from ProseMirror transactions.
 
-## Next Steps
+## Next steps
 
-1. Route block insertion, movement, duplication, conversion, and deletion through a typed command
-   service that emits `BlockOperation` records.
-2. Persist a local operation journal beside page snapshots and add deterministic replay tests.
+1. Extend the typed command service to cover movement and inline structural edits, then emit
+   `BlockOperation` records from that single boundary.
+2. Persist a local operation journal beside document snapshots and add deterministic replay tests.
 3. Add block-relative selection bookmarks so history preview and remote presence survive moves.
 4. Specify transform rules for concurrent move/delete, split/merge, and inline text edits.
 5. Introduce real-time transport only after operation replay and transform tests are reliable.

@@ -1,8 +1,11 @@
 <script lang="ts">
 	import { onDestroy, tick } from 'svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import { createLocalAssetSrc, getLocalAssetId } from '$lib/notes/media';
-	import { resolveNoteAssetObjectUrl, saveNoteAsset } from '$lib/notes/storage';
+	import { createLocalAssetSrc, getLocalAssetId } from '$lib/editor/document/persistence/assets';
+	import {
+		resolveNoteAssetObjectUrl,
+		saveNoteAsset
+	} from '$lib/editor/document/persistence/storage';
 	import {
 		carouselAspectRatios,
 		carouselNavigationOptions,

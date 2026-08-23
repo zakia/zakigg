@@ -1,22 +1,43 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { auth } from '$lib/auth';
 	import Icon from '$lib/components/Icon.svelte';
 	import CraftBackLink from '$lib/crafts/CraftBackLink.svelte';
-	import RichNoteEditor from '$lib/notes/RichNoteEditor.svelte';
-	import { createNotePageRecord, loadNotePageBySlug } from '$lib/notes/storage';
-	import { titleFromSlug, type NotePageV1 } from '$lib/notes/types';
+	import { componentEmbeds } from '$lib/embeds';
+	import {
+		DocumentEditor,
+		createNotePageRecord,
+		loadNotePageBySlug,
+		titleFromSlug,
+		type DocumentPublicationAdapter,
+		type NotePageV1
+	} from '$lib/editor/document';
+	import { getCraftPublication, publishNoteCraft, unpublishNoteCraft } from './publication.remote';
+	import { isPublishedCraftOutdated, type PublishedCraftSummary } from './publication';
 
 	let { slug }: { slug: string } = $props();
 
 	let craft = $state<NotePageV1 | null>(null);
 	let loading = $state(true);
 	let busy = $state('');
-	let toast = $state('');
 	let loadedSlug = '';
 	let titleInput = $state('');
 	let tagsInput = $state('');
 	const editCollectionHref = `${resolve('/crafts')}?edit`;
+	const publication: DocumentPublicationAdapter = {
+		isReady: () => auth.ready,
+		isEnabled: () => Boolean(auth.user),
+		load: (documentId) => getCraftPublication(documentId),
+		isOutdated: (document, current) =>
+			isPublishedCraftOutdated(document, current as PublishedCraftSummary),
+		publish: async (document) => {
+			await publishNoteCraft({ pageJson: JSON.stringify(document) });
+		},
+		unpublish: async (documentId) => {
+			await unpublishNoteCraft(documentId);
+		}
+	};
 
 	$effect(() => {
 		if (loadedSlug === slug) return;
@@ -50,7 +71,9 @@
 		}
 
 		event.preventDefault();
-		void goto(editCollectionHref);
+		// The query string is intentionally composed after resolving the typed route.
+		// eslint-disable-next-line svelte/no-navigation-without-resolve
+		void goto(`${resolve('/crafts')}?edit`);
 	}
 
 	function handleSaved(page: NotePageV1) {
@@ -60,7 +83,7 @@
 			// Mark this slug as already loaded so the navigation below doesn't
 			// re-trigger loadPage() and remount the editor mid-edit.
 			loadedSlug = page.slug;
-			void goto(editCraftHref(page.slug), {
+			void navigateToEditCraft(page.slug, {
 				replaceState: true,
 				keepFocus: true,
 				noScroll: true
@@ -80,17 +103,10 @@
 
 			craft = page;
 			syncMetadataInputs(page);
-			await goto(editCraftHref(page.slug), { replaceState: true });
+			await navigateToEditCraft(page.slug, { replaceState: true });
 		} finally {
 			busy = '';
 		}
-	}
-
-	function showToast(message: string) {
-		toast = message;
-		window.setTimeout(() => {
-			if (toast === message) toast = '';
-		}, 2400);
 	}
 
 	function parseTagsInput(value: string) {
@@ -104,8 +120,10 @@
 		return resolve('/crafts/[slug]', { slug });
 	}
 
-	function editCraftHref(slug: string) {
-		return `${craftHref(slug)}?edit`;
+	function navigateToEditCraft(slug: string, options?: Parameters<typeof goto>[1]) {
+		// The query string is intentionally composed after resolving the typed route.
+		// eslint-disable-next-line svelte/no-navigation-without-resolve
+		return goto(`${resolve('/crafts/[slug]', { slug })}?edit`, options);
 	}
 </script>
 
@@ -148,18 +166,17 @@
 {:else}
 	<section class="craft-edit-page">
 		{#key craft.id}
-			<RichNoteEditor
+			<DocumentEditor
 				page={craft}
+				embeds={componentEmbeds}
 				publicHref={craftHref(craft.slug)}
 				onSaved={handleSaved}
+				{publication}
+				isSyncEnabled={() => Boolean(auth.user)}
 				{navigation}
 			/>
 		{/key}
 	</section>
-{/if}
-
-{#if toast}
-	<div class="toast" role="status">{toast}</div>
 {/if}
 
 <style>
@@ -266,20 +283,6 @@
 		min-height: 2.5rem;
 		padding: 0 var(--s0);
 		width: fit-content;
-	}
-
-	.toast {
-		background: var(--content);
-		border-radius: var(--s-2);
-		bottom: calc(var(--s2) + 4rem);
-		color: var(--base);
-		font-size: var(--s-1);
-		font-weight: 700;
-		left: 50%;
-		padding: var(--s-2) var(--s0);
-		position: fixed;
-		transform: translateX(-50%);
-		z-index: 1000;
 	}
 
 	@media (max-width: 52rem) {

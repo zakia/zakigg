@@ -13,7 +13,7 @@ import {
 	type RemotePageDoc,
 	type RemoteTombstoneDoc,
 	type TombstonePayload
-} from '$lib/notes/sync/protocol';
+} from '$lib/editor/document/sync/protocol';
 
 const USERS_COLLECTION = 'notes_users';
 const PAGES_COLLECTION = 'pages';

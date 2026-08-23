@@ -1,7 +1,4 @@
-import {
-	createComponentEmbedRegistry,
-	registerLazyComponentEmbed
-} from '$lib/editor/component-embeds';
+import { createComponentEmbedRegistry, registerLazyComponentEmbed } from '$lib/editor/core';
 import { embed as attachment } from './attachment/embed';
 import { embed as chessPuzzles } from './chess-puzzles/embed';
 import { embed as imageCarousel } from './carousel/embed';

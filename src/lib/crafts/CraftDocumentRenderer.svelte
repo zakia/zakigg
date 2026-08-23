@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { JSONContent } from '@tiptap/core';
-	import CodeBlock from '$lib/editor/code-block/CodeBlock.svelte';
+	import CodeBlock from '$lib/editor/core/code-block/CodeBlock.svelte';
 	import type { CraftDocument } from './types';
 	import ComponentEmbedRenderer from './ComponentEmbedRenderer.svelte';
 	import { normalizeCraftDocumentContent } from './document-content';

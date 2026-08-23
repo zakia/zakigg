@@ -4,17 +4,18 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import Icon from '$lib/components/Icon.svelte';
+	import { componentEmbeds } from '$lib/embeds';
 	import { unpublishNoteCraft } from '$lib/crafts/publication.remote';
-	import SyncControls from '$lib/notes/sync/SyncControls.svelte';
-	import { downloadNotePagesExport } from '$lib/notes/export';
-	import { importCraftFiles } from '$lib/notes/file-import';
+	import SyncControls from '$lib/editor/document/sync/SyncControls.svelte';
 	import {
 		createNotePageRecord,
 		deleteNotePage,
+		downloadNotePagesExport,
+		importDocumentFiles,
 		initializeNotesDb,
 		listNotePages,
 		loadNotePageById
-	} from '$lib/notes/storage';
+	} from '$lib/editor/document';
 	import type { CraftListItem } from './types';
 
 	type YearGroup = {
@@ -124,7 +125,7 @@
 		busy = 'import';
 
 		try {
-			const result = await importCraftFiles(files);
+			const result = await importDocumentFiles(files, componentEmbeds);
 			const importedPages = result.pages.length;
 			if (!importedPages) {
 				showToast('No supported craft files found.');

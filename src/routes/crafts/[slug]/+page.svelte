@@ -1,15 +1,17 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { auth } from '$lib/auth';
-	import CraftArticleLayout from '$lib/crafts/CraftArticleLayout.svelte';
-	import CraftPageShell from '$lib/crafts/CraftPageShell.svelte';
+	import {
+		DocumentHeader,
+		DocumentLayout,
+		DocumentPage,
+		titleFromSlug
+	} from '$lib/editor/document';
 	import CraftBackLink from '$lib/crafts/CraftBackLink.svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import CraftArticleHeader from '$lib/crafts/CraftArticleHeader.svelte';
 	import CraftDocumentRenderer from '$lib/crafts/CraftDocumentRenderer.svelte';
 	import CraftEditGate from '$lib/crafts/CraftEditGate.svelte';
 	import CraftEditorPage from '$lib/crafts/CraftEditorPage.svelte';
-	import { titleFromSlug } from '$lib/notes/types';
 
 	let { data } = $props();
 </script>
@@ -49,7 +51,7 @@
 {#snippet article()}
 	{#if data.mode === 'public'}
 		<article>
-			<CraftArticleHeader
+			<DocumentHeader
 				title={data.meta.title}
 				date={data.meta.date}
 				wordCount={data.meta.wordCount}
@@ -87,9 +89,9 @@
 {:else if data.meta.fullBleed && data.craft.kind === 'component'}
 	{@render content()}
 {:else}
-	<CraftPageShell>
-		<CraftArticleLayout {navigation} main={article} {actions} />
-	</CraftPageShell>
+	<DocumentPage>
+		<DocumentLayout {navigation} main={article} {actions} />
+	</DocumentPage>
 {/if}
 
 <style>

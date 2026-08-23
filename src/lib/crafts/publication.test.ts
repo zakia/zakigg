@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createNotePage } from '$lib/notes/types';
+import { createNotePage } from '$lib/editor/document/model';
 import {
 	createPublishedCraftDocument,
 	createPublishedCraftSummary,

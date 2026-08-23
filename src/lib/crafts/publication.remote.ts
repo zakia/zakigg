@@ -1,6 +1,6 @@
 import { command, query } from '$app/server';
 import * as v from 'valibot';
-import { parseStoredPage } from '$lib/notes/types';
+import { parseStoredPage } from '$lib/editor/document/model';
 import { auth } from '$lib/server/auth';
 import {
 	getNoteCraftPublication,

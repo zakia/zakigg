@@ -1,5 +1,5 @@
 import * as v from 'valibot';
-import type { ComponentEmbedConfig } from '$lib/editor/component-embeds';
+import type { ComponentEmbedConfig } from '$lib/editor/core';
 
 export const embed = {
 	id: 'quotes.shuffle',

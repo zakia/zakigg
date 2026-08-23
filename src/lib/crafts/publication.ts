@@ -1,6 +1,6 @@
 import type { JSONContent } from '@tiptap/core';
-import { getContentText, getReferencedAssetIds, type NotePageV1 } from '$lib/notes/types';
-import { normalizePageBody } from '$lib/notes/page-content';
+import { getContentText, getReferencedAssetIds, type NotePageV1 } from '$lib/editor/document/model';
+import { normalizePageBody } from '$lib/editor/document/content';
 import type { CraftDocument, CraftListItem, CraftMeta } from './types';
 
 export type PublishedCraftSummary = CraftMeta & {

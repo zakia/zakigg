@@ -1,4 +1,5 @@
-export { default as DocumentEditor } from './DocumentEditor.svelte';
+export { default as DocumentEditor } from './MilkdownDocumentEditor.svelte';
+export { default as MilkdownDocumentEditor } from './MilkdownDocumentEditor.svelte';
 export { default as DocumentHeader } from './DocumentHeader.svelte';
 export { default as DocumentLayout } from './DocumentLayout.svelte';
 export { default as DocumentPage } from './DocumentPage.svelte';

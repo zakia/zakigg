@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { EmbedComponent } from '$lib/editor/core';
+	import type { EmbedComponent } from '$lib/editor/components/registry';
 	import { componentEmbeds } from '$lib/embeds';
 
 	let { attrs }: { attrs: unknown } = $props();

@@ -1,6 +1,5 @@
-import type { JSONContent } from '@tiptap/core';
 import type { MetadataEntry } from '../metadata';
-import { parseStoredPage, type NotePageV1 } from '../model';
+import { parseStoredPage, type NotePage } from '../model';
 import type { NotesAssetV1, SyncKind } from '../persistence/storage';
 
 export type MutationVersion = {
@@ -16,8 +15,11 @@ export type PagePayload = {
 	createdAt: string;
 	updatedAt: string;
 	mutationId: string;
-	contentJson: string;
-	propertiesJson: string;
+	markdown?: string;
+	// Read-only compatibility for page bodies written before Markdown became
+	// canonical. New pushes never send these fields.
+	contentJson?: string;
+	propertiesJson?: string;
 	frontmatterJson?: string;
 };
 
@@ -52,7 +54,7 @@ export type PullBatch = {
 	hasMore: boolean;
 };
 
-export function pageToPayload(page: NotePageV1, mutationId: string): PagePayload {
+export function pageToPayload(page: NotePage, mutationId: string): PagePayload {
 	return {
 		id: page.id,
 		slug: page.slug,
@@ -61,18 +63,33 @@ export function pageToPayload(page: NotePageV1, mutationId: string): PagePayload
 		createdAt: page.createdAt,
 		updatedAt: page.updatedAt,
 		mutationId,
-		contentJson: JSON.stringify(page.content),
-		propertiesJson: JSON.stringify(page.properties),
-		...(page.frontmatter ? { frontmatterJson: JSON.stringify(page.frontmatter) } : {})
+		markdown: page.markdown
 	};
 }
 
-export function payloadToPage(payload: RemotePageDoc): NotePageV1 | null {
+export function payloadToPage(payload: RemotePageDoc): NotePage | null {
 	try {
-		const content = JSON.parse(payload.contentJson) as JSONContent;
-		const properties = JSON.parse(payload.propertiesJson) as MetadataEntry[];
+		if (typeof payload.markdown === 'string') {
+			return parseStoredPage({
+				version: 2,
+				editor: 'markdown',
+				id: payload.id,
+				slug: payload.slug,
+				title: payload.title,
+				tags: payload.tags,
+				markdown: payload.markdown,
+				createdAt: payload.createdAt,
+				updatedAt: payload.updatedAt
+			});
+		}
+
+		if (!payload.contentJson) return null;
+		const content = JSON.parse(payload.contentJson) as unknown;
+		const properties = payload.propertiesJson
+			? (JSON.parse(payload.propertiesJson) as MetadataEntry[])
+			: [];
 		const frontmatter = payload.frontmatterJson
-			? (JSON.parse(payload.frontmatterJson) as NotePageV1['frontmatter'])
+			? (JSON.parse(payload.frontmatterJson) as NotePage['frontmatter'])
 			: undefined;
 
 		return parseStoredPage({

@@ -22,7 +22,10 @@ const TOMBSTONES_COLLECTION = 'tombstones';
 const CHANGES_COLLECTION = 'changes';
 const REVISIONS_COLLECTION = 'revisions';
 
-type StoredPageDoc = Omit<PagePayload, 'contentJson' | 'propertiesJson' | 'frontmatterJson'> & {
+type StoredPageDoc = Omit<
+	PagePayload,
+	'markdown' | 'contentJson' | 'propertiesJson' | 'frontmatterJson'
+> & {
 	frontmatterPresent: boolean;
 	bodyObject: string;
 	bodyHash: string;
@@ -44,8 +47,9 @@ type ChangeDoc = {
 };
 
 type PageBody = {
-	contentJson: string;
-	propertiesJson: string;
+	markdown?: string;
+	contentJson?: string;
+	propertiesJson?: string;
 	frontmatterJson?: string;
 };
 
@@ -99,8 +103,9 @@ async function savePageBody(
 ): Promise<{ object: string; hash: string }> {
 	const object = pageBodyObject(userId, page);
 	const body: PageBody = {
-		contentJson: page.contentJson,
-		propertiesJson: page.propertiesJson,
+		...(page.markdown !== undefined ? { markdown: page.markdown } : {}),
+		...(page.contentJson !== undefined ? { contentJson: page.contentJson } : {}),
+		...(page.propertiesJson !== undefined ? { propertiesJson: page.propertiesJson } : {}),
 		...(page.frontmatterJson ? { frontmatterJson: page.frontmatterJson } : {})
 	};
 	const data = Buffer.from(JSON.stringify(body));
@@ -162,15 +167,10 @@ export async function pushPageLww(userId: string, page: PagePayload): Promise<Pu
 
 		if (!accepted) return 'stale';
 
-		const {
-			contentJson: _content,
-			propertiesJson: _properties,
-			frontmatterJson,
-			...metadata
-		} = page;
+		const metadata = pagePayloadMetadata(page);
 		tx.set(pageRef, {
 			...metadata,
-			frontmatterPresent: frontmatterJson !== undefined,
+			frontmatterPresent: page.frontmatterJson !== undefined,
 			bodyObject: body.object,
 			bodyHash: body.hash,
 			serverVersion: changeRef.id
@@ -367,12 +367,7 @@ async function resolveCurrentRecord(
 		}
 		const stored = recordSnapshot.data() as StoredPageDoc;
 		const body = await readPageBody(stored.bodyObject, stored.bodyHash);
-		const {
-			bodyObject: _object,
-			bodyHash: _hash,
-			frontmatterPresent: _present,
-			...metadata
-		} = stored;
+		const metadata = storedPagePayloadMetadata(stored);
 		return { page: { ...metadata, ...body } };
 	}
 
@@ -380,6 +375,25 @@ async function resolveCurrentRecord(
 		return { tombstone: tombstoneSnapshot.data() as RemoteTombstoneDoc };
 	}
 	return null;
+}
+
+function pagePayloadMetadata(page: PagePayload) {
+	return {
+		id: page.id,
+		slug: page.slug,
+		title: page.title,
+		tags: page.tags,
+		createdAt: page.createdAt,
+		updatedAt: page.updatedAt,
+		mutationId: page.mutationId
+	};
+}
+
+function storedPagePayloadMetadata(page: StoredPageDoc) {
+	return {
+		...pagePayloadMetadata(page),
+		serverVersion: page.serverVersion
+	};
 }
 
 export async function getAssetDoc(userId: string, id: string): Promise<RemoteAssetDoc | null> {

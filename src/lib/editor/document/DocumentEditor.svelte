@@ -3,8 +3,7 @@
 	import { Editor, posToDOMRect, type JSONContent, type Range } from '@tiptap/core';
 	import type { EditorView } from '@tiptap/pm/view';
 	import { createBlockCatalog } from '$lib/editor/core/blocks';
-	import type { ComponentEmbedRegistry } from '$lib/editor/core/embeds';
-	import { hideBlockHandle } from '$lib/editor/core/block-handle';
+	import type { ComponentEmbedRegistry } from '$lib/editor/components/registry';
 	import { EditorCommandService } from '$lib/editor/core/commands';
 	import type { MediaBlockAttrs, MediaBlockKind } from '$lib/editor/core/media-block';
 	import DocumentHeader from './DocumentHeader.svelte';
@@ -13,7 +12,6 @@
 	import HistoryPanel from './history/HistoryPanel.svelte';
 	import DocumentCanvas from './DocumentCanvas.svelte';
 	import EditorToolbar from '../core/toolbar/EditorToolbar.svelte';
-	import BlockHandle from '../core/block-handle/BlockHandle.svelte';
 	import SlashMenu from '../core/slash-menu/SlashMenu.svelte';
 	import MobileListToolbar from '../core/lists/MobileListToolbar.svelte';
 	import KeyboardShortcutsPanel from '../core/shortcuts/KeyboardShortcutsPanel.svelte';
@@ -36,7 +34,6 @@
 	import { isOpenShortcutsShortcut } from '../core/shortcuts/registry';
 	import { getMarkdownFiles, insertEditorMarkdown, looksLikeMarkdown } from './markdown';
 	import MetadataPanel from './metadata/MetadataPanel.svelte';
-	import { downloadNotePageExport } from './persistence/export';
 	import {
 		createLocalAssetSrc,
 		getAltTextForFile,
@@ -47,7 +44,7 @@
 	} from './persistence/assets';
 	import { resolveNoteAssetObjectUrl, saveNoteAsset } from './persistence/storage';
 	import { createTimer } from '../timers';
-	import type { NotePageV1 } from './model';
+	import type { NotePage } from './model';
 
 	type SelectionToolbarMode = 'format' | 'link';
 
@@ -78,9 +75,9 @@
 		publication,
 		isSyncEnabled
 	}: {
-		page: NotePageV1;
+		page: NotePage;
 		embeds: ComponentEmbedRegistry;
-		onSaved?: (page: NotePageV1) => void;
+		onSaved?: (page: NotePage) => void;
 		publicHref?: string;
 		navigation?: Snippet;
 		publication?: DocumentPublicationAdapter;
@@ -88,17 +85,12 @@
 	} = $props();
 
 	let editorHost = $state<HTMLDivElement>();
-	// The handle element the drag-handle extension positions and binds drag to.
-	let blockHandleElement = $state<HTMLElement>();
 	let imageInput = $state<HTMLInputElement>();
 	let videoInput = $state<HTMLInputElement>();
 	let editor = $state<Editor>();
 	let editorTick = $state(0);
 	let shortcutsPanelOpen = $state(false);
 	let propertiesOpen = $state(false);
-	let blockHandleTarget = $state<import('$lib/editor/core/block-handle').BlockHandleTarget | null>(
-		null
-	);
 	let editorTickQueued = false;
 	let linkPopover = $state<LinkPopoverState>(createHiddenLinkPopover());
 	let selectionToolbar = $state<SelectionToolbarState>(createHiddenSelectionToolbar());
@@ -195,9 +187,8 @@
 		};
 
 		async function setupEditor() {
-			// The block-handle element is owned by <BlockHandle> in the markup;
-			// flush pending renders/effects so its ref is populated before the
-			// editor's ProseMirror plugins read it during construction.
+			// Flush pending renders/effects so the editor host exists before
+			// ProseMirror initializes its DOM view.
 			await tick();
 
 			if (destroyed || !editorHost) return;
@@ -205,13 +196,7 @@
 			const initialContent = getInitialEditorContent(page);
 			const instance = new Editor({
 				element: editorHost,
-				extensions: createEditorExtensions(embedRegistry, resolveNoteAssetObjectUrl, {
-					blockCatalog,
-					getBlockHandleElement: () => blockHandleElement ?? null,
-					onBlockHandleTargetChange: (nextTarget) => {
-						blockHandleTarget = nextTarget;
-					}
-				}),
+				extensions: createEditorExtensions(embedRegistry, resolveNoteAssetObjectUrl),
 				content: initialContent,
 				autofocus: 'end',
 				editorProps: {
@@ -551,10 +536,6 @@
 		if (handleMarkdownFileDrop(view, event)) return;
 
 		handleMediaDrop(view, event);
-	}
-
-	function handleSurfaceScroll() {
-		if (editor) hideBlockHandle(editor);
 	}
 
 	function indentCurrentListItem() {
@@ -959,15 +940,16 @@
 		}
 	}
 
-	function downloadMarkdown() {
+	async function downloadMarkdown() {
 		if (!editor) return;
 
 		const content = editor.getJSON();
+		const { downloadNotePageExport } = await import('./persistence/export');
 
-		void downloadNotePageExport(session.getDraftPage(content), content);
+		await downloadNotePageExport(session.getDraftPage(content), content);
 	}
 
-	function getInitialEditorContent(page: NotePageV1): JSONContent {
+	function getInitialEditorContent(page: NotePage): JSONContent {
 		// `page` is a Svelte $state proxy, so its `content` is deeply proxied.
 		// ProseMirror retains proxy references for object-valued node attrs (e.g.
 		// component embed props), and those proxies can't be structuredClone'd
@@ -1077,7 +1059,6 @@
 		onHost={updateEditorHost}
 		onDragOver={handleSurfaceDragOver}
 		onDrop={handleSurfaceDrop}
-		onScroll={handleSurfaceScroll}
 		{navigation}
 	>
 		{#snippet header()}
@@ -1089,11 +1070,6 @@
 				onTitleChange={(value) => session.updateTitle(value)}
 			/>
 		{/snippet}
-		<BlockHandle
-			{editor}
-			target={blockHandleTarget}
-			onElement={(element) => (blockHandleElement = element)}
-		/>
 	</DocumentCanvas>
 
 	{#if linkPopover.visible}

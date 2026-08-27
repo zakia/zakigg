@@ -3,6 +3,10 @@ import type { CraftDocument, CraftMeta } from './types';
 
 const metaModules = import.meta.glob<{ meta: CraftMeta }>('./*/meta.ts', { eager: true });
 const documentModules = import.meta.glob<{ default: CraftDocument }>('./*/content.json');
+const markdownModules = import.meta.glob<string>('./*/content.md', {
+	query: '?raw',
+	import: 'default'
+});
 const componentModules = import.meta.glob('./*/index.{svelte,svx}');
 
 export type CraftSummary = CraftMeta & { slug: string };
@@ -21,10 +25,19 @@ export const craftSlugs = new Set(crafts.map((c) => c.slug));
 
 export async function loadCraft(slug: string): Promise<LoadedCraft> {
 	const keyDocument = `./${slug}/content.json`;
+	const keyMarkdown = `./${slug}/content.md`;
 	const keySvelte = `./${slug}/index.svelte`;
 	const keySvx = `./${slug}/index.svx`;
 	const documentLoader = documentModules[keyDocument];
+	const markdownLoader = markdownModules[keyMarkdown];
 	const loader = componentModules[keySvelte] ?? componentModules[keySvx];
+
+	if (markdownLoader) {
+		return {
+			kind: 'document',
+			document: { version: 2, format: 'markdown', markdown: await markdownLoader() }
+		};
+	}
 
 	if (documentLoader) {
 		const mod = await documentLoader();

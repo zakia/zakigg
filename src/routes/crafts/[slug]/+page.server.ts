@@ -26,6 +26,21 @@ export const load: PageServerLoad = async ({ params, setHeaders, url }) => {
 	return {
 		edit: false,
 		published: toPublishedCraftSummary(published),
-		document: getPublishedCraftDocument(published)
+		document: loadPublishedDocument(published)
 	};
 };
+
+async function loadPublishedDocument(
+	published: NonNullable<Awaited<ReturnType<typeof getPublishedCraftMetadata>>>
+) {
+	try {
+		return await getPublishedCraftDocument(published);
+	} catch (cause) {
+		console.error('Published craft document could not be loaded', {
+			slug: published.slug,
+			pageId: published.pageId,
+			cause
+		});
+		throw cause;
+	}
+}

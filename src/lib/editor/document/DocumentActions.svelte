@@ -20,7 +20,7 @@
 		publicationState?: 'loading' | 'unpublished' | 'published' | 'working' | 'error';
 		publicHref?: string;
 		onDownloadMarkdown: () => void;
-		onToggleHistory: () => void;
+		onToggleHistory?: () => void;
 		onToggleProperties: () => void;
 		onTogglePublication?: () => void | Promise<void>;
 	};
@@ -48,17 +48,19 @@
 				action: onToggleProperties
 			},
 			{
-				title: historyOpen ? 'Hide History' : 'Show History',
-				icon: 'mdi:history',
-				active: historyOpen,
-				action: onToggleHistory
-			},
-			{
 				title: 'Download Markdown',
 				icon: 'mdi:download-outline',
 				action: onDownloadMarkdown
 			}
 		];
+		if (onToggleHistory) {
+			items.splice(1, 0, {
+				title: historyOpen ? 'Hide History' : 'Show History',
+				icon: 'mdi:history',
+				active: historyOpen,
+				action: onToggleHistory
+			});
+		}
 
 		return items;
 	}

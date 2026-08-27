@@ -66,6 +66,16 @@
 
 <div class="component-embed-shell" data-component-embed-controls>
 	{#if embed.ok}
+		{#if embed.entry.editLabel}
+			<button
+				type="button"
+				class="component-embed-edit"
+				class:active={$editing}
+				onclick={() => setEditing(!$editing)}
+			>
+				{$editing ? 'Done' : embed.entry.editLabel}
+			</button>
+		{/if}
 		{#if LoadedComponent}
 			<LoadedComponent
 				{...embed.props}
@@ -99,7 +109,31 @@
 		margin: 0;
 		max-width: 100%;
 		min-width: 0;
+		position: relative;
 		width: 100%;
+	}
+
+	.component-embed-edit {
+		background: color-mix(in oklch, var(--base-1) 92%, transparent);
+		border: 1px solid var(--edge);
+		border-radius: var(--s-3);
+		color: var(--content-1);
+		cursor: pointer;
+		font: inherit;
+		font-size: var(--s-2);
+		opacity: 0;
+		padding: var(--s-4) var(--s-2);
+		position: absolute;
+		right: var(--s-2);
+		top: var(--s-2);
+		transition: opacity 0.15s ease;
+		z-index: 2;
+	}
+
+	.component-embed-shell:hover .component-embed-edit,
+	.component-embed-edit:focus-visible,
+	.component-embed-edit.active {
+		opacity: 1;
 	}
 
 	.component-embed-loading {

@@ -2,7 +2,6 @@ import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { CODE_BLOCK_CLASS_NAMES, normalizeLanguage } from './config';
-import { tokenizeCode, tokenStyle } from './highlighter';
 
 type HighlightState = {
 	decorations: DecorationSet;
@@ -26,6 +25,7 @@ function createDocSignature(doc: ProseMirrorNode) {
 }
 
 async function highlightDoc(doc: ProseMirrorNode) {
+	const { tokenizeCode, tokenStyle } = await import('./highlighter');
 	const decorations: Decoration[] = [];
 	const codeBlocks: Array<{ node: ProseMirrorNode; position: number }> = [];
 

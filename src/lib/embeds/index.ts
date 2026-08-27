@@ -1,26 +1,20 @@
-import { createComponentEmbedRegistry, registerLazyComponentEmbed } from '$lib/editor/core';
-import { embed as attachment } from './attachment/embed';
-import { embed as chessPuzzles } from './chess-puzzles/embed';
-import { embed as imageCarousel } from './carousel/embed';
-import { embed as quoteShuffle } from './quote-shuffle/embed';
-import { embed as rockPaperScissors } from './rock-paper-scissors/embed';
-import { embed as styleGuidePreview } from './style-guide-preview/embed';
-import { embed as ticTacToe } from './tic-tac-toe/embed';
-import { embed as timer } from './timer/embed';
+import {
+	createComponentEmbedRegistry,
+	type ComponentEmbedDefinition
+} from '$lib/editor/components/registry';
 
-export const componentEmbeds = createComponentEmbedRegistry([
-	registerLazyComponentEmbed(() => import('./timer/Timer.svelte'), timer),
-	registerLazyComponentEmbed(() => import('./attachment/Attachment.svelte'), attachment),
-	registerLazyComponentEmbed(() => import('./carousel/Carousel.svelte'), imageCarousel),
-	registerLazyComponentEmbed(() => import('./tic-tac-toe/TicTacToeGame.svelte'), ticTacToe),
-	registerLazyComponentEmbed(
-		() => import('./rock-paper-scissors/RockPaperScissorsGame.svelte'),
-		rockPaperScissors
-	),
-	registerLazyComponentEmbed(() => import('./chess-puzzles/ChessPuzzles.svelte'), chessPuzzles),
-	registerLazyComponentEmbed(() => import('./quote-shuffle/QuoteShuffle.svelte'), quoteShuffle),
-	registerLazyComponentEmbed(
-		() => import('./style-guide-preview/StyleGuidePreview.svelte'),
-		styleGuidePreview
-	)
-]);
+// This path is the registration boundary. Adding a typed `embed.ts` to any
+// direct child folder makes the component available to Markdown rendering and
+// the editor slash menu without changing a central list.
+const modules = import.meta.glob<{ embed: ComponentEmbedDefinition }>('./*/embed.ts', {
+	eager: true
+});
+
+export const componentEmbeds = createComponentEmbedRegistry(
+	Object.entries(modules)
+		.sort(([left], [right]) => left.localeCompare(right))
+		.map(([path, module]) => {
+			if (!module.embed) throw new Error(`Component definition missing from ${path}`);
+			return module.embed;
+		})
+);

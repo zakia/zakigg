@@ -1,4 +1,3 @@
-export * from './block-handle';
 export * from './blocks';
 export * from './code-block';
 export * from './commands';

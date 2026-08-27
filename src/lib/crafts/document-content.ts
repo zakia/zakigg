@@ -1,4 +1,39 @@
 import type { JSONContent } from '@tiptap/core';
+import {
+	editorContentToMarkdown,
+	markdownBodyToEditorContent
+} from '$lib/editor/document/markdown-ast';
+import type { CraftDocument } from './types';
+
+export function getCraftDocumentContent(document: CraftDocument): JSONContent {
+	if (document.version === 2) {
+		return markdownBodyToEditorContent(stripFrontmatter(document.markdown));
+	}
+
+	return document.content;
+}
+
+/**
+ * Converts either persisted craft generation into the Markdown source used by
+ * the next editor. Keep legacy conversion at this boundary so the editor never
+ * needs to understand Tiptap JSON.
+ */
+export function getCraftDocumentMarkdown(document: CraftDocument) {
+	return document.version === 2
+		? document.markdown
+		: editorContentToMarkdown(normalizeCraftDocumentContent(document.content));
+}
+
+export function migrateCraftDocumentToMarkdown(document: CraftDocument): CraftDocument {
+	if (document.version === 2) return document;
+
+	return {
+		version: 2,
+		format: 'markdown',
+		markdown: getCraftDocumentMarkdown(document),
+		...(document.updatedAt ? { updatedAt: document.updatedAt } : {})
+	};
+}
 
 export function isCraftDocumentContent(value: unknown): value is JSONContent {
 	return Boolean(
@@ -24,4 +59,9 @@ function isEmptyParagraph(node?: JSONContent) {
 		(!node.content?.length ||
 			node.content.every((child) => child.type === 'text' && (child.text ?? '').trim() === ''))
 	);
+}
+
+function stripFrontmatter(markdown: string) {
+	const match = markdown.match(/^\uFEFF?---[ \t]*\r?\n[\s\S]*?\r?\n---[ \t]*(?:\r?\n|$)/);
+	return match ? markdown.slice(match[0].length) : markdown;
 }

@@ -1,5 +1,5 @@
 import type { JSONContent } from '@tiptap/core';
-import { getContentText, getReferencedAssetIds, type NotePageV1 } from '$lib/editor/document/model';
+import { getContentText, getReferencedAssetIds, type NotePage } from '$lib/editor/document/model';
 import { normalizePageBody } from '$lib/editor/document/content';
 import type { CraftDocument, CraftListItem, CraftMeta } from './types';
 
@@ -48,7 +48,7 @@ export function countCraftWords(content: JSONContent, title = '') {
 	return text ? text.split(/\s+/).length : 0;
 }
 
-export function createPublishedCraftSummary(page: NotePageV1): PublishedCraftSummary {
+export function createPublishedCraftSummary(page: NotePage): PublishedCraftSummary {
 	const body = normalizePageBody(page.content, page.title, page.frontmatter?.description);
 	const text = getContentText(body);
 	const description = page.frontmatter?.description?.trim() || createExcerpt(text, page.title);
@@ -83,26 +83,36 @@ export function toPublishedCraftSummary(record: PublishedCraftMetadata): Publish
 }
 
 export function isPublishedCraftOutdated(
-	page: Pick<NotePageV1, 'updatedAt'>,
+	page: Pick<NotePage, 'updatedAt'>,
 	publication: Pick<PublishedCraftSummary, 'updatedAt'>
 ) {
 	return Date.parse(page.updatedAt) > Date.parse(publication.updatedAt);
 }
 
-export function createPublishedCraftDocument(page: NotePageV1): CraftDocument {
+export function createPublishedCraftDocument(page: NotePage): CraftDocument {
 	return {
-		version: 1,
-		editor: 'tiptap',
-		content: normalizePageBody(page.content, page.title, page.frontmatter?.description),
+		version: 2,
+		format: 'markdown',
+		markdown: page.markdown,
 		updatedAt: page.updatedAt
 	};
 }
 
-export function getPublishedCraftAssetIds(page: NotePageV1) {
+export function getPublishedCraftAssetIds(page: NotePage) {
 	return getReferencedAssetIds(page.content);
 }
 
 export function rewritePublishedAssetSources(document: CraftDocument, slug: string): CraftDocument {
+	if (document.version === 2) {
+		return {
+			...document,
+			markdown: document.markdown.replace(
+				/local-asset:\/\/([^\s"')}>]+)/g,
+				(_match, encodedId) => `/crafts/${encodeURIComponent(slug)}/assets/${encodedId}`
+			)
+		};
+	}
+
 	return {
 		...document,
 		content: rewriteValue(document.content, slug) as JSONContent

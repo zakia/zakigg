@@ -1,5 +1,5 @@
 import type { JSONContent } from '@tiptap/core';
-import { normalizeMediaBlockAttrs } from '$lib/editor/core/media-block/config';
+import { normalizeMediaBlockAttrs } from '$lib/editor/presentation/media-block/config';
 import { normalizeCraftDocumentContent } from './document-content';
 
 type Mark = NonNullable<JSONContent['marks']>[number];

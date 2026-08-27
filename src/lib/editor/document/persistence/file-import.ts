@@ -1,18 +1,18 @@
 import type { JSONContent } from '@tiptap/core';
-import type { ComponentEmbedRegistry } from '$lib/editor/core/embeds';
+import type { ComponentEmbedRegistry } from '$lib/editor/components/registry';
 import { normalizeMediaBlockAttrs } from '$lib/editor/core/media-block/config';
 import { importNotesFromZip, isNotesArchiveFile } from './import';
 import { parseEditorMarkdown, isMarkdownFile } from '../markdown';
 import { createLocalAssetSrc, getAltTextForFile, getMediaKindForFile, isMediaFile } from './assets';
 import { normalizeMetadataEntries } from '../metadata';
 import { createNotePageRecord, saveNoteAsset, saveNotePage } from './storage';
-import { getFirstLevelOneHeadingText, titleFromSlug, type NotePageV1 } from '../model';
+import { getFirstLevelOneHeadingText, titleFromSlug, type NotePage } from '../model';
 
 const TEXT_FILE_RE =
 	/\.(?:txt|text|csv|json|ya?ml|xml|html?|css|[cm]?js|[cm]?ts|jsx|tsx|svelte|svx)$/i;
 
 export type DocumentFileImportResult = {
-	pages: NotePageV1[];
+	pages: NotePage[];
 	failed: File[];
 };
 
@@ -20,7 +20,7 @@ export async function importDocumentFiles(
 	files: File[],
 	embeds: ComponentEmbedRegistry
 ): Promise<DocumentFileImportResult> {
-	const pages: NotePageV1[] = [];
+	const pages: NotePage[] = [];
 	const failed: File[] = [];
 
 	for (const file of files) {

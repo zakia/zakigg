@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createNotePage } from '$lib/editor/document/model';
+import { getCraftDocumentContent } from './document-content';
 import {
 	createPublishedCraftDocument,
 	createPublishedCraftSummary,
@@ -42,7 +43,9 @@ describe('published craft snapshots', () => {
 			date: '2025-03-16',
 			wordCount: 5
 		});
-		expect(createPublishedCraftDocument(page).content.content?.[0]?.type).toBe('paragraph');
+		expect(getCraftDocumentContent(createPublishedCraftDocument(page)).content?.[0]?.type).toBe(
+			'paragraph'
+		);
 	});
 
 	it('can restore a word count after the published body has had its title removed', () => {
@@ -80,11 +83,12 @@ describe('published craft snapshots', () => {
 		});
 
 		const published = createPublishedCraftDocument(page);
+		const content = getCraftDocumentContent(published);
 
-		expect(published.content.content).toMatchObject([
+		expect(content.content).toMatchObject([
 			{ type: 'paragraph', content: [{ type: 'text', text: 'The body.' }] }
 		]);
-		expect(published.content.content?.[0].attrs?.blockId).toEqual(expect.any(String));
+		expect(content.content?.[0].attrs?.blockId).toBeUndefined();
 	});
 
 	it('rewrites local assets anywhere in document attributes', () => {
@@ -104,10 +108,11 @@ describe('published craft snapshots', () => {
 		};
 
 		const result = rewritePublishedAssetSources(document, 'demo craft');
-		expect(result.content.content?.[0]?.attrs?.props.images).toEqual([
+		const content = getCraftDocumentContent(result);
+		expect(content.content?.[0]?.attrs?.props.images).toEqual([
 			'/crafts/demo%20craft/assets/image_one'
 		]);
-		expect(result.content.content?.[1]?.attrs?.src).toBe('/crafts/demo%20craft/assets/video_two');
+		expect(content.content?.[1]?.attrs?.src).toBe('/crafts/demo%20craft/assets/video_two');
 	});
 
 	it('returns a serializable public summary without Firestore-only fields', () => {

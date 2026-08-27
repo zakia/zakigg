@@ -10,15 +10,16 @@
 		createNotePageRecord,
 		loadNotePageBySlug,
 		titleFromSlug,
+		toStoredNotePage,
 		type DocumentPublicationAdapter,
-		type NotePageV1
+		type NotePage
 	} from '$lib/editor/document';
 	import { getCraftPublication, publishNoteCraft, unpublishNoteCraft } from './publication.remote';
 	import { isPublishedCraftOutdated, type PublishedCraftSummary } from './publication';
 
 	let { slug }: { slug: string } = $props();
 
-	let craft = $state<NotePageV1 | null>(null);
+	let craft = $state<NotePage | null>(null);
 	let loading = $state(true);
 	let busy = $state('');
 	let loadedSlug = '';
@@ -32,7 +33,7 @@
 		isOutdated: (document, current) =>
 			isPublishedCraftOutdated(document, current as PublishedCraftSummary),
 		publish: async (document) => {
-			await publishNoteCraft({ pageJson: JSON.stringify(document) });
+			await publishNoteCraft({ pageJson: JSON.stringify(toStoredNotePage(document)) });
 		},
 		unpublish: async (documentId) => {
 			await unpublishNoteCraft(documentId);
@@ -59,7 +60,7 @@
 		}
 	}
 
-	function syncMetadataInputs(page: NotePageV1 | null) {
+	function syncMetadataInputs(page: NotePage | null) {
 		titleInput = page?.title ?? titleFromSlug(slug);
 		tagsInput = page?.tags.join(', ') ?? '';
 	}
@@ -76,7 +77,7 @@
 		void goto(`${resolve('/crafts')}?edit`);
 	}
 
-	function handleSaved(page: NotePageV1) {
+	function handleSaved(page: NotePage) {
 		craft = page;
 
 		if (page.slug !== slug) {

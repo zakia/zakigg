@@ -1,3 +1,5 @@
+export { slugifyText } from '../slug';
+
 export type MetadataPrimitiveValue = string | boolean;
 export type MetadataPropertyValue = MetadataPrimitiveValue | string[];
 export type MetadataProperties = Record<string, MetadataPropertyValue>;
@@ -128,16 +130,6 @@ export function metadataEntriesToRecord(entries: MetadataEntry[]): MetadataPrope
 
 export function normalizeMetadataProperties(value: unknown): MetadataProperties {
 	return metadataEntriesToRecord(normalizeMetadataEntries(value));
-}
-
-export function slugifyText(value: unknown) {
-	return String(value ?? '')
-		.toLowerCase()
-		.trim()
-		.replace(/['"`]/g, '')
-		.replace(/[^a-z0-9]+/g, '-')
-		.replace(/^-+|-+$/g, '')
-		.slice(0, 72);
 }
 
 export function normalizeMetadataPropertyKey(value: unknown) {

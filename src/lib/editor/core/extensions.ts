@@ -1,9 +1,6 @@
-import { Markdown } from '@tiptap/markdown';
 import { Document } from '@tiptap/extension-document';
 import { Placeholder } from '@tiptap/extension-placeholder';
 import { StarterKit } from '@tiptap/starter-kit';
-import { BlockHandle, type BlockHandleTarget } from '$lib/editor/core/block-handle';
-import { BlockIdentity, type BlockCatalog } from '$lib/editor/core/blocks';
 import { ComponentEmbed, type ComponentEmbedRegistry } from '$lib/editor/core/embeds';
 import { CodeBlock } from './code-block';
 import { MediaBlock, type MediaBlockAssetResolver } from './media-block';
@@ -11,18 +8,9 @@ import { EditorLink, MarkdownLinkInput } from './links/extension';
 import { ListContinuity, ListMarkerInput } from './lists/extensions';
 import { Table, TableCell, TableHeader, TableKit, TableRow } from './tables';
 
-export type EditorExtensionOptions = {
-	blockCatalog?: BlockCatalog;
-	onBlockHandleTargetChange?: (target: BlockHandleTarget | null) => void;
-	// Resolves the DOM element the block-drag-handle positions and drags. It is
-	// owned by the Svelte layer and read once, when ProseMirror plugins init.
-	getBlockHandleElement?: () => HTMLElement | null;
-};
-
 export function createEditorExtensions(
 	componentEmbedRegistry?: ComponentEmbedRegistry,
-	resolveMediaAssetSrc?: MediaBlockAssetResolver,
-	options: EditorExtensionOptions = {}
+	resolveMediaAssetSrc?: MediaBlockAssetResolver
 ) {
 	return [
 		// Metadata lives alongside the document as page state (see
@@ -43,12 +31,6 @@ export function createEditorExtensions(
 		ComponentEmbed.configure({
 			registry: componentEmbedRegistry
 		}),
-		BlockIdentity,
-		BlockHandle.configure({
-			...(options.blockCatalog ? { catalog: options.blockCatalog } : {}),
-			getElement: options.getBlockHandleElement,
-			onTargetChange: options.onBlockHandleTargetChange
-		}),
 		Table,
 		TableRow,
 		TableCell,
@@ -68,12 +50,6 @@ export function createEditorExtensions(
 		MarkdownLinkInput,
 		ListMarkerInput,
 		ListContinuity,
-		Markdown.configure({
-			indentation: {
-				style: 'space',
-				size: 2
-			}
-		}),
 		Placeholder.configure({
 			placeholder: ({ node }) => (node.type.name === 'heading' ? 'Heading' : 'Start writing...')
 		})

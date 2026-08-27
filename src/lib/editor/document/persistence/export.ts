@@ -1,5 +1,5 @@
 import type { JSONContent } from '@tiptap/core';
-import { getReferencedAssetIds, type NotePageV1 } from '../model';
+import { getReferencedAssetIds, toStoredNotePage, type NotePage } from '../model';
 import { serializeNotePageMarkdown } from '../markdown';
 import { loadNoteAsset, type NotesAssetV1 } from './storage';
 import { createZipBlob, downloadBlob, type ZipEntryInput } from './zip';
@@ -16,10 +16,7 @@ type ExportAsset = {
 	updatedAt: string;
 };
 
-export async function downloadNotePageExport(
-	page: NotePageV1,
-	content: JSONContent = page.content
-) {
+export async function downloadNotePageExport(page: NotePage, content: JSONContent = page.content) {
 	const blob = await createNotePageExportZip({
 		...page,
 		content
@@ -28,14 +25,14 @@ export async function downloadNotePageExport(
 	downloadBlob(blob, `${safeFileStem(page.slug || page.title)}.zip`);
 }
 
-export async function downloadNotePagesExport(pages: NotePageV1[]) {
+export async function downloadNotePagesExport(pages: NotePage[]) {
 	const blob = await createNotePagesExportZip(pages);
 	const date = new Date().toISOString().slice(0, 10);
 
 	downloadBlob(blob, `documents-${date}.zip`);
 }
 
-export async function createNotePageExportZip(page: NotePageV1) {
+export async function createNotePageExportZip(page: NotePage) {
 	const entries: ZipEntryInput[] = [];
 	const assetPaths = new Map<string, string>();
 	const assets: ExportAsset[] = [];
@@ -61,7 +58,7 @@ export async function createNotePageExportZip(page: NotePageV1) {
 	});
 	entries.push({
 		path: 'page.json',
-		data: `${JSON.stringify(page, null, 2)}\n`,
+		data: `${JSON.stringify(toStoredNotePage(page), null, 2)}\n`,
 		lastModified: new Date(page.updatedAt)
 	});
 	entries.push({
@@ -82,7 +79,7 @@ export async function createNotePageExportZip(page: NotePageV1) {
 	return createZipBlob(entries);
 }
 
-async function createNotePagesExportZip(pages: NotePageV1[]) {
+async function createNotePagesExportZip(pages: NotePage[]) {
 	const entries: ZipEntryInput[] = [];
 	const assetPaths = new Map<string, string>();
 	const assets = new Map<string, ExportAsset>();
@@ -106,7 +103,7 @@ async function createNotePagesExportZip(pages: NotePageV1[]) {
 		});
 		entries.push({
 			path: `pages/${stem}.json`,
-			data: `${JSON.stringify(page, null, 2)}\n`,
+			data: `${JSON.stringify(toStoredNotePage(page), null, 2)}\n`,
 			lastModified: new Date(page.updatedAt)
 		});
 	}
@@ -131,7 +128,7 @@ async function createNotePagesExportZip(pages: NotePageV1[]) {
 	return createZipBlob(entries);
 }
 
-function serializePageManifest(page: NotePageV1, markdownPath: string) {
+function serializePageManifest(page: NotePage, markdownPath: string) {
 	return {
 		id: page.id,
 		slug: page.slug,

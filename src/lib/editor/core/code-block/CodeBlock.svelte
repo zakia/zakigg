@@ -9,7 +9,6 @@
 		type CodeBlockAttributes,
 		normalizeLanguage
 	} from './config';
-	import { highlightCodeToHtml } from './highlighter';
 
 	type Props = {
 		title?: string;
@@ -70,11 +69,13 @@
 		const currentRequest = (highlightRequest += 1);
 		highlighted = escapeHtml(codeText);
 
-		void highlightCodeToHtml(codeText, normalizedLanguage).then((html) => {
-			if (currentRequest === highlightRequest) {
-				highlighted = html;
-			}
-		});
+		void import('./highlighter').then(({ highlightCodeToHtml }) =>
+			highlightCodeToHtml(codeText, normalizedLanguage).then((html) => {
+				if (currentRequest === highlightRequest) {
+					highlighted = html;
+				}
+			})
+		);
 	});
 
 	const attachContentDOM: Attachment<HTMLElement> = (pre) => {

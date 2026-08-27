@@ -1,11 +1,11 @@
 <script lang="ts">
 	import type { JSONContent } from '@tiptap/core';
-	import CodeBlock from '$lib/editor/core/code-block/CodeBlock.svelte';
+	import CodeBlockRenderer from '$lib/editor/presentation/code-block/CodeBlockRenderer.svelte';
 	import type { CraftDocument } from './types';
 	import ComponentEmbedRenderer from './ComponentEmbedRenderer.svelte';
-	import { normalizeCraftDocumentContent } from './document-content';
+	import { getCraftDocumentContent, normalizeCraftDocumentContent } from './document-content';
 	import { renderNode } from './document-renderer';
-	import { stripLeadingPageHeader } from './publication';
+	import { normalizePageBody } from '$lib/editor/document/content';
 
 	let {
 		document,
@@ -14,7 +14,7 @@
 	}: { document: CraftDocument; pageTitle?: string; pageDescription?: string } = $props();
 	const content = $derived(
 		normalizeCraftDocumentContent(
-			stripLeadingPageHeader(document.content, pageTitle, pageDescription)
+			normalizePageBody(getCraftDocumentContent(document), pageTitle, pageDescription)
 		)
 	);
 	const nodes = $derived(content.type === 'doc' ? (content.content ?? []) : [content]);
@@ -39,7 +39,7 @@
 		<ComponentEmbedRenderer attrs={node.attrs} />
 	{:else if node.type === 'codeBlock'}
 		{@const codeBlock = getCodeBlockProps(node)}
-		<CodeBlock {...codeBlock} />
+		<CodeBlockRenderer {...codeBlock} />
 	{:else}
 		<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 		{@html renderNode(node)}

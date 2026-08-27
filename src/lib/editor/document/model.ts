@@ -1,20 +1,24 @@
 import type { JSONContent } from '@tiptap/core';
-import { normalizeBlockIdentities } from '$lib/editor/core/blocks/identity';
+import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import { getLocalAssetId } from './persistence/assets';
 import {
 	metadataEntriesToRecord,
 	normalizeMetadataEntries,
 	normalizeMetadataProperties,
-	slugifyText,
 	type MetadataEntry,
 	type MetadataProperties
 } from './metadata';
 import { normalizePageBody } from './content';
+import { DEFAULT_DOCUMENT_SLUG, normalizeDocumentSlug } from './slug';
+import { editorContentToMarkdown, markdownBodyToEditorContent } from './markdown-ast';
+
+export { titleFromSlug } from './slug';
 
 export const NOTES_DOC_VERSION = 1;
-export const NOTES_PAGE_VERSION = 1;
-export const NOTES_EDITOR = 'tiptap';
-export const DEFAULT_NOTE_SLUG = 'default';
+export const NOTES_PAGE_VERSION = 2;
+export const NOTES_EDITOR = 'markdown';
+const LEGACY_NOTES_EDITOR = 'tiptap';
+export const DEFAULT_NOTE_SLUG = DEFAULT_DOCUMENT_SLUG;
 export const DEFAULT_NOTE_ID = 'page_default';
 export const NOTES_STORAGE_KEY_PREFIX = 'zaki.gg:notes:v1';
 export const NOTES_STORAGE_KEY = `${NOTES_STORAGE_KEY_PREFIX}:default`;
@@ -30,7 +34,7 @@ export const EMPTY_TIPTAP_DOC = {
 
 export type NotesDocV1 = {
 	version: typeof NOTES_DOC_VERSION;
-	editor: typeof NOTES_EDITOR;
+	editor: typeof LEGACY_NOTES_EDITOR;
 	content: JSONContent;
 	updatedAt: string;
 };
@@ -44,7 +48,7 @@ export type NotePageFrontmatter = {
 	draft?: boolean;
 };
 
-export type NotePageV1 = {
+export type NotePage = {
 	version: typeof NOTES_PAGE_VERSION;
 	editor: typeof NOTES_EDITOR;
 	id: string;
@@ -55,13 +59,18 @@ export type NotePageV1 = {
 	// `slug`, `tags` and `frontmatter` are derived from this on save.
 	properties: MetadataEntry[];
 	frontmatter?: NotePageFrontmatter;
+	// Durable source of truth. `content` is a derived visual-editor model and
+	// is removed at every persistence and network boundary.
+	markdown: string;
 	content: JSONContent;
 	createdAt: string;
 	updatedAt: string;
 };
 
+export type StoredNotePage = Omit<NotePage, 'content'>;
+
 export type NotePageSummary = Pick<
-	NotePageV1,
+	NotePage,
 	'id' | 'slug' | 'title' | 'tags' | 'createdAt' | 'updatedAt'
 > & {
 	// The document date: the verbatim metadata `date` when present (often a
@@ -80,28 +89,33 @@ export function createNotesDoc(
 ): NotesDocV1 {
 	return {
 		version: NOTES_DOC_VERSION,
-		editor: NOTES_EDITOR,
-		content: normalizeBlockIdentities(content),
+		editor: LEGACY_NOTES_EDITOR,
+		content,
 		updatedAt
 	};
 }
 
-export function createNotePage(input: Partial<NotePageV1> = {}): NotePageV1 {
+export function createNotePage(input: Partial<NotePage> = {}): NotePage {
 	const now = new Date().toISOString();
 	const id = input.id || createPageId();
+	const parsedSource =
+		!input.content && typeof input.markdown === 'string'
+			? parseCanonicalMarkdownSource(input.markdown)
+			: undefined;
 	const sourceContent =
 		input.content && isJSONContent(input.content)
 			? stripLegacyMetadataBlocks(input.content)
-			: createInitialNotePageContent();
+			: (parsedSource?.content ?? createInitialNotePageContent());
 	// Seed the ordered metadata from explicit properties, else from a
 	// frontmatter/tags record (imports, legacy notes carry these instead).
 	const properties = normalizeMetadataEntries(
-		input.properties ?? {
-			...(input.frontmatter ?? {}),
-			...(input.tags && input.tags.length ? { tags: input.tags } : {})
-		}
+		input.properties ??
+			parsedSource?.properties ?? {
+				...(input.frontmatter ?? {}),
+				...(input.tags && input.tags.length ? { tags: input.tags } : {})
+			}
 	);
-	const base: NotePageV1 = {
+	const base: NotePage = {
 		version: NOTES_PAGE_VERSION,
 		editor: NOTES_EDITOR,
 		id,
@@ -109,6 +123,7 @@ export function createNotePage(input: Partial<NotePageV1> = {}): NotePageV1 {
 		title: normalizePageTitle(input.title || getFirstLevelOneHeadingText(sourceContent)),
 		tags: normalizePageTags(input.tags),
 		properties,
+		markdown: '',
 		content: sourceContent,
 		createdAt: normalizeDate(input.createdAt) || now,
 		updatedAt: normalizeDate(input.updatedAt) || now
@@ -120,18 +135,27 @@ export function createNotePage(input: Partial<NotePageV1> = {}): NotePageV1 {
 		metadata.frontmatter?.description
 	);
 
-	return {
+	const page = {
 		...base,
 		slug: metadata.slug,
 		title: metadata.title,
 		tags: metadata.tags,
 		...(metadata.frontmatter ? { frontmatter: metadata.frontmatter } : {}),
-		content: normalizeBlockIdentities(content),
+		content,
 		createdAt: metadata.createdAt
+	};
+	const canonicalPage = {
+		...page,
+		properties: createCanonicalProperties(page)
+	};
+
+	return {
+		...canonicalPage,
+		markdown: createCanonicalMarkdownSource(canonicalPage)
 	};
 }
 
-export function createDefaultNotePage(legacyNote?: NotesDocV1 | null): NotePageV1 {
+export function createDefaultNotePage(legacyNote?: NotesDocV1 | null): NotePage {
 	const content = legacyNote?.content ?? createInitialNotePageContent();
 	const updatedAt = legacyNote?.updatedAt ?? new Date().toISOString();
 
@@ -160,17 +184,7 @@ export function normalizePageTitle(value: unknown) {
 }
 
 export function normalizePageSlug(value: unknown) {
-	return slugifyText(value) || DEFAULT_NOTE_SLUG;
-}
-
-export function titleFromSlug(slug: string) {
-	const title = normalizePageSlug(slug)
-		.split('-')
-		.filter(Boolean)
-		.map((word) => word[0]?.toUpperCase() + word.slice(1))
-		.join(' ');
-
-	return title || 'Untitled';
+	return normalizeDocumentSlug(value);
 }
 
 export function normalizePageTags(value: unknown) {
@@ -186,7 +200,7 @@ export function parseStoredNote(value: unknown): NotesDocV1 | null {
 
 	if (
 		note.version !== NOTES_DOC_VERSION ||
-		note.editor !== NOTES_EDITOR ||
+		note.editor !== LEGACY_NOTES_EDITOR ||
 		typeof note.updatedAt !== 'string' ||
 		!isJSONContent(note.content)
 	) {
@@ -195,27 +209,58 @@ export function parseStoredNote(value: unknown): NotesDocV1 | null {
 
 	return {
 		version: NOTES_DOC_VERSION,
-		editor: NOTES_EDITOR,
-		content: normalizeBlockIdentities(note.content, createMigratedBlockIdFactory('legacy_note')),
+		editor: LEGACY_NOTES_EDITOR,
+		content: note.content,
 		updatedAt: note.updatedAt
 	};
 }
 
-export function parseStoredPage(value: unknown): NotePageV1 | null {
+export function parseStoredPage(value: unknown): NotePage | null {
 	if (!value || typeof value !== 'object') return null;
 
-	const page = value as Partial<NotePageV1>;
+	const page = value as {
+		version?: number;
+		editor?: string;
+		id?: string;
+		slug?: string;
+		title?: string;
+		tags?: string[];
+		properties?: MetadataEntry[];
+		frontmatter?: NotePageFrontmatter;
+		markdown?: string;
+		content?: JSONContent;
+		createdAt?: string;
+		updatedAt?: string;
+	};
+
+	if (!hasStoredPageEnvelope(page)) return null;
 
 	if (
-		page.version !== NOTES_PAGE_VERSION ||
-		page.editor !== NOTES_EDITOR ||
-		typeof page.id !== 'string' ||
-		typeof page.slug !== 'string' ||
-		typeof page.title !== 'string' ||
-		typeof page.createdAt !== 'string' ||
-		typeof page.updatedAt !== 'string' ||
-		!isJSONContent(page.content)
+		page.version === NOTES_PAGE_VERSION &&
+		page.editor === NOTES_EDITOR &&
+		typeof page.markdown === 'string'
 	) {
+		try {
+			const parsed = parseCanonicalMarkdownSource(page.markdown);
+			return createNotePage({
+				id: page.id,
+				slug: page.slug,
+				title: page.title,
+				tags: page.tags,
+				properties: parsed.properties,
+				frontmatter: metadataPropertiesToNotePageFrontmatter(
+					metadataEntriesToRecord(parsed.properties)
+				),
+				content: parsed.content,
+				createdAt: page.createdAt,
+				updatedAt: page.updatedAt
+			});
+		} catch {
+			return null;
+		}
+	}
+
+	if (page.version !== 1 || page.editor !== LEGACY_NOTES_EDITOR || !isJSONContent(page.content)) {
 		return null;
 	}
 
@@ -235,19 +280,34 @@ export function parseStoredPage(value: unknown): NotePageV1 | null {
 					...(page.tags && page.tags.length ? { tags: normalizePageTags(page.tags) } : {})
 				});
 
-	return {
-		version: NOTES_PAGE_VERSION,
-		editor: NOTES_EDITOR,
+	return createNotePage({
 		id: page.id,
 		slug: normalizePageSlug(page.slug),
 		title,
 		tags: normalizePageTags(page.tags),
 		properties,
 		...(frontmatter ? { frontmatter } : {}),
-		content: normalizeBlockIdentities(
-			normalizePageBody(stripLegacyMetadataBlocks(page.content), title, frontmatter?.description),
-			createMigratedBlockIdFactory(page.id)
+		content: normalizePageBody(
+			stripLegacyMetadataBlocks(page.content),
+			title,
+			frontmatter?.description
 		),
+		createdAt: page.createdAt,
+		updatedAt: page.updatedAt
+	});
+}
+
+export function toStoredNotePage(page: NotePage): StoredNotePage {
+	return {
+		version: page.version,
+		editor: page.editor,
+		id: page.id,
+		slug: page.slug,
+		title: page.title,
+		tags: page.tags,
+		properties: page.properties,
+		...(page.frontmatter ? { frontmatter: page.frontmatter } : {}),
+		markdown: page.markdown,
 		createdAt: page.createdAt,
 		updatedAt: page.updatedAt
 	};
@@ -313,10 +373,10 @@ export function getFirstLevelOneHeadingText(content: JSONContent) {
 }
 
 export function resolveNotePageMetadata(
-	page: NotePageV1,
+	page: NotePage,
 	_content: JSONContent,
 	patch: NotePageMetadataPatch = {}
-): Pick<NotePageV1, 'title' | 'slug' | 'tags' | 'createdAt'> & {
+): Pick<NotePage, 'title' | 'slug' | 'tags' | 'createdAt'> & {
 	frontmatter?: NotePageFrontmatter;
 } {
 	// Page-level properties and the page envelope own metadata. Body headings
@@ -416,7 +476,7 @@ export function normalizeNotePageFrontmatter(value: unknown): NotePageFrontmatte
 	return Object.keys(frontmatter).length ? frontmatter : undefined;
 }
 
-export function summarizeNotePage(page: NotePageV1): NotePageSummary {
+export function summarizeNotePage(page: NotePage): NotePageSummary {
 	const text = getContentText(page.content);
 	const frontmatterDate = page.frontmatter?.date?.trim() ?? '';
 
@@ -434,14 +494,64 @@ export function summarizeNotePage(page: NotePageV1): NotePageSummary {
 }
 
 function createInitialNotePageContent(): JSONContent {
-	return normalizeBlockIdentities(EMPTY_TIPTAP_DOC);
+	return EMPTY_TIPTAP_DOC;
 }
 
-function createMigratedBlockIdFactory(seed: string) {
-	const safeSeed = seed.replace(/[^a-zA-Z0-9_-]/g, '_') || 'page';
-	let index = 0;
+function parseCanonicalMarkdownSource(markdown: string) {
+	const match = markdown.match(/^\uFEFF?---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/);
+	const body = match ? markdown.slice(match[0].length) : markdown;
+	let properties: MetadataEntry[] = [];
 
-	return () => `block_migrated_${safeSeed}_${++index}`;
+	if (match) {
+		const parsed = parseYaml(match[1] ?? '');
+		if (parsed && (typeof parsed !== 'object' || Array.isArray(parsed))) {
+			throw new Error('Frontmatter must be a YAML object.');
+		}
+		properties = normalizeMetadataEntries(parsed ?? {});
+	}
+
+	return {
+		properties,
+		content: markdownBodyToEditorContent(body)
+	};
+}
+
+function createCanonicalMarkdownSource(page: Omit<NotePage, 'markdown'>) {
+	const yaml = stringifyYaml(metadataEntriesToRecord(page.properties), {
+		lineWidth: 0,
+		nullStr: ''
+	}).trimEnd();
+	const body = editorContentToMarkdown(page.content);
+
+	return yaml ? `---\n${yaml}\n---\n\n${body}` : body;
+}
+
+function createCanonicalProperties(page: Omit<NotePage, 'markdown'>) {
+	return normalizeMetadataEntries({
+		...metadataEntriesToRecord(page.properties),
+		title: page.title,
+		...(page.frontmatter?.slug ? { slug: page.slug } : {}),
+		...(page.frontmatter?.description ? { description: page.frontmatter.description } : {}),
+		tags: page.tags,
+		date: page.frontmatter?.date || page.createdAt.slice(0, 10),
+		...(typeof page.frontmatter?.draft === 'boolean' ? { draft: page.frontmatter.draft } : {})
+	});
+}
+
+function hasStoredPageEnvelope(page: {
+	id?: unknown;
+	slug?: unknown;
+	title?: unknown;
+	createdAt?: unknown;
+	updatedAt?: unknown;
+}) {
+	return (
+		typeof page.id === 'string' &&
+		typeof page.slug === 'string' &&
+		typeof page.title === 'string' &&
+		typeof page.createdAt === 'string' &&
+		typeof page.updatedAt === 'string'
+	);
 }
 
 function normalizeTag(value: unknown) {

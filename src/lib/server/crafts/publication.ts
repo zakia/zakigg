@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { FieldValue } from '@google-cloud/firestore';
 import { error } from '@sveltejs/kit';
-import type { NotePageV1 } from '$lib/editor/document/model';
+import type { NotePage } from '$lib/editor/document/model';
 import {
 	countCraftWords,
 	createPublishedCraftDocument,
@@ -13,6 +13,7 @@ import {
 	type PublishedCraftSummary
 } from '$lib/crafts/publication';
 import type { CraftDocument } from '$lib/crafts/types';
+import { getCraftDocumentContent } from '$lib/crafts/document-content';
 import { getBucket, getFirestore } from '$lib/server/notes-sync/firestore';
 
 const PUBLISHED_CRAFTS_COLLECTION = 'published_crafts';
@@ -21,13 +22,13 @@ function collection() {
 	return getFirestore().collection(PUBLISHED_CRAFTS_COLLECTION);
 }
 
-function bodyObject(page: NotePageV1) {
+function bodyObject(page: NotePage) {
 	return `published-crafts/${page.id}/${encodeURIComponent(page.updatedAt)}.json`;
 }
 
 export async function publishNoteCraft(
 	ownerId: string,
-	page: NotePageV1
+	page: NotePage
 ): Promise<PublishedCraftSummary> {
 	const summary = createPublishedCraftSummary(page);
 	const [existing, slugMatch] = await Promise.all([
@@ -108,7 +109,7 @@ export async function listPublishedCrafts(): Promise<PublishedCraftSummary[]> {
 				const publishedDocument = await readPublishedCraftDocument(metadata);
 				return {
 					...summary,
-					wordCount: countCraftWords(publishedDocument.content, metadata.title)
+					wordCount: countCraftWords(getCraftDocumentContent(publishedDocument), metadata.title)
 				};
 			} catch (cause) {
 				console.error(

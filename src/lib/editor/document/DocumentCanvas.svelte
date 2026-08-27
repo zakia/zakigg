@@ -10,6 +10,7 @@
 		onScroll,
 		navigation,
 		header,
+		editor,
 		children
 	}: {
 		onHost: (host?: HTMLDivElement) => void;
@@ -20,6 +21,9 @@
 		// Content that scrolls above the document within the same column
 		// (aligned to the text width), e.g. the metadata panel.
 		header?: Snippet;
+		// Lets an editor adapter own its rendered surface while the legacy
+		// adapter can continue mounting imperatively into the host element.
+		editor?: Snippet;
 		// Overlays that must live in content coordinate space (they scroll
 		// with the document), e.g. the block handle.
 		children?: Snippet;
@@ -53,7 +57,7 @@
 	     They must NOT be positioned against the page shell: anything rendered
 	     above the document (the header) would offset them by its height. -->
 	<div class:has-header={Boolean(header)} class="editor-body">
-		<div class="editor-host" bind:this={host}></div>
+		<div class="editor-host" bind:this={host}>{@render editor?.()}</div>
 		{@render children?.()}
 	</div>
 </DocumentPage>

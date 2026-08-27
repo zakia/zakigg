@@ -19,9 +19,16 @@ export type CraftListItem = {
 	wordCount?: number;
 };
 
-export type CraftDocument = {
-	version: 1;
-	editor: 'tiptap';
-	content: JSONContent;
-	updatedAt?: string;
-};
+export type CraftDocument =
+	| {
+			version: 1;
+			editor: 'tiptap';
+			content: JSONContent;
+			updatedAt?: string;
+	  }
+	| {
+			version: 2;
+			format: 'markdown';
+			markdown: string;
+			updatedAt?: string;
+	  };

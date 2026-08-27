@@ -12,28 +12,28 @@ import {
 } from '$lib/editor/document/save-state';
 import { saveNotePage } from '$lib/editor/document/persistence/storage';
 import { startSyncEngine, syncState } from '$lib/editor/document/sync/engine.svelte';
-import { resolveNotePageMetadata, type NotePageV1 } from '$lib/editor/document/model';
+import { resolveNotePageMetadata, type NotePage } from '$lib/editor/document/model';
 
 export type DocumentPublicationAdapter = {
 	isReady: () => boolean;
 	isEnabled: () => boolean;
 	load: (documentId: string) => Promise<unknown | null>;
-	isOutdated: (document: NotePageV1, publication: unknown) => boolean;
-	publish: (document: NotePageV1) => Promise<void>;
+	isOutdated: (document: NotePage, publication: unknown) => boolean;
+	publish: (document: NotePage) => Promise<void>;
 	unpublish: (documentId: string) => Promise<void>;
 };
 
 type DocumentSessionOptions = {
-	getPage: () => NotePageV1;
+	getPage: () => NotePage;
 	getContent: () => JSONContent | undefined;
 	onDraftChange: () => void;
-	onSaved?: (page: NotePageV1) => void;
+	onSaved?: (page: NotePage) => void;
 	publication?: DocumentPublicationAdapter;
 	isSyncEnabled?: () => boolean;
 };
 
 export class DocumentSession {
-	page = $state({} as NotePageV1);
+	page = $state({} as NotePage);
 	properties = $state<MetadataEntry[]>([]);
 	saveState = $state<SaveState>('loading');
 	lastSavedAt = $state<string>();
@@ -44,11 +44,11 @@ export class DocumentSession {
 
 	#getContent: () => JSONContent | undefined;
 	#onDraftChange: () => void;
-	#onSaved?: (page: NotePageV1) => void;
+	#onSaved?: (page: NotePage) => void;
 	#publication?: DocumentPublicationAdapter;
 	#isSyncEnabled: () => boolean;
 	#pendingSave = false;
-	#pendingPublicationPage = $state<NotePageV1 | null>(null);
+	#pendingPublicationPage = $state<NotePage | null>(null);
 	#publicationUpdateInFlight = false;
 	#publicationChecked = false;
 	#saveTimer = createTimer();
@@ -194,8 +194,8 @@ export class DocumentSession {
 		return this.properties.find((property) => property.key === key)?.value;
 	}
 
-	getDraftPage(content: JSONContent): NotePageV1 {
-		const draft: NotePageV1 = {
+	getDraftPage(content: JSONContent): NotePage {
+		const draft: NotePage = {
 			...this.page,
 			properties: $state.snapshot(this.properties) as MetadataEntry[],
 			content

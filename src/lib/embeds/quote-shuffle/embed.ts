@@ -1,9 +1,14 @@
 import * as v from 'valibot';
-import type { ComponentEmbedConfig } from '$lib/editor/core';
+import { defineComponentEmbed } from '$lib/editor/components/registry';
 
-export const embed = {
+export const embed = defineComponentEmbed({
 	id: 'quotes.shuffle',
+	markdownName: 'QuoteShuffle',
 	label: 'Quote Shuffle',
+	description: 'Interactive shuffled quotations',
 	icon: 'mdi:format-quote-close',
-	props: v.object({})
-} satisfies ComponentEmbedConfig;
+	keywords: ['random', 'quotation'],
+	fields: [],
+	props: v.object({}),
+	load: () => import('./QuoteShuffle.svelte')
+});

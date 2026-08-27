@@ -1,11 +1,15 @@
 import * as v from 'valibot';
-import type { ComponentEmbedConfig } from '$lib/editor/core';
+import { defineComponentEmbed } from '$lib/editor/components/registry';
 
 export const propsSchema = v.object({});
 
-export const embed = {
+export const embed = defineComponentEmbed({
 	id: 'rock-paper-scissors.game',
 	label: 'Rock Paper Scissors',
+	description: 'Interactive rock paper scissors game',
 	icon: 'mdi:hand-back-right-outline',
-	props: propsSchema
-} satisfies ComponentEmbedConfig<typeof propsSchema>;
+	keywords: ['game'],
+	fields: [],
+	props: propsSchema,
+	load: () => import('./RockPaperScissorsGame.svelte')
+});

@@ -12,14 +12,16 @@ import {
 	parseStoredNote,
 	parseStoredPage,
 	summarizeNotePage,
+	toStoredNotePage,
 	type NotePageSummary,
-	type NotePageV1,
-	type NotesDocV1
+	type NotePage,
+	type NotesDocV1,
+	type StoredNotePage
 } from '../model';
 
 const DB_NAME = 'zaki.gg-notes';
 const NOTES_INITIALIZED_FLAG_KEY = `${NOTES_STORAGE_KEY_PREFIX}:initialized`;
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 const LEGACY_DOCUMENTS_STORE_NAME = 'documents';
 const PAGES_STORE_NAME = 'pages';
 const ASSETS_STORE_NAME = 'assets';
@@ -70,7 +72,7 @@ interface NotesDB extends DBSchema {
 	};
 	pages: {
 		key: string;
-		value: NotePageV1;
+		value: StoredNotePage;
 		indexes: {
 			'by-slug': string;
 			'by-title': string;
@@ -106,9 +108,42 @@ let initializedPromise: Promise<void> | null = null;
 export async function initializeNotesDb(): Promise<void> {
 	if (!browser) return;
 
-	initializedPromise ??= ensureDefaultPage();
+	initializedPromise ??= initializeStoredPages();
 
 	return initializedPromise;
+}
+
+async function initializeStoredPages() {
+	await ensureDefaultPage();
+	await migrateStoredPagesToMarkdown();
+}
+
+// Rewrite every legacy page after parsing it through the canonical model. The
+// migrated row is queued for sync so remote craft storage converges on Markdown
+// the next time the account connects.
+async function migrateStoredPagesToMarkdown() {
+	const db = await getDb();
+	const storedPages = await db.getAll(PAGES_STORE_NAME);
+	const legacyPages = storedPages.filter(
+		(page) =>
+			page &&
+			typeof page === 'object' &&
+			((page as { version?: number }).version !== 2 ||
+				(page as { editor?: string }).editor !== 'markdown' ||
+				typeof (page as { markdown?: unknown }).markdown !== 'string')
+	);
+
+	if (!legacyPages.length) return;
+
+	const tx = db.transaction([PAGES_STORE_NAME, SYNC_STATE_STORE_NAME], 'readwrite');
+	for (const storedPage of legacyPages) {
+		const page = parseStoredPage(storedPage);
+		if (!page) continue;
+		await tx.objectStore(PAGES_STORE_NAME).put(toStoredNotePage(page), page.id);
+		await markDirtyInTx(tx.objectStore(SYNC_STATE_STORE_NAME), page.id, 'page');
+	}
+	await tx.done;
+	emitLocalMutation();
 }
 
 export async function listNotePages(): Promise<NotePageSummary[]> {
@@ -124,7 +159,7 @@ export async function listNotePages(): Promise<NotePageSummary[]> {
 		.sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
 }
 
-export async function listFullNotePages(): Promise<NotePageV1[]> {
+export async function listFullNotePages(): Promise<NotePage[]> {
 	if (!browser) return [];
 
 	await initializeNotesDb();
@@ -135,7 +170,7 @@ export async function listFullNotePages(): Promise<NotePageV1[]> {
 	return pages.sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
 }
 
-export async function loadNotePageBySlug(slug: string): Promise<NotePageV1 | null> {
+export async function loadNotePageBySlug(slug: string): Promise<NotePage | null> {
 	if (!browser) return null;
 
 	await initializeNotesDb();
@@ -146,7 +181,7 @@ export async function loadNotePageBySlug(slug: string): Promise<NotePageV1 | nul
 	return parseStoredPage(page);
 }
 
-export async function loadNotePageById(id: string): Promise<NotePageV1 | null> {
+export async function loadNotePageById(id: string): Promise<NotePage | null> {
 	if (!browser || !id) return null;
 
 	await initializeNotesDb();
@@ -156,7 +191,7 @@ export async function loadNotePageById(id: string): Promise<NotePageV1 | null> {
 	return parseStoredPage(await db.get(PAGES_STORE_NAME, id));
 }
 
-export async function createNotePageRecord(input: Partial<NotePageV1> = {}): Promise<NotePageV1> {
+export async function createNotePageRecord(input: Partial<NotePage> = {}): Promise<NotePage> {
 	if (!browser) throw new Error('Notes are only available in the browser');
 
 	await initializeNotesDb();
@@ -166,7 +201,7 @@ export async function createNotePageRecord(input: Partial<NotePageV1> = {}): Pro
 	// resolve to the same slug (e.g. two "Untitled" notes) collide on the
 	// unique by-slug index.
 	const base = createNotePage(input);
-	const page: NotePageV1 = { ...base, slug: await getAvailablePageSlug(base.slug, base.id) };
+	const page: NotePage = { ...base, slug: await getAvailablePageSlug(base.slug, base.id) };
 
 	await putNotePage(page);
 
@@ -183,13 +218,13 @@ export type NotesAssetImport = {
 	updatedAt?: string;
 };
 
-export async function importNotePage(input: Partial<NotePageV1>): Promise<NotePageV1> {
+export async function importNotePage(input: Partial<NotePage>): Promise<NotePage> {
 	if (!browser) throw new Error('Notes are only available in the browser');
 
 	await initializeNotesDb();
 
 	const base = createNotePage({ ...input, id: undefined });
-	const page: NotePageV1 = { ...base, slug: await getAvailablePageSlug(base.slug) };
+	const page: NotePage = { ...base, slug: await getAvailablePageSlug(base.slug) };
 
 	await putNotePage(page);
 	await attachAssetsToPage(page.id, getReferencedAssetIds(page.content));
@@ -226,7 +261,7 @@ export async function importNoteAsset(asset: NotesAssetImport): Promise<void> {
 	emitLocalMutation();
 }
 
-export async function saveNotePage(page: NotePageV1): Promise<NotePageV1> {
+export async function saveNotePage(page: NotePage): Promise<NotePage> {
 	if (!browser) throw new Error('Notes are only available in the browser');
 
 	await initializeNotesDb();
@@ -241,7 +276,7 @@ export async function saveNotePage(page: NotePageV1): Promise<NotePageV1> {
 	});
 	// Dedupe the slug createNotePage resolved (it re-derives from title/content),
 	// excluding this page, so distinct notes never collide on the unique index.
-	const next: NotePageV1 = { ...base, slug: await getAvailablePageSlug(base.slug, base.id) };
+	const next: NotePage = { ...base, slug: await getAvailablePageSlug(base.slug, base.id) };
 
 	await putNotePage(next);
 	await attachAssetsToPage(next.id, getReferencedAssetIds(next.content));
@@ -370,7 +405,7 @@ export async function resolveNoteAssetObjectUrl(assetId: string) {
 // bumping updatedAt, so pulled changes never re-push. Everything else here is
 // the queue/checkpoint plumbing the sync engine consumes.
 
-export async function applyRemotePage(page: NotePageV1, mutationId: string): Promise<void> {
+export async function applyRemotePage(page: NotePage, mutationId: string): Promise<void> {
 	if (!browser) return;
 
 	const db = await getDb();
@@ -379,7 +414,7 @@ export async function applyRemotePage(page: NotePageV1, mutationId: string): Pro
 		'readwrite'
 	);
 
-	await tx.objectStore(PAGES_STORE_NAME).put(page, page.id);
+	await tx.objectStore(PAGES_STORE_NAME).put(toStoredNotePage(page), page.id);
 	await tx
 		.objectStore(SYNC_STATE_STORE_NAME)
 		.put(
@@ -437,14 +472,14 @@ export async function applyRemoteDelete(id: string, kind: SyncKind): Promise<voi
 }
 
 export async function getDirtySyncRecords(): Promise<{
-	pages: NotePageV1[];
+	pages: NotePage[];
 	assets: NotesAssetV1[];
 }> {
 	if (!browser) return { pages: [], assets: [] };
 
 	const db = await getDb();
 	const rows = (await db.getAll(SYNC_STATE_STORE_NAME)).filter((row) => row.dirty);
-	const pages: NotePageV1[] = [];
+	const pages: NotePage[] = [];
 	const assets: NotesAssetV1[] = [];
 
 	for (const row of rows) {
@@ -651,11 +686,11 @@ async function pageSlugExists(slug: string, currentPageId = '') {
 	return Boolean(page && page.id !== currentPageId);
 }
 
-async function putNotePage(page: NotePageV1) {
+async function putNotePage(page: NotePage) {
 	const db = await getDb();
 	const tx = db.transaction([PAGES_STORE_NAME, SYNC_STATE_STORE_NAME], 'readwrite');
 
-	await tx.objectStore(PAGES_STORE_NAME).put(page, page.id);
+	await tx.objectStore(PAGES_STORE_NAME).put(toStoredNotePage(page), page.id);
 	await markDirtyInTx(tx.objectStore(SYNC_STATE_STORE_NAME), page.id, 'page');
 	await tx.done;
 
@@ -795,7 +830,7 @@ function newestNote(a: NotesDocV1 | null, b: NotesDocV1 | null): NotesDocV1 | nu
 	return Date.parse(a.updatedAt) >= Date.parse(b.updatedAt) ? a : b;
 }
 
-function isNotePage(page: NotePageV1 | null): page is NotePageV1 {
+function isNotePage(page: NotePage | null): page is NotePage {
 	return Boolean(page);
 }
 

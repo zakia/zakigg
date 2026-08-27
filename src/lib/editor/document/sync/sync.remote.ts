@@ -23,18 +23,25 @@ const MutationIdSchema = v.pipe(
 	v.regex(/^[a-zA-Z0-9_-]+$/)
 );
 
-const PagePayloadSchema = v.object({
-	id: SafeIdSchema,
-	slug: v.pipe(v.string(), v.nonEmpty(), v.maxLength(240)),
-	title: v.pipe(v.string(), v.maxLength(500)),
-	tags: v.pipe(v.array(v.pipe(v.string(), v.maxLength(100))), v.maxLength(200)),
-	createdAt: v.pipe(v.string(), v.isoTimestamp()),
-	updatedAt: v.pipe(v.string(), v.isoTimestamp()),
-	mutationId: MutationIdSchema,
-	contentJson: v.pipe(v.string(), v.maxLength(MAX_NOTE_BODY_LENGTH)),
-	propertiesJson: v.pipe(v.string(), v.maxLength(1_000_000)),
-	frontmatterJson: v.optional(v.pipe(v.string(), v.maxLength(1_000_000)))
-});
+const PagePayloadSchema = v.pipe(
+	v.object({
+		id: SafeIdSchema,
+		slug: v.pipe(v.string(), v.nonEmpty(), v.maxLength(240)),
+		title: v.pipe(v.string(), v.maxLength(500)),
+		tags: v.pipe(v.array(v.pipe(v.string(), v.maxLength(100))), v.maxLength(200)),
+		createdAt: v.pipe(v.string(), v.isoTimestamp()),
+		updatedAt: v.pipe(v.string(), v.isoTimestamp()),
+		mutationId: MutationIdSchema,
+		markdown: v.optional(v.pipe(v.string(), v.maxLength(MAX_NOTE_BODY_LENGTH))),
+		contentJson: v.optional(v.pipe(v.string(), v.maxLength(MAX_NOTE_BODY_LENGTH))),
+		propertiesJson: v.optional(v.pipe(v.string(), v.maxLength(1_000_000))),
+		frontmatterJson: v.optional(v.pipe(v.string(), v.maxLength(1_000_000)))
+	}),
+	v.check(
+		(page) => typeof page.markdown === 'string' || typeof page.contentJson === 'string',
+		'A page body is required.'
+	)
+);
 
 const AssetPayloadSchema = v.object({
 	id: SafeIdSchema,

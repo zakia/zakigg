@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { serializeNotePageMarkdown } from './markdown';
-import { createNotePage, parseStoredPage } from './model';
+import { createNotePage, parseStoredPage, toStoredNotePage } from './model';
 
 describe('page content boundaries', () => {
 	it('lifts an imported leading title out of the editor body without losing it', () => {
@@ -22,7 +22,6 @@ describe('page content boundaries', () => {
 		expect(page.content.content).toMatchObject([
 			{ type: 'paragraph', content: [{ type: 'text', text: 'Body' }] }
 		]);
-		expect(page.content.content?.[0].attrs?.blockId).toEqual(expect.any(String));
 		expect(serializeNotePageMarkdown(page)).toContain('title: Imported title');
 		expect(serializeNotePageMarkdown(page)).toContain('\nBody\n');
 	});
@@ -74,10 +73,9 @@ describe('page content boundaries', () => {
 		expect(page.content.content).toMatchObject([
 			{ type: 'paragraph', content: [{ type: 'text', text: 'Body' }] }
 		]);
-		expect(page.content.content?.[0].attrs?.blockId).toEqual(expect.any(String));
 	});
 
-	it('assigns deterministic IDs when reading the same legacy page repeatedly', () => {
+	it('reads the same legacy page repeatedly without adding editor-only identities', () => {
 		const legacyPage = {
 			version: 1,
 			editor: 'tiptap',
@@ -95,8 +93,31 @@ describe('page content boundaries', () => {
 		};
 
 		expect(parseStoredPage(legacyPage)?.content).toEqual(parseStoredPage(legacyPage)?.content);
-		expect(parseStoredPage(legacyPage)?.content.content?.[0].attrs?.blockId).toBe(
-			'block_migrated_page_legacy_1'
-		);
+		expect(parseStoredPage(legacyPage)?.content.content?.[0].attrs?.blockId).toBeUndefined();
+	});
+
+	it('persists Markdown only and treats it as authoritative when hydrating the editor', () => {
+		const page = createNotePage({
+			id: 'page_markdown',
+			title: 'Canonical',
+			content: {
+				type: 'doc',
+				content: [{ type: 'paragraph', content: [{ type: 'text', text: 'From Markdown' }] }]
+			}
+		});
+		const stored = toStoredNotePage(page);
+		const restored = parseStoredPage({
+			...stored,
+			content: {
+				type: 'doc',
+				content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Stale cache' }] }]
+			}
+		});
+
+		expect(stored).not.toHaveProperty('content');
+		expect(stored.markdown).toContain('From Markdown');
+		expect(restored?.content).toMatchObject({
+			content: [{ content: [{ text: 'From Markdown' }] }]
+		});
 	});
 });

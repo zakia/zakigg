@@ -1,21 +1,10 @@
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
+	import { SvelteSet } from 'svelte/reactivity';
 	import type { JSONContent } from '@tiptap/core';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import Icon from '$lib/components/Icon.svelte';
-	import { componentEmbeds } from '$lib/embeds';
-	import { unpublishNoteCraft } from '$lib/crafts/publication.remote';
-	import SyncControls from '$lib/editor/document/sync/SyncControls.svelte';
-	import {
-		createNotePageRecord,
-		deleteNotePage,
-		downloadNotePagesExport,
-		importDocumentFiles,
-		initializeNotesDb,
-		listNotePages,
-		loadNotePageById
-	} from '$lib/editor/document';
 	import type { CraftListItem } from './types';
 
 	type YearGroup = {
@@ -24,6 +13,7 @@
 	};
 
 	const READING_WORDS_PER_MINUTE = 200;
+	const PENDING_ROWS = Array.from({ length: 6 }, (_, index) => index);
 
 	let {
 		initialCrafts = [],
@@ -48,7 +38,7 @@
 	let query = $state('');
 	let dragActive = $state(false);
 	let selectionMode = $state(false);
-	let selectedIds = $state(new Set<string>());
+	const selectedIds = new SvelteSet<string>();
 	let dragDepth = 0;
 
 	const filteredPages = $derived(filterPages(pages));
@@ -63,10 +53,13 @@
 		busy = 'create';
 
 		try {
+			const { createNotePageRecord } = await import('$lib/editor/document/persistence/storage');
 			const page = await createNotePageRecord({
 				content: createCraftContent(),
 				properties: [{ key: 'date', value: new Date().toISOString().slice(0, 10) }]
 			});
+			// The query string is intentionally composed after resolving the typed route.
+			// eslint-disable-next-line svelte/no-navigation-without-resolve
 			await goto(craftHref(page.slug, true));
 		} finally {
 			busy = '';
@@ -125,6 +118,10 @@
 		busy = 'import';
 
 		try {
+			const [{ importDocumentFiles }, { componentEmbeds }] = await Promise.all([
+				import('$lib/editor/document/persistence/file-import'),
+				import('$lib/embeds')
+			]);
 			const result = await importDocumentFiles(files, componentEmbeds);
 			const importedPages = result.pages.length;
 			if (!importedPages) {
@@ -138,6 +135,8 @@
 			);
 
 			if (importedPages === 1) {
+				// The query string is intentionally composed after resolving the typed route.
+				// eslint-disable-next-line svelte/no-navigation-without-resolve
 				await goto(craftHref(result.pages[0].slug, true));
 			}
 		} finally {
@@ -149,6 +148,8 @@
 		loading = true;
 
 		try {
+			const { initializeNotesDb, listNotePages } =
+				await import('$lib/editor/document/persistence/storage');
 			await initializeNotesDb();
 			pages = await listNotePages();
 		} finally {
@@ -196,28 +197,27 @@
 	}
 
 	function toggleSelection(id: string) {
-		const next = new Set(selectedIds);
-		if (next.has(id)) next.delete(id);
-		else next.add(id);
-		selectedIds = next;
+		if (selectedIds.has(id)) selectedIds.delete(id);
+		else selectedIds.add(id);
 	}
 
 	function enterSelectionMode() {
 		selectionMode = true;
-		selectedIds = new Set();
+		selectedIds.clear();
 	}
 
 	function leaveSelectionMode() {
 		selectionMode = false;
-		selectedIds = new Set();
+		selectedIds.clear();
 	}
 
 	function selectAllVisible() {
 		const visibleIds = filteredPages.map((page) => page.id);
 		const allSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
-		const next = new Set(selectedIds);
-		for (const id of visibleIds) allSelected ? next.delete(id) : next.add(id);
-		selectedIds = next;
+		for (const id of visibleIds) {
+			if (allSelected) selectedIds.delete(id);
+			else selectedIds.add(id);
+		}
 	}
 
 	async function exportSelected() {
@@ -225,6 +225,10 @@
 		busy = 'export';
 
 		try {
+			const [{ loadNotePageById }, { downloadNotePagesExport }] = await Promise.all([
+				import('$lib/editor/document/persistence/storage'),
+				import('$lib/editor/document/persistence/export')
+			]);
 			const selectedPages = (
 				await Promise.all([...selectedIds].map((id) => loadNotePageById(id)))
 			).filter((page) => page !== null);
@@ -249,6 +253,10 @@
 
 		busy = 'delete';
 		try {
+			const [{ deleteNotePage }, { unpublishNoteCraft }] = await Promise.all([
+				import('$lib/editor/document/persistence/storage'),
+				import('$lib/crafts/publication.remote')
+			]);
 			for (const id of selectedIds) {
 				await unpublishNoteCraft(id);
 				await deleteNotePage(id);
@@ -303,6 +311,8 @@
 		{#if editable}
 			<a class="mode-link" href={resolve('/crafts')}>Done</a>
 		{:else if showEditLink}
+			<!-- The query string is intentionally composed after resolving the typed route. -->
+			<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
 			<a class="mode-link" href={editCollectionHref}>
 				<Icon icon="mdi:pencil-outline" /> Edit
 			</a>
@@ -357,13 +367,21 @@
 				<Icon icon="mdi:plus" />
 				New
 			</button>
-			<SyncControls />
+			{#await import('$lib/editor/document/sync/SyncControls.svelte')}
+				<span class="sync-control-loading" aria-label="Loading sync controls">
+					<Icon icon="mdi:loading" />
+				</span>
+			{:then { default: SyncControls }}
+				<SyncControls />
+			{:catch}
+				<span class="sync-control-error" role="status">Sync unavailable</span>
+			{/await}
 		{/if}
 	</div>
 
 	{#if pending}
 		<div class="collection-pending" role="status" aria-label="Loading crafts">
-			{#each Array(6) as _, index}
+			{#each PENDING_ROWS as index (index)}
 				<div class="pending-row" style={`--pending-width: ${88 - index * 7}%`}>
 					<span></span><span></span>
 				</div>
@@ -413,6 +431,8 @@
 									</span>
 								</button>
 							{:else}
+								<!-- craftHref resolves the typed pathname before adding edit mode. -->
+								<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
 								<a class="page-link" href={craftHref(page.slug, editable)}>
 									<span class="page-title">{page.title}</span>
 									<span class="page-meta">
@@ -593,6 +613,21 @@
 		width: 1.05rem;
 	}
 
+	.sync-control-loading,
+	.sync-control-error {
+		align-items: center;
+		color: var(--content-1);
+		display: inline-flex;
+		font-size: var(--s-2);
+		min-height: 2.25rem;
+	}
+
+	.sync-control-loading :global(svg) {
+		animation: sync-control-spin 0.8s linear infinite;
+		height: 1rem;
+		width: 1rem;
+	}
+
 	.year-group {
 		padding-top: 3rem;
 		position: relative;
@@ -770,8 +805,15 @@
 		}
 	}
 
+	@keyframes sync-control-spin {
+		to {
+			transform: rotate(1turn);
+		}
+	}
+
 	@media (prefers-reduced-motion: reduce) {
-		.pending-row span {
+		.pending-row span,
+		.sync-control-loading :global(svg) {
 			animation: none;
 		}
 	}

@@ -1,5 +1,5 @@
 import * as v from 'valibot';
-import type { ComponentEmbedConfig } from '$lib/editor/core';
+import { defineComponentEmbed } from '$lib/editor/components/registry';
 
 export const propsSchema = v.object({
 	endIsoTimestamp: v.pipe(
@@ -10,12 +10,18 @@ export const propsSchema = v.object({
 
 export type TimerProps = v.InferOutput<typeof propsSchema>;
 
-export const embed = {
+export const embed = defineComponentEmbed({
 	id: 'core.Timer',
 	label: 'Timer',
+	description: 'Live countdown to a date and time',
 	icon: 'mdi:timer-outline',
+	keywords: ['countdown', 'date', 'time'],
+	fields: [
+		{ name: 'endIsoTimestamp', label: 'End time', type: 'text', placeholder: 'ISO timestamp' }
+	],
 	props: propsSchema,
 	initialProps: () => ({
 		endIsoTimestamp: new Date(Date.now() + 60 * 60 * 1000).toISOString()
-	})
-} satisfies ComponentEmbedConfig<typeof propsSchema>;
+	}),
+	load: () => import('./Timer.svelte')
+});

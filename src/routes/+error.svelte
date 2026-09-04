@@ -1,7 +1,8 @@
 <script lang="ts">
 	import Icon from '$lib/components/Icon.svelte';
+	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import { crafts } from '$lib/crafts/registry';
+	import { tools } from '$lib/tools/registry';
 
 	const status = $derived(page.status);
 	const message = $derived(page.error?.message ?? '');
@@ -26,11 +27,11 @@
 	const suggestion = $derived.by(() => {
 		if (status !== 404 || !attempted) return null;
 		let best: { slug: string; title: string; distance: number } | null = null;
-		for (const c of crafts) {
-			if (c.draft) continue;
-			const distance = editDistance(attempted.toLowerCase(), c.slug.toLowerCase());
+		for (const tool of tools) {
+			if (tool.draft) continue;
+			const distance = editDistance(attempted.toLowerCase(), tool.slug.toLowerCase());
 			if (!best || distance < best.distance) {
-				best = { slug: c.slug, title: c.title, distance };
+				best = { slug: tool.slug, title: tool.title, distance };
 			}
 		}
 		const threshold = Math.max(2, Math.floor(attempted.length / 3));
@@ -65,16 +66,18 @@
 	{#if suggestion}
 		<p class="suggestion">
 			Did you mean
-			<a href={`/crafts/${suggestion.slug}`} class="text-brand">{suggestion.title}</a>?
+			<a href={resolve('/tools/[slug]', { slug: suggestion.slug })} class="text-brand"
+				>{suggestion.title}</a
+			>?
 		</p>
 	{/if}
 
 	<div class="actions">
-		<a href="/crafts" class="btn variant-primary">
+		<a href={resolve('/crafts')} class="btn variant-primary">
 			<Icon icon="mdi:arrow-left" />
 			Browse crafts
 		</a>
-		<a href="/" class="btn variant-base">
+		<a href={resolve('/')} class="btn variant-base">
 			<Icon icon="mdi:home" />
 			Home
 		</a>

@@ -1,5 +1,5 @@
-import { error } from '@sveltejs/kit';
-import { craftSlugs } from '$lib/crafts/registry';
+import { error, redirect } from '@sveltejs/kit';
+import { toolSlugs } from '$lib/tools/registry';
 import { toPublishedCraftSummary } from '$lib/crafts/publication';
 import {
 	getPublishedCraftDocument,
@@ -8,6 +8,8 @@ import {
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, setHeaders, url }) => {
+	if (toolSlugs.has(params.slug)) redirect(308, `/tools/${params.slug}`);
+
 	if (url.searchParams.has('edit')) {
 		setHeaders({ 'Cache-Control': 'private, no-store' });
 		return { edit: true, published: null, document: null };
@@ -15,9 +17,7 @@ export const load: PageServerLoad = async ({ params, setHeaders, url }) => {
 
 	const published = await getPublishedCraftMetadata(params.slug);
 
-	if (!published && !craftSlugs.has(params.slug)) error(404, 'Craft not found');
-
-	if (!published) return { edit: false, published: null, document: null };
+	if (!published) error(404, 'Craft not found');
 
 	setHeaders({
 		'Cache-Control': 'public, max-age=0, s-maxage=60, stale-while-revalidate=300'

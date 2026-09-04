@@ -161,24 +161,7 @@ describe('published craft snapshots', () => {
 		).toBe(false);
 	});
 
-	it('builds one ordered public list with published crafts replacing matching registrations', () => {
-		const registered = [
-			{
-				slug: 'registered',
-				title: 'Registered',
-				description: '',
-				tags: ['code'],
-				date: '2025-01-01'
-			},
-			{
-				slug: 'draft',
-				title: 'Draft',
-				description: '',
-				tags: [],
-				date: '2026-01-01',
-				draft: true
-			}
-		];
+	it('builds one ordered public list from published database records', () => {
 		const published = [
 			{
 				pageId: 'page_registered',
@@ -200,7 +183,7 @@ describe('published craft snapshots', () => {
 			}
 		];
 
-		expect(createPublicCraftList(registered, published)).toEqual([
+		expect(createPublicCraftList(published)).toEqual([
 			{
 				id: 'page_remote',
 				slug: 'remote',

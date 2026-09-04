@@ -372,7 +372,7 @@
 					<Icon icon="mdi:loading" />
 				</span>
 			{:then { default: SyncControls }}
-				<SyncControls />
+				<SyncControls onSynced={refresh} />
 			{:catch}
 				<span class="sync-control-error" role="status">Sync unavailable</span>
 			{/await}
@@ -397,7 +397,7 @@
 	{:else if loading}
 		<p class="empty-state">Loading crafts...</p>
 	{:else if !filteredPages.length}
-		<p class="empty-state">No crafts match this search.</p>
+		<p class="empty-state">{query.trim() ? 'No crafts match this search.' : 'No crafts yet.'}</p>
 	{:else}
 		{#each yearGroups as group (group.year)}
 			<div class="year-group">

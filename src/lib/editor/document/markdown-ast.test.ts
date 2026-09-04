@@ -79,6 +79,28 @@ Side column
 		);
 	});
 
+	it('escapes MDX-looking angle brackets inside image labels', () => {
+		const content = {
+			type: 'doc',
+			content: [
+				{
+					type: 'mediaBlock',
+					attrs: {
+						kind: 'image',
+						src: 'https://example.com/image.jpg',
+						alt: '<https://example.com/source>',
+						width: 100,
+						align: 'center'
+					}
+				}
+			]
+		};
+		const markdown = editorContentToMarkdown(content);
+
+		expect(markdown).toContain('![\\<https://example.com/source\\>]');
+		expect(() => markdownBodyToEditorContent(markdown)).not.toThrow();
+	});
+
 	it('turns GitHub alerts into editable callouts and keeps their Markdown syntax', () => {
 		const source = `> [!WARNING]
 > **Back up** your data first.

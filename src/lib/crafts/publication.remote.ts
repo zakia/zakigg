@@ -8,7 +8,6 @@ import {
 	publishNoteCraft as publishStoredNoteCraft,
 	unpublishNoteCraft as unpublishStoredNoteCraft
 } from '$lib/server/crafts/publication';
-import { crafts } from '$lib/crafts/registry';
 import { createPublicCraftList } from '$lib/crafts/publication';
 
 const PageIdSchema = v.pipe(v.string(), v.nonEmpty(), v.maxLength(180));
@@ -19,7 +18,7 @@ export const getCraftPublication = query(PageIdSchema, async (pageId) => {
 });
 
 export const getPublicCrafts = query(async () =>
-	createPublicCraftList(crafts, await listPublishedCrafts())
+	createPublicCraftList(await listPublishedCrafts())
 );
 
 export const publishNoteCraft = command(

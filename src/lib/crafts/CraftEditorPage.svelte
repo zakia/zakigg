@@ -3,7 +3,7 @@
 	import { resolve } from '$app/paths';
 	import { auth } from '$lib/auth';
 	import Icon from '$lib/components/Icon.svelte';
-	import CraftBackLink from '$lib/crafts/CraftBackLink.svelte';
+	import BackLink from '$lib/components/BackLink.svelte';
 	import { componentEmbeds } from '$lib/embeds';
 	import {
 		DocumentEditor,
@@ -129,7 +129,7 @@
 </script>
 
 {#snippet navigation()}
-	<CraftBackLink href={editCollectionHref} onclick={goBack} />
+	<BackLink href={editCollectionHref} onclick={goBack} />
 {/snippet}
 
 <svelte:head>
@@ -144,7 +144,7 @@
 	</section>
 {:else if !craft}
 	<section class="craft-state">
-		<CraftBackLink href={editCollectionHref} label="Crafts" />
+		<BackLink href={editCollectionHref} label="Crafts" />
 		<div class="missing-craft">
 			<h1>{titleFromSlug(slug)}</h1>
 			<p>No editable craft exists at /crafts/{slug} yet.</p>

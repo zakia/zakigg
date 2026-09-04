@@ -4,6 +4,7 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import { handleSignedIn, startSyncEngine, syncNow, syncState } from './engine.svelte';
 
+	let { onSynced }: { onSynced?: () => void | Promise<void> } = $props();
 	let initializedFor = $state<string | null>(null);
 
 	onMount(() => {
@@ -19,8 +20,13 @@
 		if (initializedFor === userId) return;
 
 		initializedFor = userId;
-		void handleSignedIn();
+		void handleSignedIn().then(() => onSynced?.());
 	});
+
+	async function syncAndNotify() {
+		await syncNow();
+		await onSynced?.();
+	}
 </script>
 
 {#if auth.user}
@@ -31,7 +37,7 @@
 			class="sync-action"
 			title="Sync now"
 			aria-label="Sync now"
-			onclick={() => void syncNow()}
+			onclick={() => void syncAndNotify()}
 		>
 			<Icon icon="mdi:cloud-sync-outline" />
 		</button>

@@ -7,7 +7,8 @@
 
 	const edit = $derived(page.url.searchParams.has('edit'));
 
-	async function retryPublicCrafts(reset: () => void) {
+	async function retryPublicCrafts(reset: () => void, previousError?: unknown) {
+		if (previousError) console.error('Public crafts could not be loaded', previousError);
 		try {
 			await getPublicCrafts().refresh();
 			reset();
@@ -21,8 +22,8 @@
 	<CraftCollection pending />
 {/snippet}
 
-{#snippet failedCrafts(_error: unknown, reset: () => void)}
-	<CraftCollection loadError onRetry={() => void retryPublicCrafts(reset)} />
+{#snippet failedCrafts(error: unknown, reset: () => void)}
+	<CraftCollection loadError onRetry={() => void retryPublicCrafts(reset, error)} />
 {/snippet}
 
 <svelte:head>

@@ -77,7 +77,7 @@ export async function handleSignedIn(): Promise<void> {
 		setEnrolledFlag();
 	}
 
-	void syncNow();
+	await syncNow();
 }
 
 export function requestSync(): void {

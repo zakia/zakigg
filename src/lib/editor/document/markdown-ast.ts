@@ -588,7 +588,7 @@ function escapeMarkdownText(value: string) {
 }
 
 function escapeMarkdownLabel(value: string) {
-	return value.replace(/([\\[\]])/g, '\\$1');
+	return value.replace(/([\\[\]<>])/g, '\\$1');
 }
 
 function escapeMarkdownTitle(value: string) {

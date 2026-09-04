@@ -5,7 +5,7 @@
 	import DocumentLayout from '$lib/editor/document/DocumentLayout.svelte';
 	import DocumentPage from '$lib/editor/document/DocumentPage.svelte';
 	import { titleFromSlug } from '$lib/editor/document/slug';
-	import CraftBackLink from '$lib/crafts/CraftBackLink.svelte';
+	import BackLink from '$lib/components/BackLink.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import CraftDocumentRenderer from '$lib/crafts/CraftDocumentRenderer.svelte';
 	import CraftEditGate from '$lib/crafts/CraftEditGate.svelte';
@@ -15,40 +15,30 @@
 
 {#snippet content()}
 	{#if data.mode === 'public'}
-		{#if data.craft.kind === 'document'}
+		{#await data.document}
+			<div class="document-skeleton" aria-label="Loading craft">
+				<span></span><span></span><span></span><span></span>
+			</div>
+		{:then document}
 			<CraftDocumentRenderer
-				document={data.craft.document}
+				{document}
 				pageTitle={data.meta.title}
 				pageDescription={data.meta.description}
 			/>
-		{:else if data.craft.kind === 'published'}
-			{#await data.craft.document}
-				<div class="document-skeleton" aria-label="Loading craft">
-					<span></span><span></span><span></span><span></span>
-				</div>
-			{:then document}
-				<CraftDocumentRenderer
-					{document}
-					pageTitle={data.meta.title}
-					pageDescription={data.meta.description}
-				/>
-			{:catch}
-				<section class="document-error" role="alert">
-					<strong>This craft’s published document is temporarily unavailable.</strong>
-					<p>The source document has not been changed. Try loading the published copy again.</p>
-					<button type="button" onclick={() => window.location.reload()}>
-						<Icon icon="mdi:refresh" /> Retry
-					</button>
-				</section>
-			{/await}
-		{:else}
-			<data.craft.Component />
-		{/if}
+		{:catch}
+			<section class="document-error" role="alert">
+				<strong>This craft’s published document is temporarily unavailable.</strong>
+				<p>Try loading the published copy again.</p>
+				<button type="button" onclick={() => window.location.reload()}>
+					<Icon icon="mdi:refresh" /> Retry
+				</button>
+			</section>
+		{/await}
 	{/if}
 {/snippet}
 
 {#snippet navigation()}
-	<CraftBackLink href={resolve('/crafts')} />
+	<BackLink href={resolve('/crafts')} />
 {/snippet}
 
 {#snippet article()}
@@ -101,8 +91,6 @@
 			</section>
 		{/await}
 	</CraftEditGate>
-{:else if data.meta.fullBleed && data.craft.kind === 'component'}
-	{@render content()}
 {:else}
 	<DocumentPage>
 		<DocumentLayout {navigation} main={article} {actions} />

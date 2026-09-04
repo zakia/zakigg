@@ -9,6 +9,7 @@
 		{ label: 'Home', path: '/', icon: 'line-md:home' },
 		{ label: 'About', path: '/about', icon: 'line-md:file-document' },
 		{ label: 'Crafts', path: '/crafts', icon: 'line-md:pencil' },
+		{ label: 'Tools', path: '/tools', icon: 'mdi:tools' },
 		{ label: 'Profile', path: '/profile', icon: 'mdi:account-outline' }
 	] as const;
 

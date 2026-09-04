@@ -17,30 +17,17 @@ export type PublishedCraftMetadata = PublishedCraftSummary & {
 	publishedAt: string;
 };
 
-export function createPublicCraftList(
-	registeredCrafts: Array<CraftMeta & { slug: string }>,
-	publishedCrafts: PublishedCraftSummary[]
-): CraftListItem[] {
-	const publishedBySlug = new Map(publishedCrafts.map((craft) => [craft.slug, craft]));
-	const visibleCrafts = [
-		...registeredCrafts.filter((craft) => !craft.draft && !publishedBySlug.has(craft.slug)),
-		...publishedCrafts
-	].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
-
-	return visibleCrafts.map((craft) => ({
-		id: isPublishedCraftSummary(craft) ? craft.pageId : `static:${craft.slug}`,
-		slug: craft.slug,
-		title: craft.title,
-		tags: craft.tags,
-		date: craft.date,
-		wordCount: craft.wordCount
-	}));
-}
-
-function isPublishedCraftSummary(
-	craft: (CraftMeta & { slug: string }) | PublishedCraftSummary
-): craft is PublishedCraftSummary {
-	return 'pageId' in craft && typeof craft.pageId === 'string';
+export function createPublicCraftList(publishedCrafts: PublishedCraftSummary[]): CraftListItem[] {
+	return [...publishedCrafts]
+		.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+		.map((craft) => ({
+			id: craft.pageId,
+			slug: craft.slug,
+			title: craft.title,
+			tags: craft.tags,
+			date: craft.date,
+			wordCount: craft.wordCount
+		}));
 }
 
 export function countCraftWords(content: JSONContent, title = '') {

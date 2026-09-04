@@ -4,9 +4,32 @@ variable "project_id" {
 }
 
 variable "region" {
-  description = "Region for Cloud Run, Artifact Registry, Firestore and the assets bucket"
+  description = "Legacy Toronto region retained during and after the data-safe migration"
   type        = string
   default     = "northamerica-northeast2"
+}
+
+variable "target_region" {
+  description = "Tier 1 region for the replacement Cloud Run, Firestore, Artifact Registry and assets bucket"
+  type        = string
+  default     = "us-east1"
+}
+
+variable "active_region" {
+  description = "Cloud Run region receiving Firebase Hosting traffic"
+  type        = string
+  default     = "northamerica-northeast2"
+
+  validation {
+    condition     = contains([var.region, var.target_region], var.active_region)
+    error_message = "active_region must be either region or target_region."
+  }
+}
+
+variable "target_firestore_database_id" {
+  description = "Named Firestore database used by the replacement service"
+  type        = string
+  default     = "zakigg"
 }
 
 variable "service_name" {

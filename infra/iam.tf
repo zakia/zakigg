@@ -16,6 +16,12 @@ resource "google_storage_bucket_iam_member" "app_runtime_assets" {
   member = "serviceAccount:${google_service_account.app_runtime.email}"
 }
 
+resource "google_storage_bucket_iam_member" "app_runtime_assets_us_east1" {
+  bucket = google_storage_bucket.note_assets_us_east1.name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.app_runtime.email}"
+}
+
 # Deploy identity assumed by GitHub Actions through Workload Identity Federation
 resource "google_service_account" "github_deployer" {
   account_id   = "github-deployer"

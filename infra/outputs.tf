@@ -2,6 +2,14 @@ output "service_url" {
   value = google_cloud_run_v2_service.app.uri
 }
 
+output "target_service_url" {
+  value = google_cloud_run_v2_service.app_us_east1.uri
+}
+
+output "target_artifact_repository" {
+  value = "${var.target_region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.app_us_east1.repository_id}"
+}
+
 output "artifact_repo" {
   value = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.app.repository_id}"
 }

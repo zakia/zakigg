@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 env:
-  REGION: northamerica-northeast2
+  REGION: us-east1
   SERVICE: zakigg
 
 concurrency:

@@ -59,7 +59,9 @@ let firestore: Firestore | null = null;
 let bucket: Bucket | null = null;
 
 export function getFirestore(): Firestore {
-	firestore ??= new Firestore(env.GCP_PROJECT_ID ? { projectId: env.GCP_PROJECT_ID } : undefined);
+	const projectId = env.GCP_PROJECT_ID || undefined;
+	const databaseId = env.FIRESTORE_DATABASE_ID || undefined;
+	firestore ??= new Firestore(projectId || databaseId ? { projectId, databaseId } : undefined);
 	return firestore;
 }
 

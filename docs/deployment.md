@@ -1,8 +1,8 @@
 # Google Cloud deployment and Notes sync
 
-The SvelteKit app runs on Cloud Run in Toronto. Artifact Registry stores the
-container image, Firestore stores note metadata and the ordered sync change
-log, and a private Cloud Storage bucket stores complete note bodies and assets.
+The SvelteKit app runs on Cloud Run in `us-east1`. Artifact Registry stores the
+container image, a named Firestore database stores note metadata and the ordered
+sync change log, and a private Cloud Storage bucket stores complete note bodies and assets.
 Firebase Hosting is the stable HTTPS/custom-domain front door and forwards all
 requests to Cloud Run.
 
@@ -33,10 +33,10 @@ gh auth login
 terraform version
 ```
 
-Create or select a billing-enabled GCP project. Firestore's location is
-effectively permanent after creation; this configuration intentionally uses
-`northamerica-northeast2` (Toronto) for Cloud Run, Firestore, Cloud Storage,
-Artifact Registry, and Terraform state.
+Create or select a billing-enabled GCP project. The active runtime uses the Tier 1
+`us-east1` region for Cloud Run, Firestore, Cloud Storage, and Artifact Registry.
+The original Toronto resources and Terraform state remain intact as a rollback
+copy after the migration.
 
 ## 2. Create the Google sign-in client
 

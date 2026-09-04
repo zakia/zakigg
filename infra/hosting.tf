@@ -1,5 +1,6 @@
 locals {
-  hosting_site_id = var.hosting_site_id != "" ? var.hosting_site_id : var.project_id
+  hosting_site_id          = var.hosting_site_id != "" ? var.hosting_site_id : var.project_id
+  active_cloud_run_service = var.active_region == var.target_region ? google_cloud_run_v2_service.app_us_east1 : google_cloud_run_v2_service.app
 }
 
 resource "google_firebase_project" "app" {
@@ -18,8 +19,8 @@ resource "google_firebase_hosting_site" "app" {
 }
 
 # Firebase Hosting supplies the production-grade custom-domain/TLS front door.
-# Every request is forwarded to the SvelteKit server on Cloud Run, so the PWA
-# keeps one stable origin while the runtime remains in Toronto.
+# Every request is forwarded to the active SvelteKit service on Cloud Run, so
+# the PWA keeps one stable origin while regions are migrated safely.
 resource "google_firebase_hosting_version" "cloud_run" {
   provider = google-beta
   site_id  = google_firebase_hosting_site.app.site_id
@@ -28,8 +29,8 @@ resource "google_firebase_hosting_version" "cloud_run" {
     rewrites {
       glob = "**"
       run {
-        service_id = google_cloud_run_v2_service.app.name
-        region     = google_cloud_run_v2_service.app.location
+        service_id = local.active_cloud_run_service.name
+        region     = local.active_cloud_run_service.location
       }
     }
   }

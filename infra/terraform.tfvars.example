@@ -1,5 +1,7 @@
 project_id       = "my-gcp-project"
 region           = "northamerica-northeast2"
+target_region    = "us-east1"
+active_region    = "northamerica-northeast2"
 github_repo      = "zaki/zakigg"
 allowed_email    = "you@example.com"
 google_client_id = "1234567890-abc.apps.googleusercontent.com"

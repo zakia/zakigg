@@ -2,6 +2,23 @@ import { describe, expect, it } from 'vitest';
 import { renderCraftMarkdown } from './markdown-renderer';
 
 describe('public Markdown renderer', () => {
+	it('renders the canonical Markdown body without exposing YAML frontmatter', () => {
+		const [block] = renderCraftMarkdown(`---
+title: Style Guide
+tags:
+  - web
+---
+
+# Visible heading
+`);
+
+		expect(block).toMatchObject({ kind: 'html' });
+		if (block?.kind !== 'html') throw new Error('Expected an HTML block');
+		expect(block.html).toContain('<h1>Visible heading</h1>');
+		expect(block.html).not.toContain('Style Guide');
+		expect(block.html).not.toContain('tags:');
+	});
+
 	it('renders standard Markdown and Obsidian wiki links', () => {
 		const [block] = renderCraftMarkdown('## Notes\n\nRead [[Project Roadmap|the roadmap]].');
 

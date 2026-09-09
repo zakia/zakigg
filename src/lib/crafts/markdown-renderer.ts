@@ -6,6 +6,7 @@ import { mdxJsxToMarkdown } from 'mdast-util-mdx-jsx';
 import { toMarkdown } from 'mdast-util-to-markdown';
 import type { ComponentEmbedAttrs } from '$lib/editor/components/registry';
 import { parseMarkdownAst } from '$lib/editor/document/markdown-ast';
+import { parseMarkdownFrontmatter } from '$lib/editor/document/markdown';
 import { normalizePageSlug } from '$lib/editor/document/model';
 
 type AstAttribute =
@@ -34,7 +35,7 @@ const markdown = new MarkdownIt({ html: false, linkify: true, typographer: true 
 const EVENT_PROP_RE = /^on[A-Z]/;
 
 export function renderCraftMarkdown(source: string): CraftRenderBlock[] {
-	const root = parseMarkdownAst(source) as AstNode;
+	const root = parseMarkdownAst(parseMarkdownFrontmatter(source).markdown) as AstNode;
 	transformWikiLinks(root);
 	const blocks: CraftRenderBlock[] = [];
 	let standardNodes: AstNode[] = [];

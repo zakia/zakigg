@@ -93,10 +93,23 @@ interface NotesDB extends DBSchema {
 let dbPromise: Promise<IDBPDatabase<NotesDB>> | null = null;
 let initializedPromise: Promise<void> | null = null;
 
+export class NotesDatabaseBlockedError extends Error {
+	constructor() {
+		super('Another tab is preventing the local crafts database from being upgraded.');
+		this.name = 'NotesDatabaseBlockedError';
+	}
+}
+
 export async function initializeNotesDb(): Promise<void> {
 	if (!browser) return;
 
-	initializedPromise ??= initializeStoredPages();
+	if (!initializedPromise) {
+		const pending = initializeStoredPages();
+		initializedPromise = pending;
+		void pending.catch(() => {
+			if (initializedPromise === pending) initializedPromise = null;
+		});
+	}
 
 	return initializedPromise;
 }
@@ -745,7 +758,18 @@ async function attachAssetsToPage(pageId: string, assetIds: string[]) {
 }
 
 function getDb() {
-	dbPromise ??= openDB<NotesDB>(DB_NAME, DB_VERSION, {
+	if (!dbPromise) dbPromise = openNotesDb();
+
+	return dbPromise;
+}
+
+function openNotesDb() {
+	let upgradeBlocked = false;
+	let rejectBlocked!: (reason: NotesDatabaseBlockedError) => void;
+	const blockedPromise = new Promise<never>((_, reject) => {
+		rejectBlocked = reject;
+	});
+	const connectionPromise = openDB<NotesDB>(DB_NAME, DB_VERSION, {
 		upgrade(db) {
 			const rawDb = db as unknown as IDBDatabase;
 			if (rawDb.objectStoreNames.contains('documents')) rawDb.deleteObjectStore('documents');
@@ -775,10 +799,38 @@ function getDb() {
 			if (!db.objectStoreNames.contains(SYNC_META_STORE_NAME)) {
 				db.createObjectStore(SYNC_META_STORE_NAME);
 			}
+		},
+		blocked() {
+			upgradeBlocked = true;
+			rejectBlocked(new NotesDatabaseBlockedError());
+		},
+		blocking(_currentVersion, _blockedVersion, event) {
+			// A newer deployment needs to upgrade the database. Release this
+			// tab's connection immediately so the newer tab is never stranded.
+			(event.target as IDBDatabase | null)?.close();
+			dbPromise = null;
+			initializedPromise = null;
+		},
+		terminated() {
+			dbPromise = null;
+			initializedPromise = null;
 		}
 	});
+	const guardedPromise = Promise.race([connectionPromise, blockedPromise]);
 
-	return dbPromise;
+	// An IndexedDB open request cannot be cancelled. If a stale tab is closed
+	// after we surfaced the blocked error, close the late connection instead of
+	// leaking it and let an explicit retry open a fresh one.
+	void connectionPromise
+		.then((db) => {
+			if (upgradeBlocked) db.close();
+		})
+		.catch(() => undefined);
+	void guardedPromise.catch(() => {
+		if (dbPromise === guardedPromise) dbPromise = null;
+	});
+
+	return guardedPromise;
 }
 
 function normalizeStoredAsset(value: unknown): NotesAssetV1 | null {

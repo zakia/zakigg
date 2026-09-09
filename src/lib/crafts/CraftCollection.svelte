@@ -32,6 +32,7 @@
 
 	let pages = $state<CraftListItem[]>(untrack(() => initialCrafts));
 	let loading = $state(untrack(() => editable));
+	let localLoadError = $state<'blocked' | 'failed' | null>(null);
 	let busy = $state('');
 	let toast = $state('');
 	let query = $state('');
@@ -138,12 +139,17 @@
 
 	async function refresh() {
 		loading = true;
+		localLoadError = null;
 
 		try {
 			const { initializeNotesDb, listNotePages } =
 				await import('$lib/editor/document/persistence/storage');
 			await initializeNotesDb();
 			pages = await listNotePages();
+		} catch (error) {
+			console.error('Failed to load local crafts', error);
+			localLoadError =
+				error instanceof Error && error.name === 'NotesDatabaseBlockedError' ? 'blocked' : 'failed';
 		} finally {
 			loading = false;
 		}
@@ -385,6 +391,16 @@
 			{#if onRetry}
 				<button type="button" class="quiet-button" onclick={onRetry}>Try again</button>
 			{/if}
+		</div>
+	{:else if localLoadError}
+		<div class="collection-error" role="alert">
+			{#if localLoadError === 'blocked'}
+				<p>Another zaki.gg tab has an older editor open.</p>
+				<p>Close that tab, then try again.</p>
+			{:else}
+				<p>Your local crafts couldn’t be opened.</p>
+			{/if}
+			<button type="button" class="quiet-button" onclick={() => void refresh()}>Try again</button>
 		</div>
 	{:else if loading}
 		<p class="empty-state">Loading crafts...</p>

@@ -1,6 +1,8 @@
 import { browser } from '$app/environment';
+import { SvelteDate } from 'svelte/reactivity';
 import { auth } from '$lib/auth';
 import {
+	clearLocalNotesForCloudRestore,
 	clearDirtyFlag,
 	getDirtySyncRecords,
 	getSyncCheckpoint,
@@ -101,6 +103,43 @@ export async function syncNow(): Promise<void> {
 	await runSync();
 }
 
+export async function restoreFromCloud(): Promise<void> {
+	if (!browser || !signedIn()) throw new Error('Sign in before restoring from cloud.');
+	if (!navigator.onLine) throw new Error('Connect to the internet before restoring from cloud.');
+	if (inFlight) throw new Error('Wait for the current sync to finish, then try again.');
+
+	if (debounceTimer) {
+		clearTimeout(debounceTimer);
+		debounceTimer = null;
+	}
+	if (backoffTimer) {
+		clearTimeout(backoffTimer);
+		backoffTimer = null;
+	}
+
+	inFlight = true;
+	syncState.status = 'syncing';
+
+	try {
+		await clearLocalNotesForCloudRestore();
+		await pullCycle();
+
+		backoffMs = MIN_BACKOFF_MS;
+		syncState.status = 'synced';
+		syncState.lastSyncedAt = new SvelteDate().toISOString();
+	} catch (error) {
+		console.error('Cloud restore failed', error);
+		syncState.status = 'error';
+		throw error;
+	} finally {
+		inFlight = false;
+		if (runAgain) {
+			runAgain = false;
+			requestSync();
+		}
+	}
+}
+
 async function runSync(): Promise<void> {
 	if (!signedIn() || !navigator.onLine) return;
 
@@ -122,7 +161,7 @@ async function runSync(): Promise<void> {
 
 		backoffMs = MIN_BACKOFF_MS;
 		syncState.status = (await hasPendingSyncWork()) ? 'pending' : 'synced';
-		syncState.lastSyncedAt = new Date().toISOString();
+		syncState.lastSyncedAt = new SvelteDate().toISOString();
 	} catch (error) {
 		console.error('Document sync failed', error);
 		syncState.status = 'error';

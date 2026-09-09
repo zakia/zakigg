@@ -21,4 +21,24 @@ describe('notes database initialization', () => {
 
 		await expect(initializeNotesDb()).rejects.toBeInstanceOf(NotesDatabaseBlockedError);
 	});
+
+	it('clears records and sync sidecars without creating deletion tombstones', async () => {
+		const clearedStores: string[] = [];
+		openDBMock.mockResolvedValue({
+			transaction: (storeNames: string[]) => ({
+				objectStore: (name: string) => ({
+					clear: async () => {
+						clearedStores.push(name);
+					}
+				}),
+				done: Promise.resolve(),
+				storeNames
+			})
+		});
+
+		const { clearLocalNotesForCloudRestore } = await import('./storage');
+
+		await clearLocalNotesForCloudRestore();
+		expect(clearedStores).toEqual(['pages', 'assets', 'syncState', 'tombstones', 'syncMeta']);
+	});
 });

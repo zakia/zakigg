@@ -543,6 +543,35 @@ export async function hasPendingSyncWork(): Promise<boolean> {
 	return tombstoneCount > 0 || states.some((row) => row.dirty);
 }
 
+// Destructive local recovery used by the explicit "Restore from cloud"
+// action. Clearing sidecar sync stores is essential: normal delete helpers
+// create tombstones, which would turn a local reset into remote deletion.
+export async function clearLocalNotesForCloudRestore(): Promise<void> {
+	if (!browser) return;
+
+	const db = await getDb();
+	const tx = db.transaction(
+		[
+			PAGES_STORE_NAME,
+			ASSETS_STORE_NAME,
+			SYNC_STATE_STORE_NAME,
+			TOMBSTONES_STORE_NAME,
+			SYNC_META_STORE_NAME
+		],
+		'readwrite'
+	);
+
+	await Promise.all([
+		tx.objectStore(PAGES_STORE_NAME).clear(),
+		tx.objectStore(ASSETS_STORE_NAME).clear(),
+		tx.objectStore(SYNC_STATE_STORE_NAME).clear(),
+		tx.objectStore(TOMBSTONES_STORE_NAME).clear(),
+		tx.objectStore(SYNC_META_STORE_NAME).clear()
+	]);
+	await tx.done;
+	setInitializedNotesFlag();
+}
+
 // Clears the dirty flag only if the record hasn't changed since it was pushed,
 // so an edit made while a push was in flight is never lost.
 export async function clearDirtyFlag(

@@ -1,12 +1,6 @@
 import type { Component } from 'svelte';
 import * as v from 'valibot';
 
-export type EditorDocumentNode = {
-	type?: string;
-	attrs?: Record<string, unknown>;
-	content?: EditorDocumentNode[];
-};
-
 export type EmbedComponent = Component<Record<string, unknown>>;
 
 export type ComponentField =
@@ -70,11 +64,6 @@ export type ComponentEmbedResult =
 			message: string;
 	  };
 
-export type ComponentEmbedValidationIssue = {
-	path: string;
-	message: string;
-};
-
 export function defineComponentEmbed<TSchema extends v.GenericSchema>(
 	definition: ComponentEmbedDefinition<TSchema>
 ): ComponentEmbedDefinition<TSchema> {
@@ -106,11 +95,10 @@ export function createComponentEmbedRegistry(definitions: readonly ComponentEmbe
 		getByMarkdownName: (name: string) => byMarkdownName.get(name),
 		resolveComponent: (id: string) => resolveEmbedComponent(byId, componentCache, id),
 		createNode: (id: string, inputProps?: unknown) =>
-			createComponentEmbedNode(getEntry, id, inputProps),
+			createComponentEmbedAttrs(getEntry, id, inputProps),
 		parseProps: (id: string, inputProps: unknown) =>
 			parseComponentEmbedProps(getEntry, id, inputProps),
-		parseAttrs: (attrs: unknown) => parseComponentEmbedAttrs(getEntry, attrs),
-		validateDocument: (content: EditorDocumentNode) => validateComponentEmbeds(getEntry, content)
+		parseAttrs: (attrs: unknown) => parseComponentEmbedAttrs(getEntry, attrs)
 	};
 }
 
@@ -149,14 +137,14 @@ function resolveEmbedComponent(
 	return pending;
 }
 
-function createComponentEmbedNode(
+function createComponentEmbedAttrs(
 	getEntry: (id: string) => RegisteredComponentEmbed | undefined,
 	id: string,
 	inputProps?: unknown
 ):
 	| {
 			ok: true;
-			node: EditorDocumentNode;
+			attrs: ComponentEmbedAttrs;
 			props: Record<string, unknown>;
 	  }
 	| {
@@ -177,13 +165,10 @@ function createComponentEmbedNode(
 	return {
 		ok: true,
 		props: result.props,
-		node: {
-			type: 'componentEmbed',
-			attrs: {
-				component: entry.id,
-				markdownName: entry.markdownName,
-				props: result.props
-			} satisfies ComponentEmbedAttrs
+		attrs: {
+			component: entry.id,
+			markdownName: entry.markdownName,
+			props: result.props
 		}
 	};
 }
@@ -281,27 +266,6 @@ function summarizeIssues(issues: readonly v.GenericIssue[]) {
 		.join('; ');
 }
 
-function validateComponentEmbeds(
-	getEntry: (id: string) => RegisteredComponentEmbed | undefined,
-	content: EditorDocumentNode
-) {
-	const issues: ComponentEmbedValidationIssue[] = [];
-	visitNode(content, 'doc', (node, path) => {
-		if (node.type !== 'componentEmbed') return;
-
-		const result = parseComponentEmbedAttrs(getEntry, node.attrs);
-
-		if (!result.ok) {
-			issues.push({
-				path,
-				message: result.message
-			});
-		}
-	});
-
-	return issues;
-}
-
 function componentNameFromId(value: string) {
 	const parts = value.split(/[^A-Za-z0-9]+/).filter(Boolean);
 	const last = parts.at(-1) ?? '';
@@ -309,15 +273,4 @@ function componentNameFromId(value: string) {
 	if (value.startsWith('core.') && /^[A-Z]/.test(last)) return last;
 
 	return parts.map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`).join('');
-}
-
-function visitNode(
-	node: EditorDocumentNode,
-	path: string,
-	visit: (node: EditorDocumentNode, path: string) => void
-) {
-	visit(node, path);
-	node.content?.forEach((child, index) => {
-		visitNode(child, `${path}.content.${index}`, visit);
-	});
 }

@@ -1,4 +1,3 @@
-import type { JSONContent } from '@tiptap/core';
 import { createTimer } from '$lib/editor/timers';
 import {
 	normalizeMetadataEntries,
@@ -12,7 +11,11 @@ import {
 } from '$lib/editor/document/save-state';
 import { saveNotePage } from '$lib/editor/document/persistence/storage';
 import { startSyncEngine, syncState } from '$lib/editor/document/sync/engine.svelte';
-import { resolveNotePageMetadata, type NotePage } from '$lib/editor/document/model';
+import {
+	createCanonicalMarkdownSource,
+	createNotePage,
+	type NotePage
+} from '$lib/editor/document/model';
 
 export type DocumentPublicationAdapter = {
 	isReady: () => boolean;
@@ -25,7 +28,7 @@ export type DocumentPublicationAdapter = {
 
 type DocumentSessionOptions = {
 	getPage: () => NotePage;
-	getContent: () => JSONContent | undefined;
+	getMarkdown: () => string;
 	onDraftChange: () => void;
 	onSaved?: (page: NotePage) => void;
 	publication?: DocumentPublicationAdapter;
@@ -42,7 +45,7 @@ export class DocumentSession {
 	);
 	publicationExists = $state(false);
 
-	#getContent: () => JSONContent | undefined;
+	#getMarkdown: () => string;
 	#onDraftChange: () => void;
 	#onSaved?: (page: NotePage) => void;
 	#publication?: DocumentPublicationAdapter;
@@ -55,7 +58,7 @@ export class DocumentSession {
 
 	constructor({
 		getPage,
-		getContent,
+		getMarkdown,
 		onDraftChange,
 		onSaved,
 		publication,
@@ -66,7 +69,7 @@ export class DocumentSession {
 		this.properties = normalizeMetadataEntries($state.snapshot(page.properties));
 		this.lastSavedAt = page.updatedAt;
 		this.saveState = 'saved';
-		this.#getContent = getContent;
+		this.#getMarkdown = getMarkdown;
 		this.#onDraftChange = onDraftChange;
 		this.#onSaved = onSaved;
 		this.#publication = publication;
@@ -139,17 +142,12 @@ export class DocumentSession {
 	}
 
 	async persistNow({ notify = true }: { notify?: boolean } = {}) {
-		const content = this.#getContent();
-		if (!content) return;
+		const markdown = this.#getMarkdown();
 
 		this.#pendingSave = false;
 
 		try {
-			const nextPage = await saveNotePage({
-				...this.page,
-				properties: $state.snapshot(this.properties) as MetadataEntry[],
-				content
-			});
+			const nextPage = await saveNotePage(this.#createDraftPage(markdown));
 			this.page = nextPage;
 			if (notify) this.#onSaved?.(nextPage);
 			this.lastSavedAt = nextPage.updatedAt;
@@ -194,14 +192,17 @@ export class DocumentSession {
 		return this.properties.find((property) => property.key === key)?.value;
 	}
 
-	getDraftPage(content: JSONContent): NotePage {
-		const draft: NotePage = {
-			...this.page,
-			properties: $state.snapshot(this.properties) as MetadataEntry[],
-			content
-		};
+	getDraftPage(): NotePage {
+		return this.#createDraftPage(this.#getMarkdown());
+	}
 
-		return { ...draft, ...resolveNotePageMetadata(draft, content) };
+	#createDraftPage(bodyMarkdown: string) {
+		const properties = $state.snapshot(this.properties) as MetadataEntry[];
+		return createNotePage({
+			...this.page,
+			properties,
+			markdown: createCanonicalMarkdownSource(properties, bodyMarkdown)
+		});
 	}
 
 	async togglePublication() {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { compareMutationVersions, pageToPayload, payloadToPage } from './protocol';
 import { createNotePage } from '../model';
+import { compareMutationVersions, pageToPayload, payloadToPage } from './protocol';
 
 describe('note sync protocol', () => {
 	it('orders equal-time mutations deterministically', () => {
@@ -11,19 +11,20 @@ describe('note sync protocol', () => {
 		expect(compareMutationVersions(right, left)).toBeGreaterThan(0);
 	});
 
-	it('round-trips current ordered note properties', () => {
+	it('round-trips the canonical Markdown document', () => {
 		const page = createNotePage({
 			id: 'page_test',
 			title: 'Cloud note',
 			properties: [
 				{ key: 'date', value: '2026-08-06' },
 				{ key: 'mood', value: 'focused' }
-			]
+			],
+			markdown: 'Synced body.'
 		});
 		const payload = pageToPayload(page, 'mutation_test');
 		const restored = payloadToPage({ ...payload, serverVersion: 'change_test' });
 
-		expect(restored?.properties).toEqual(page.properties);
-		expect(restored?.content).toEqual(page.content);
+		expect(payload).toEqual(expect.objectContaining({ markdown: page.markdown }));
+		expect(restored).toEqual(page);
 	});
 });

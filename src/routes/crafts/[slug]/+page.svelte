@@ -20,11 +20,7 @@
 				<span></span><span></span><span></span><span></span>
 			</div>
 		{:then document}
-			<CraftDocumentRenderer
-				{document}
-				pageTitle={data.meta.title}
-				pageDescription={data.meta.description}
-			/>
+			<CraftDocumentRenderer {document} />
 		{:catch}
 			<section class="document-error" role="alert">
 				<strong>This craft’s published document is temporarily unavailable.</strong>

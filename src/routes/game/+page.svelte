@@ -222,7 +222,11 @@
 				type = enemyTypes[Math.floor(Math.random() * 3)];
 			}
 			let point = randomSpawnPoint();
-			for (let attempt = 0; attempt < 6 && Math.hypot(point.x - player.x, point.y - player.y) < 210; attempt += 1) {
+			for (
+				let attempt = 0;
+				attempt < 6 && Math.hypot(point.x - player.x, point.y - player.y) < 210;
+				attempt += 1
+			) {
 				point = randomSpawnPoint();
 			}
 			const enemy = createEnemy(id, type, point.x, point.y, 0.9 + Math.random() * 0.75);
@@ -308,7 +312,8 @@
 		function handleKeyDown(event: KeyboardEvent) {
 			const key = event.key.toLowerCase();
 			const target = enemies.find((enemy) => enemy.alive && enemy.id === event.key.toUpperCase());
-			const scaleChange = key === '-' || key === '_' ? -0.05 : key === '=' || key === '+' ? 0.05 : 0;
+			const scaleChange =
+				key === '-' || key === '_' ? -0.05 : key === '=' || key === '+' ? 0.05 : 0;
 			if (['w', 'a', 's', 'd', 'r'].includes(key) || target || scaleChange) event.preventDefault();
 			if (scaleChange && !event.repeat) {
 				adjustGameScale(scaleChange);
@@ -510,7 +515,13 @@
 			}
 		}
 
-		function fireBullet(enemy: Enemy, angle: number, speed: number, kind: BulletKind, color: string) {
+		function fireBullet(
+			enemy: Enemy,
+			angle: number,
+			speed: number,
+			kind: BulletKind,
+			color: string
+		) {
 			bullets.push({
 				x: enemy.x,
 				y: enemy.y,
@@ -555,8 +566,7 @@
 		}
 
 		function steerProjectile(bullet: Bullet, delta: number) {
-			const turnRate =
-				bullet.kind === 'sniper' ? 1.25 : bullet.kind === 'scatter' ? 1.65 : 2.65;
+			const turnRate = bullet.kind === 'sniper' ? 1.25 : bullet.kind === 'scatter' ? 1.65 : 2.65;
 			const steering = steerDirection(
 				bullet.vx / bullet.speed,
 				bullet.vy / bullet.speed,
@@ -776,7 +786,13 @@
 
 		function drawEnemyShape(enemy: Enemy) {
 			const sides =
-				enemy.type === 'charger' ? 3 : enemy.type === 'sniper' ? 4 : enemy.type === 'scatter' ? 6 : 5;
+				enemy.type === 'charger'
+					? 3
+					: enemy.type === 'sniper'
+						? 4
+						: enemy.type === 'scatter'
+							? 6
+							: 5;
 			const rotation = enemy.type === 'charger' ? 0 : -Math.PI / 2;
 			drawPolygon(sides, enemy.size / 2, rotation);
 			context.fill();
@@ -949,9 +965,8 @@
 		<div class="objective">
 			<strong>Endless encounter · another enemy joins every five kills.</strong>
 			<span>
-				Swap after momentum commits · <i class="charger-dot"></i> rush · <i
-					class="sniper-dot"
-				></i> snipe ·
+				Swap after momentum commits · <i class="charger-dot"></i> rush · <i class="sniper-dot"></i>
+				snipe ·
 				<i class="scatter-dot"></i> spread · <i class="seeker-dot"></i> hunt
 			</span>
 		</div>

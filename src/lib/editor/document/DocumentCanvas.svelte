@@ -21,8 +21,7 @@
 		// Content that scrolls above the document within the same column
 		// (aligned to the text width), e.g. the metadata panel.
 		header?: Snippet;
-		// Lets an editor adapter own its rendered surface while the legacy
-		// adapter can continue mounting imperatively into the host element.
+		// Lets the editor own its rendered surface within the shared canvas.
 		editor?: Snippet;
 		// Overlays that must live in content coordinate space (they scroll
 		// with the document), e.g. the block handle.

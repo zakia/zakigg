@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Icon from '$lib/components/Icon.svelte';
-	import ActionTooltip from '../core/toolbar/ActionTooltip.svelte';
+	import ActionTooltip from './ActionTooltip.svelte';
 	import SaveStatus from './SaveStatus.svelte';
 	import type { SaveState, SyncLabelStatus } from './save-state';
 
@@ -250,6 +250,19 @@
 	button :global(svg) {
 		height: 1.1rem;
 		width: 1.1rem;
+	}
+
+	/* Keep the final tooltip inside the viewport so an invisible tooltip does
+	   not create horizontal page overflow. */
+	.action-buttons button:last-child :global(.action-tooltip) {
+		left: auto;
+		right: 0;
+		transform: translate(0, -0.18rem);
+	}
+
+	.action-buttons button:last-child:hover :global(.action-tooltip),
+	.action-buttons button:last-child:focus-visible :global(.action-tooltip) {
+		transform: translate(0, 0);
 	}
 
 	button[aria-label='Updating published document…'] :global(svg),

@@ -1,4 +1,3 @@
-import type { MetadataEntry } from '../metadata';
 import { parseStoredPage, type NotePage } from '../model';
 import type { NotesAssetV1, SyncKind } from '../persistence/storage';
 
@@ -15,12 +14,7 @@ export type PagePayload = {
 	createdAt: string;
 	updatedAt: string;
 	mutationId: string;
-	markdown?: string;
-	// Read-only compatibility for page bodies written before Markdown became
-	// canonical. New pushes never send these fields.
-	contentJson?: string;
-	propertiesJson?: string;
-	frontmatterJson?: string;
+	markdown: string;
 };
 
 export type AssetPayload = {
@@ -68,46 +62,17 @@ export function pageToPayload(page: NotePage, mutationId: string): PagePayload {
 }
 
 export function payloadToPage(payload: RemotePageDoc): NotePage | null {
-	try {
-		if (typeof payload.markdown === 'string') {
-			return parseStoredPage({
-				version: 2,
-				editor: 'markdown',
-				id: payload.id,
-				slug: payload.slug,
-				title: payload.title,
-				tags: payload.tags,
-				markdown: payload.markdown,
-				createdAt: payload.createdAt,
-				updatedAt: payload.updatedAt
-			});
-		}
-
-		if (!payload.contentJson) return null;
-		const content = JSON.parse(payload.contentJson) as unknown;
-		const properties = payload.propertiesJson
-			? (JSON.parse(payload.propertiesJson) as MetadataEntry[])
-			: [];
-		const frontmatter = payload.frontmatterJson
-			? (JSON.parse(payload.frontmatterJson) as NotePage['frontmatter'])
-			: undefined;
-
-		return parseStoredPage({
-			version: 1,
-			editor: 'tiptap',
-			id: payload.id,
-			slug: payload.slug,
-			title: payload.title,
-			tags: payload.tags,
-			properties,
-			...(frontmatter ? { frontmatter } : {}),
-			content,
-			createdAt: payload.createdAt,
-			updatedAt: payload.updatedAt
-		});
-	} catch {
-		return null;
-	}
+	return parseStoredPage({
+		version: 3,
+		format: 'markdown',
+		id: payload.id,
+		slug: payload.slug,
+		title: payload.title,
+		tags: payload.tags,
+		markdown: payload.markdown,
+		createdAt: payload.createdAt,
+		updatedAt: payload.updatedAt
+	});
 }
 
 export function assetToPayload(asset: NotesAssetV1, mutationId: string): AssetPayload {

@@ -32,15 +32,8 @@ const PagePayloadSchema = v.pipe(
 		createdAt: v.pipe(v.string(), v.isoTimestamp()),
 		updatedAt: v.pipe(v.string(), v.isoTimestamp()),
 		mutationId: MutationIdSchema,
-		markdown: v.optional(v.pipe(v.string(), v.maxLength(MAX_NOTE_BODY_LENGTH))),
-		contentJson: v.optional(v.pipe(v.string(), v.maxLength(MAX_NOTE_BODY_LENGTH))),
-		propertiesJson: v.optional(v.pipe(v.string(), v.maxLength(1_000_000))),
-		frontmatterJson: v.optional(v.pipe(v.string(), v.maxLength(1_000_000)))
-	}),
-	v.check(
-		(page) => typeof page.markdown === 'string' || typeof page.contentJson === 'string',
-		'A page body is required.'
-	)
+		markdown: v.pipe(v.string(), v.maxLength(MAX_NOTE_BODY_LENGTH))
+	})
 );
 
 const AssetPayloadSchema = v.object({

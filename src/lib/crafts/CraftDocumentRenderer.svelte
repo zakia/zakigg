@@ -1,47 +1,20 @@
 <script lang="ts">
-	import type { JSONContent } from '@tiptap/core';
 	import CodeBlockRenderer from '$lib/editor/presentation/code-block/CodeBlockRenderer.svelte';
 	import type { CraftDocument } from './types';
 	import ComponentEmbedRenderer from './ComponentEmbedRenderer.svelte';
-	import { getCraftDocumentContent, normalizeCraftDocumentContent } from './document-content';
-	import { renderNode } from './document-renderer';
-	import { normalizePageBody } from '$lib/editor/document/content';
+	import { renderCraftMarkdown } from './markdown-renderer';
 
-	let {
-		document,
-		pageTitle = '',
-		pageDescription = ''
-	}: { document: CraftDocument; pageTitle?: string; pageDescription?: string } = $props();
-	const content = $derived(
-		normalizeCraftDocumentContent(
-			normalizePageBody(getCraftDocumentContent(document), pageTitle, pageDescription)
-		)
-	);
-	const nodes = $derived(content.type === 'doc' ? (content.content ?? []) : [content]);
-
-	function getTextContent(node: JSONContent): string {
-		if (node.text) return node.text;
-
-		return (node.content ?? []).map(getTextContent).join('');
-	}
-
-	function getCodeBlockProps(node: JSONContent) {
-		return {
-			title: typeof node.attrs?.title === 'string' ? node.attrs.title : '',
-			language: typeof node.attrs?.language === 'string' ? node.attrs.language : '',
-			code: getTextContent(node)
-		};
-	}
+	let { document }: { document: CraftDocument } = $props();
+	const blocks = $derived(renderCraftMarkdown(document.markdown));
 </script>
 
-{#each nodes as node, index (`${node.type ?? 'node'}-${index}`)}
-	{#if node.type === 'componentEmbed'}
-		<ComponentEmbedRenderer attrs={node.attrs} />
-	{:else if node.type === 'codeBlock'}
-		{@const codeBlock = getCodeBlockProps(node)}
-		<CodeBlockRenderer {...codeBlock} />
+{#each blocks as block, index (`${block.kind}-${index}`)}
+	{#if block.kind === 'component'}
+		<ComponentEmbedRenderer attrs={block.attrs} />
+	{:else if block.kind === 'code'}
+		<CodeBlockRenderer title={block.title} language={block.language} code={block.code} />
 	{:else}
 		<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-		{@html renderNode(node)}
+		{@html block.html}
 	{/if}
 {/each}

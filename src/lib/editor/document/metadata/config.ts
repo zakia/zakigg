@@ -94,8 +94,7 @@ export function inferMetadataPropertyType(key: string): MetadataPropertyType {
 	return 'text';
 }
 
-// Accepts the canonical entries array or a legacy/interchange record (stored
-// notes predating the entries format, parsed YAML frontmatter, ...).
+// Accepts ordered editor entries or a YAML/frontmatter record.
 export function normalizeMetadataEntries(value: unknown): MetadataEntry[] {
 	if (!value || typeof value !== 'object') return [];
 
@@ -112,7 +111,7 @@ export function normalizeMetadataEntries(value: unknown): MetadataEntry[] {
 
 	for (const [rawKey, rawValue] of rawEntries) {
 		const key = normalizeMetadataPropertyKey(rawKey);
-		if (!key || seen.has(key) || !PROPERTY_DEFINITION_BY_KEY.has(key)) continue;
+		if (!key || seen.has(key)) continue;
 
 		seen.add(key);
 		entries.push({

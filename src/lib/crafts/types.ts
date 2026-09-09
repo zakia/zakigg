@@ -1,5 +1,3 @@
-import type { JSONContent } from '@tiptap/core';
-
 export type CraftMeta = {
 	title: string;
 	description: string;
@@ -19,16 +17,28 @@ export type CraftListItem = {
 	wordCount?: number;
 };
 
-export type CraftDocument =
-	| {
-			version: 1;
-			editor: 'tiptap';
-			content: JSONContent;
-			updatedAt?: string;
-	  }
-	| {
-			version: 2;
-			format: 'markdown';
-			markdown: string;
-			updatedAt?: string;
-	  };
+export type CraftDocument = {
+	version: 2;
+	format: 'markdown';
+	markdown: string;
+	updatedAt?: string;
+};
+
+export function parseCraftDocument(value: unknown): CraftDocument | null {
+	if (!value || typeof value !== 'object') return null;
+	const document = value as Partial<CraftDocument>;
+	if (
+		document.version !== 2 ||
+		document.format !== 'markdown' ||
+		typeof document.markdown !== 'string'
+	) {
+		return null;
+	}
+
+	return {
+		version: 2,
+		format: 'markdown',
+		markdown: document.markdown,
+		...(typeof document.updatedAt === 'string' ? { updatedAt: document.updatedAt } : {})
+	};
+}

@@ -9,8 +9,15 @@ import {
 	unpublishNoteCraft as unpublishStoredNoteCraft
 } from '$lib/server/crafts/publication';
 import { createPublicCraftList } from '$lib/crafts/publication';
+import { getPageBySlug } from '$lib/server/notes-sync/firestore';
 
 const PageIdSchema = v.pipe(v.string(), v.nonEmpty(), v.maxLength(180));
+const SlugSchema = v.pipe(v.string(), v.nonEmpty(), v.maxLength(240));
+
+export const getEditableCraft = query(SlugSchema, async (slug) => {
+	const { user } = auth({ required: true });
+	return getPageBySlug(user.id, slug);
+});
 
 export const getCraftPublication = query(PageIdSchema, async (pageId) => {
 	const { user } = auth({ required: true });

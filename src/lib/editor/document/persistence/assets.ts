@@ -1,4 +1,4 @@
-import type { MediaBlockKind } from '$lib/editor/core/media-block';
+import type { MediaBlockKind } from '$lib/editor/presentation/media-block/config';
 
 export type MediaAssetUploadInput = {
 	fileName: string;

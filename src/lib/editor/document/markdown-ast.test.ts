@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { componentEmbeds } from '$lib/embeds';
-import { editorContentToMarkdown, markdownBodyToEditorContent } from './markdown-ast';
+import { getFirstMarkdownHeading, getMarkdownText, parseMarkdownAst } from './markdown-ast';
 import { parseEditorMarkdown } from './markdown';
 
-describe('Markdown document adapter', () => {
-	it('parses GFM and safe JSX-shaped components without Tiptap', () => {
-		const content = markdownBodyToEditorContent(`## Demo
+describe('Markdown syntax boundary', () => {
+	it('parses GFM and MDX components into one Markdown AST', () => {
+		const tree = parseMarkdownAst(`## Demo
 
 | Name | Done |
 | --- | --- |
@@ -14,54 +14,33 @@ describe('Markdown document adapter', () => {
 <Timer endIsoTimestamp="2026-09-01T12:00:00.000Z" />
 `);
 
-		expect(content.content).toMatchObject([
-			{ type: 'heading', attrs: { level: 2 } },
-			{ type: 'table' },
-			{
-				type: 'componentEmbed',
-				attrs: {
-					component: 'Timer',
-					props: { endIsoTimestamp: '2026-09-01T12:00:00.000Z' }
-				}
-			}
+		expect(tree.children.map((node) => node.type)).toEqual([
+			'heading',
+			'table',
+			'mdxJsxFlowElement'
 		]);
 		expect(() =>
-			parseEditorMarkdown(editorContentToMarkdown(content), componentEmbeds)
+			parseEditorMarkdown(
+				String.raw`<Timer endIsoTimestamp="2026-09-01T12:00:00.000Z" />`,
+				componentEmbeds
+			)
 		).not.toThrow();
 	});
 
-	it('round-trips literal component props and nested Markdown children', () => {
-		const source = `<Columns gap="large">
-<Column width={2}>
-## Main column
-
-- one
-- two
-</Column>
-<Column>
-Side column
-</Column>
-</Columns>
-`;
-		const first = markdownBodyToEditorContent(source);
-		const serialized = editorContentToMarkdown(first);
-		const second = markdownBodyToEditorContent(serialized);
-
-		expect(second).toEqual(first);
-		expect(() => parseEditorMarkdown(serialized, componentEmbeds)).not.toThrow();
-		expect(serialized).toContain('<Columns gap="large">');
-		expect(serialized).toContain('<Column width={2}>');
-		expect(serialized).toContain('## Main column');
+	it('extracts document text and the first level-one heading', () => {
+		const source = '# A title\n\nWords with **weight** and `code`.\n\n![Diagram](image.png)';
+		expect(getFirstMarkdownHeading(source)).toBe('A title');
+		expect(getMarkdownText(source)).toBe('A title Words with weight and code. Diagram');
 	});
 
-	it('rejects executable props, spread props, raw HTML, and unknown registered components', () => {
-		expect(() => markdownBodyToEditorContent('<Timer value={run()} />')).toThrow(
+	it('rejects executable props, spread props, raw HTML, and unknown components', () => {
+		expect(() => parseEditorMarkdown('<Timer value={run()} />', componentEmbeds)).toThrow(
 			'must be a JSON literal'
 		);
-		expect(() => markdownBodyToEditorContent('<Timer {...props} />')).toThrow(
+		expect(() => parseEditorMarkdown('<Timer {...props} />', componentEmbeds)).toThrow(
 			'Spread attributes are not allowed'
 		);
-		expect(() => markdownBodyToEditorContent('<script>alert(1)</script>')).toThrow(
+		expect(() => parseEditorMarkdown('<script>alert(1)</script>', componentEmbeds)).toThrow(
 			'Raw HTML is not supported'
 		);
 		expect(() => parseEditorMarkdown('<NotRegistered />', componentEmbeds)).toThrow(
@@ -69,51 +48,10 @@ Side column
 		);
 	});
 
-	it('upgrades the legacy component directive to readable component syntax', () => {
-		const content = markdownBodyToEditorContent(
-			'::component{component="core.Timer" props="{\\"endIsoTimestamp\\":\\"2026-09-01T12:00:00.000Z\\"}"}'
+	it('does not interpret the removed component directive syntax', () => {
+		const tree = parseMarkdownAst(
+			'::component{component="core.Timer" props="{\\"endIsoTimestamp\\":\\"soon\\"}"}'
 		);
-
-		expect(editorContentToMarkdown(content)).toContain(
-			'<Timer endIsoTimestamp="2026-09-01T12:00:00.000Z" />'
-		);
-	});
-
-	it('escapes MDX-looking angle brackets inside image labels', () => {
-		const content = {
-			type: 'doc',
-			content: [
-				{
-					type: 'mediaBlock',
-					attrs: {
-						kind: 'image',
-						src: 'https://example.com/image.jpg',
-						alt: '<https://example.com/source>',
-						width: 100,
-						align: 'center'
-					}
-				}
-			]
-		};
-		const markdown = editorContentToMarkdown(content);
-
-		expect(markdown).toContain('![\\<https://example.com/source\\>]');
-		expect(() => markdownBodyToEditorContent(markdown)).not.toThrow();
-	});
-
-	it('turns GitHub alerts into editable callouts and keeps their Markdown syntax', () => {
-		const source = `> [!WARNING]
-> **Back up** your data first.
-`;
-		const content = markdownBodyToEditorContent(source);
-
-		expect(content.content?.[0]).toMatchObject({
-			type: 'componentEmbed',
-			attrs: {
-				component: 'Callout',
-				props: { kind: 'warning', markdown: '**Back up** your data first.' }
-			}
-		});
-		expect(editorContentToMarkdown(content)).toBe(source);
+		expect(tree.children[0]?.type).toBe('paragraph');
 	});
 });

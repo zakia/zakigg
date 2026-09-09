@@ -1,4 +1,3 @@
-import type { JSONContent } from '@tiptap/core';
 import { getReferencedAssetIds, toStoredNotePage, type NotePage } from '../model';
 import { serializeNotePageMarkdown } from '../markdown';
 import { loadNoteAsset, type NotesAssetV1 } from './storage';
@@ -16,11 +15,8 @@ type ExportAsset = {
 	updatedAt: string;
 };
 
-export async function downloadNotePageExport(page: NotePage, content: JSONContent = page.content) {
-	const blob = await createNotePageExportZip({
-		...page,
-		content
-	});
+export async function downloadNotePageExport(page: NotePage) {
+	const blob = await createNotePageExportZip(page);
 
 	downloadBlob(blob, `${safeFileStem(page.slug || page.title)}.zip`);
 }
@@ -37,7 +33,7 @@ export async function createNotePageExportZip(page: NotePage) {
 	const assetPaths = new Map<string, string>();
 	const assets: ExportAsset[] = [];
 
-	for (const assetId of getReferencedAssetIds(page.content)) {
+	for (const assetId of getReferencedAssetIds(page.markdown)) {
 		const asset = await loadNoteAsset(assetId);
 		if (!asset) continue;
 
@@ -53,7 +49,7 @@ export async function createNotePageExportZip(page: NotePage) {
 
 	entries.unshift({
 		path: 'page.md',
-		data: serializeNotePageMarkdown(page, page.content, { assetPaths }),
+		data: serializeNotePageMarkdown(page, { assetPaths }),
 		lastModified: new Date(page.updatedAt)
 	});
 	entries.push({
@@ -84,7 +80,7 @@ async function createNotePagesExportZip(pages: NotePage[]) {
 	const assetPaths = new Map<string, string>();
 	const assets = new Map<string, ExportAsset>();
 
-	for (const assetId of new Set(pages.flatMap((page) => getReferencedAssetIds(page.content)))) {
+	for (const assetId of new Set(pages.flatMap((page) => getReferencedAssetIds(page.markdown)))) {
 		const asset = await loadNoteAsset(assetId);
 		if (!asset) continue;
 
@@ -98,7 +94,7 @@ async function createNotePagesExportZip(pages: NotePage[]) {
 		const stem = safeFileStem(page.slug || page.title);
 		entries.push({
 			path: `pages/${stem}.md`,
-			data: serializeNotePageMarkdown(page, page.content, { assetPaths }),
+			data: serializeNotePageMarkdown(page, { assetPaths }),
 			lastModified: new Date(page.updatedAt)
 		});
 		entries.push({
@@ -136,7 +132,7 @@ function serializePageManifest(page: NotePage, markdownPath: string) {
 		tags: page.tags,
 		markdownPath,
 		jsonPath: markdownPath.replace(/\.md$/i, '.json'),
-		assetIds: getReferencedAssetIds(page.content),
+		assetIds: getReferencedAssetIds(page.markdown),
 		createdAt: page.createdAt,
 		updatedAt: page.updatedAt
 	};

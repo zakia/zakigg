@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
-	import type { JSONContent } from '@tiptap/core';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import Icon from '$lib/components/Icon.svelte';
@@ -55,7 +54,7 @@
 		try {
 			const { createNotePageRecord } = await import('$lib/editor/document/persistence/storage');
 			const page = await createNotePageRecord({
-				content: createCraftContent(),
+				markdown: '',
 				properties: [{ key: 'date', value: new Date().toISOString().slice(0, 10) }]
 			});
 			// The query string is intentionally composed after resolving the typed route.
@@ -64,13 +63,6 @@
 		} finally {
 			busy = '';
 		}
-	}
-
-	function createCraftContent(): JSONContent {
-		return {
-			type: 'doc',
-			content: [{ type: 'heading', attrs: { level: 1 } }, { type: 'paragraph' }]
-		};
 	}
 
 	function eventHasFiles(event: DragEvent) {

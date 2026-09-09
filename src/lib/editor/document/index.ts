@@ -1,10 +1,9 @@
-export { default as DocumentEditor } from './MilkdownDocumentEditor.svelte';
-export { default as MilkdownDocumentEditor } from './MilkdownDocumentEditor.svelte';
+export { default as DocumentEditor } from './MarkdownDocumentEditor.svelte';
+export { default as MarkdownDocumentEditor } from './MarkdownDocumentEditor.svelte';
 export { default as DocumentHeader } from './DocumentHeader.svelte';
 export { default as DocumentLayout } from './DocumentLayout.svelte';
 export { default as DocumentPage } from './DocumentPage.svelte';
 export * from './model';
-export * from './content';
 export * from './metadata';
 export * from './save-state';
 export * from './session.svelte';

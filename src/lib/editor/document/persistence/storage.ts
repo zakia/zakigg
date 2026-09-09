@@ -3,26 +3,21 @@ import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import { emitLocalMutation } from '../sync/signals';
 import {
 	DEFAULT_NOTE_SLUG,
-	NOTES_STORAGE_KEY_PREFIX,
 	createDefaultNotePage,
 	createNotePage,
-	getNoteStorageKey,
 	getReferencedAssetIds,
 	normalizePageSlug,
-	parseStoredNote,
 	parseStoredPage,
 	summarizeNotePage,
 	toStoredNotePage,
 	type NotePageSummary,
 	type NotePage,
-	type NotesDocV1,
 	type StoredNotePage
 } from '../model';
 
 const DB_NAME = 'zaki.gg-notes';
-const NOTES_INITIALIZED_FLAG_KEY = `${NOTES_STORAGE_KEY_PREFIX}:initialized`;
-const DB_VERSION = 5;
-const LEGACY_DOCUMENTS_STORE_NAME = 'documents';
+const NOTES_INITIALIZED_FLAG_KEY = 'zaki.gg:notes:markdown-v3:initialized';
+const DB_VERSION = 6;
 const PAGES_STORE_NAME = 'pages';
 const ASSETS_STORE_NAME = 'assets';
 const SYNC_STATE_STORE_NAME = 'syncState';
@@ -63,13 +58,6 @@ export type SyncTombstone = {
 };
 
 interface NotesDB extends DBSchema {
-	documents: {
-		key: string;
-		value: NotesDocV1;
-		indexes: {
-			'by-updated-at': string;
-		};
-	};
 	pages: {
 		key: string;
 		value: StoredNotePage;
@@ -114,36 +102,52 @@ export async function initializeNotesDb(): Promise<void> {
 }
 
 async function initializeStoredPages() {
+	await migrateStoredPagesToMarkdownV3();
 	await ensureDefaultPage();
-	await migrateStoredPagesToMarkdown();
 }
 
-// Rewrite every legacy page after parsing it through the canonical model. The
-// migrated row is queued for sync so remote craft storage converges on Markdown
-// the next time the account connects.
-async function migrateStoredPagesToMarkdown() {
+// This is a schema upgrade for pages that already have Markdown. JSON-only
+// records are removed: the application has one document model and no runtime
+// compatibility reader.
+async function migrateStoredPagesToMarkdownV3() {
 	const db = await getDb();
-	const storedPages = await db.getAll(PAGES_STORE_NAME);
-	const legacyPages = storedPages.filter(
-		(page) =>
-			page &&
-			typeof page === 'object' &&
-			((page as { version?: number }).version !== 2 ||
-				(page as { editor?: string }).editor !== 'markdown' ||
-				typeof (page as { markdown?: unknown }).markdown !== 'string')
-	);
-
-	if (!legacyPages.length) return;
+	const storedPages = (await db.getAll(PAGES_STORE_NAME)) as unknown[];
+	const pending = storedPages.filter((page) => !parseStoredPage(page));
+	if (!pending.length) return;
 
 	const tx = db.transaction([PAGES_STORE_NAME, SYNC_STATE_STORE_NAME], 'readwrite');
-	for (const storedPage of legacyPages) {
-		const page = parseStoredPage(storedPage);
-		if (!page) continue;
-		await tx.objectStore(PAGES_STORE_NAME).put(toStoredNotePage(page), page.id);
-		await markDirtyInTx(tx.objectStore(SYNC_STATE_STORE_NAME), page.id, 'page');
+	const pages = tx.objectStore(PAGES_STORE_NAME);
+	const syncState = tx.objectStore(SYNC_STATE_STORE_NAME);
+	let migrated = false;
+	for (const storedPage of pending) {
+		if (!storedPage || typeof storedPage !== 'object') continue;
+		const raw = storedPage as Partial<NotePage> & { id?: unknown; markdown?: unknown };
+		if (typeof raw.id !== 'string') continue;
+
+		if (typeof raw.markdown !== 'string') {
+			await pages.delete(raw.id);
+			await syncState.delete(raw.id);
+			continue;
+		}
+
+		const page = createNotePage(raw);
+
+		const baseSlug = normalizePageSlug(page.slug || DEFAULT_NOTE_SLUG);
+		let slug = baseSlug;
+		let suffix = 2;
+		while (true) {
+			const existing = await pages.index('by-slug').get(slug);
+			if (!existing || existing.id === page.id) break;
+			slug = `${baseSlug}-${suffix}`;
+			suffix += 1;
+		}
+
+		await pages.put(toStoredNotePage({ ...page, slug }), page.id);
+		await markDirtyInTx(syncState, page.id, 'page');
+		migrated = true;
 	}
 	await tx.done;
-	emitLocalMutation();
+	if (migrated) emitLocalMutation();
 }
 
 export async function listNotePages(): Promise<NotePageSummary[]> {
@@ -227,7 +231,7 @@ export async function importNotePage(input: Partial<NotePage>): Promise<NotePage
 	const page: NotePage = { ...base, slug: await getAvailablePageSlug(base.slug) };
 
 	await putNotePage(page);
-	await attachAssetsToPage(page.id, getReferencedAssetIds(page.content));
+	await attachAssetsToPage(page.id, getReferencedAssetIds(page.markdown));
 
 	return page;
 }
@@ -279,7 +283,7 @@ export async function saveNotePage(page: NotePage): Promise<NotePage> {
 	const next: NotePage = { ...base, slug: await getAvailablePageSlug(base.slug, base.id) };
 
 	await putNotePage(next);
-	await attachAssetsToPage(next.id, getReferencedAssetIds(next.content));
+	await attachAssetsToPage(next.id, getReferencedAssetIds(next.markdown));
 
 	return next;
 }
@@ -356,7 +360,7 @@ export async function listNoteAssets(): Promise<NotesAssetV1[]> {
 
 export async function listOrphanNoteAssets() {
 	const [pages, assets] = await Promise.all([listFullNotePages(), listNoteAssets()]);
-	const referencedIds = new Set(pages.flatMap((page) => getReferencedAssetIds(page.content)));
+	const referencedIds = new Set(pages.flatMap((page) => getReferencedAssetIds(page.markdown)));
 
 	return assets.filter((asset) => !referencedIds.has(asset.id));
 }
@@ -413,8 +417,19 @@ export async function applyRemotePage(page: NotePage, mutationId: string): Promi
 		[PAGES_STORE_NAME, SYNC_STATE_STORE_NAME, TOMBSTONES_STORE_NAME],
 		'readwrite'
 	);
+	const pages = tx.objectStore(PAGES_STORE_NAME);
+	const baseSlug = normalizePageSlug(page.slug || DEFAULT_NOTE_SLUG);
+	let slug = baseSlug;
+	let suffix = 2;
 
-	await tx.objectStore(PAGES_STORE_NAME).put(toStoredNotePage(page), page.id);
+	while (true) {
+		const existing = await pages.index('by-slug').get(slug);
+		if (!existing || existing.id === page.id) break;
+		slug = `${baseSlug}-${suffix}`;
+		suffix += 1;
+	}
+
+	await pages.put(toStoredNotePage({ ...page, slug }), page.id);
 	await tx
 		.objectStore(SYNC_STATE_STORE_NAME)
 		.put(
@@ -623,9 +638,8 @@ export async function getAvailablePageSlug(value: unknown, currentPageId = '') {
 	return slug;
 }
 
-// One-shot: seeds the default page (migrating any legacy single note) only on
-// first ever run. An empty pages store after that means the user deleted
-// their pages — recreating the default here would resurrect deleted content.
+// One-shot: seeds the default page only on first run. An empty pages store
+// after that means the user deleted their pages.
 async function ensureDefaultPage() {
 	const db = await getDb();
 	const pages = await db.getAllKeys(PAGES_STORE_NAME);
@@ -635,12 +649,7 @@ async function ensureDefaultPage() {
 		return;
 	}
 
-	const legacyNote = newestNote(
-		await loadLegacyDefaultNoteFromIndexedDb(),
-		loadLegacyDefaultNoteFromLocalStorage()
-	);
-
-	await putNotePage(createDefaultNotePage(legacyNote));
+	await putNotePage(createDefaultNotePage());
 	setInitializedNotesFlag();
 }
 
@@ -661,27 +670,9 @@ function setInitializedNotesFlag() {
 	}
 }
 
-async function loadLegacyDefaultNoteFromIndexedDb() {
-	const db = await getDb();
-
-	if (!db.objectStoreNames.contains(LEGACY_DOCUMENTS_STORE_NAME)) return null;
-
-	return parseStoredNote(await db.get(LEGACY_DOCUMENTS_STORE_NAME, getNoteStorageKey('default')));
-}
-
-function loadLegacyDefaultNoteFromLocalStorage(): NotesDocV1 | null {
-	try {
-		const value = window.localStorage.getItem(getNoteStorageKey('default'));
-		if (!value) return null;
-		return parseStoredNote(JSON.parse(value));
-	} catch {
-		return null;
-	}
-}
-
 async function pageSlugExists(slug: string, currentPageId = '') {
 	const db = await getDb();
-	const page = parseStoredPage(await db.getFromIndex(PAGES_STORE_NAME, 'by-slug', slug));
+	const page = await db.getFromIndex(PAGES_STORE_NAME, 'by-slug', slug);
 
 	return Boolean(page && page.id !== currentPageId);
 }
@@ -756,10 +747,8 @@ async function attachAssetsToPage(pageId: string, assetIds: string[]) {
 function getDb() {
 	dbPromise ??= openDB<NotesDB>(DB_NAME, DB_VERSION, {
 		upgrade(db) {
-			if (!db.objectStoreNames.contains(LEGACY_DOCUMENTS_STORE_NAME)) {
-				const store = db.createObjectStore(LEGACY_DOCUMENTS_STORE_NAME);
-				store.createIndex('by-updated-at', 'updatedAt');
-			}
+			const rawDb = db as unknown as IDBDatabase;
+			if (rawDb.objectStoreNames.contains('documents')) rawDb.deleteObjectStore('documents');
 
 			if (!db.objectStoreNames.contains(PAGES_STORE_NAME)) {
 				const store = db.createObjectStore(PAGES_STORE_NAME);
@@ -821,13 +810,6 @@ function normalizeStoredAsset(value: unknown): NotesAssetV1 | null {
 		createdAt: asset.createdAt,
 		updatedAt: asset.updatedAt
 	};
-}
-
-function newestNote(a: NotesDocV1 | null, b: NotesDocV1 | null): NotesDocV1 | null {
-	if (!a) return b;
-	if (!b) return a;
-
-	return Date.parse(a.updatedAt) >= Date.parse(b.updatedAt) ? a : b;
 }
 
 function isNotePage(page: NotePage | null): page is NotePage {

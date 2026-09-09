@@ -33,6 +33,7 @@
 	}
 
 	const pageTitle = $derived(titleFromPathname(page.url.pathname));
+	const immersive = $derived(page.url.pathname === '/game');
 
 	// onNavigate((navigation) => {
 	// 	if (!document.startViewTransition) return;
@@ -54,13 +55,15 @@
 	/>
 </svelte:head>
 
-<div class="app">
-	<MobileStatusBar />
-	<Header />
-	<main id="main" class="grid-bg">
+<div class="app" class:immersive>
+	{#if !immersive}
+		<MobileStatusBar />
+		<Header />
+	{/if}
+	<main id="main" class:grid-bg={!immersive} class:immersive-main={immersive}>
 		{@render children()}
 	</main>
-	<div class="preview"></div>
+	{#if !immersive}<div class="preview"></div>{/if}
 </div>
 
 {#if browser}
@@ -84,12 +87,22 @@
 		background-color: var(--base);
 	}
 
+	.app.immersive {
+		height: 100vh;
+		height: 100dvh;
+		overflow: hidden;
+	}
+
 	main {
 		display: flex;
 		flex-wrap: wrap;
 		flex-direction: column;
 		width: 100%;
 		flex: 1;
+	}
+
+	main.immersive-main {
+		min-height: 0;
 	}
 
 	@media (max-width: 48rem) {

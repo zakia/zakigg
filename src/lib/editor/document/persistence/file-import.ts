@@ -1,12 +1,11 @@
-import type { JSONContent } from '@tiptap/core';
 import type { ComponentEmbedRegistry } from '$lib/editor/components/registry';
-import { normalizeMediaBlockAttrs } from '$lib/editor/core/media-block/config';
 import { importNotesFromZip, isNotesArchiveFile } from './import';
 import { parseEditorMarkdown, isMarkdownFile } from '../markdown';
 import { createLocalAssetSrc, getAltTextForFile, getMediaKindForFile, isMediaFile } from './assets';
 import { normalizeMetadataEntries } from '../metadata';
 import { createNotePageRecord, saveNoteAsset, saveNotePage } from './storage';
-import { getFirstLevelOneHeadingText, titleFromSlug, type NotePage } from '../model';
+import { getFirstMarkdownHeading } from '../markdown-ast';
+import { titleFromSlug, type NotePage } from '../model';
 
 const TEXT_FILE_RE =
 	/\.(?:txt|text|csv|json|ya?ml|xml|html?|css|[cm]?js|[cm]?ts|jsx|tsx|svelte|svx)$/i;
@@ -59,12 +58,12 @@ async function importTextDocument(file: File, embeds: ComponentEmbedRegistry) {
 	const parsed = parseEditorMarkdown(await file.text(), embeds);
 	const fallbackTitle = titleFromFile(file);
 	const title =
-		parsed.frontmatter?.title || getFirstLevelOneHeadingText(parsed.content) || fallbackTitle;
+		parsed.frontmatter?.title || getFirstMarkdownHeading(parsed.markdown) || fallbackTitle;
 
 	return createNotePageRecord({
 		title,
 		properties: normalizeMetadataEntries(parsed.properties),
-		content: parsed.content
+		markdown: parsed.markdown
 	});
 }
 
@@ -72,48 +71,21 @@ async function importMediaDocument(file: File) {
 	const title = titleFromFile(file);
 	const page = await createNotePageRecord({ title });
 	const asset = await saveNoteAsset(file, page.id);
-	const content: JSONContent = {
-		type: 'doc',
-		content: [
-			{
-				type: 'mediaBlock',
-				attrs: normalizeMediaBlockAttrs({
-					kind: getMediaKindForFile(file),
-					src: createLocalAssetSrc(asset.id),
-					assetId: asset.id,
-					alt: getAltTextForFile(file),
-					title
-				})
-			}
-		]
-	};
-
-	return saveNotePage({ ...page, content });
+	const component = getMediaKindForFile(file) === 'video' ? 'Video' : 'Image';
+	const markdown = `<${component} src="${createLocalAssetSrc(asset.id)}" assetId="${asset.id}" alt="${escapeAttribute(getAltTextForFile(file))}" title="${escapeAttribute(title)}" />`;
+	return saveNotePage({ ...page, markdown });
 }
 
 async function importAttachmentDocument(file: File) {
 	const title = titleFromFile(file);
 	const page = await createNotePageRecord({ title });
 	const asset = await saveNoteAsset(file, page.id);
-	const content: JSONContent = {
-		type: 'doc',
-		content: [
-			{
-				type: 'componentEmbed',
-				attrs: {
-					component: 'core.Attachment',
-					props: {
-						src: createLocalAssetSrc(asset.id),
-						name: file.name,
-						mediaType: file.type || 'application/octet-stream',
-						size: file.size
-					}
-				}
-			}
-		]
-	};
+	const markdown = `<Attachment src="${createLocalAssetSrc(asset.id)}" name="${escapeAttribute(file.name)}" mediaType="${escapeAttribute(file.type || 'application/octet-stream')}" size={${file.size}} />`;
+	return saveNotePage({ ...page, markdown });
+}
 
-	return saveNotePage({ ...page, content });
+function escapeAttribute(value: string) {
+	return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
 }
 function titleFromFile(file: File) {
 	return titleFromSlug(file.name.replace(/\.[^.]+$/, ''));

@@ -12,8 +12,7 @@ import {
 	type PublishedCraftMetadata,
 	type PublishedCraftSummary
 } from '$lib/crafts/publication';
-import type { CraftDocument } from '$lib/crafts/types';
-import { getCraftDocumentContent } from '$lib/crafts/document-content';
+import { parseCraftDocument, type CraftDocument } from '$lib/crafts/types';
 import { getBucket, getFirestore } from '$lib/server/notes-sync/firestore';
 
 const PUBLISHED_CRAFTS_COLLECTION = 'published_crafts';
@@ -109,7 +108,7 @@ export async function listPublishedCrafts(): Promise<PublishedCraftSummary[]> {
 				const publishedDocument = await readPublishedCraftDocument(metadata);
 				return {
 					...summary,
-					wordCount: countCraftWords(getCraftDocumentContent(publishedDocument), metadata.title)
+					wordCount: countCraftWords(publishedDocument.markdown, metadata.title)
 				};
 			} catch (cause) {
 				console.error(
@@ -144,5 +143,7 @@ async function readPublishedCraftDocument(
 	const hash = createHash('sha256').update(data).digest('hex');
 	if (hash !== metadata.bodyHash) throw error(500, 'Published craft failed its integrity check');
 
-	return JSON.parse(data.toString('utf8')) as CraftDocument;
+	const document = parseCraftDocument(JSON.parse(data.toString('utf8')));
+	if (!document) throw error(500, 'Published craft uses an unsupported document format');
+	return document;
 }

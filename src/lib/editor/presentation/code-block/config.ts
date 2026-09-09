@@ -57,11 +57,21 @@ export const CODE_BLOCK_LANGUAGES: CodeLanguage[] = [
 ];
 
 const LANGUAGE_MAP = new Map(CODE_BLOCK_LANGUAGES.map((language) => [language.value, language]));
+const LANGUAGE_ALIASES = new Map([
+	['js', 'javascript'],
+	['ts', 'typescript'],
+	['sh', 'bash'],
+	['shell', 'bash'],
+	['md', 'markdown'],
+	['py', 'python'],
+	['yml', 'yaml']
+]);
 
 export function normalizeLanguage(language: unknown) {
 	const value = typeof language === 'string' ? language.trim().toLowerCase() : '';
 
-	return value && LANGUAGE_MAP.has(value) ? value : DEFAULT_LANGUAGE;
+	const normalized = LANGUAGE_ALIASES.get(value) ?? value;
+	return normalized && LANGUAGE_MAP.has(normalized) ? normalized : DEFAULT_LANGUAGE;
 }
 
 export function normalizeCodeBlockAttrs(attributes?: CodeBlockAttributes) {

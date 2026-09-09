@@ -8,13 +8,20 @@
 	import {
 		DocumentEditor,
 		createNotePageRecord,
+		applyRemotePage,
 		loadNotePageBySlug,
 		titleFromSlug,
 		toStoredNotePage,
 		type DocumentPublicationAdapter,
 		type NotePage
 	} from '$lib/editor/document';
-	import { getCraftPublication, publishNoteCraft, unpublishNoteCraft } from './publication.remote';
+	import { payloadToPage } from '$lib/editor/document/sync/protocol';
+	import {
+		getCraftPublication,
+		getEditableCraft,
+		publishNoteCraft,
+		unpublishNoteCraft
+	} from './publication.remote';
 	import { isPublishedCraftOutdated, type PublishedCraftSummary } from './publication';
 
 	let { slug }: { slug: string } = $props();
@@ -52,7 +59,12 @@
 		craft = null;
 
 		try {
-			const page = await loadNotePageBySlug(slug);
+			let page = await loadNotePageBySlug(slug);
+			if (!page) {
+				const remote = await getEditableCraft(slug);
+				page = remote ? payloadToPage(remote) : null;
+				if (page && remote) await applyRemotePage(page, remote.mutationId);
+			}
 			craft = page;
 			syncMetadataInputs(page);
 		} finally {

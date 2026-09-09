@@ -22,11 +22,7 @@ const TOMBSTONES_COLLECTION = 'tombstones';
 const CHANGES_COLLECTION = 'changes';
 const REVISIONS_COLLECTION = 'revisions';
 
-type StoredPageDoc = Omit<
-	PagePayload,
-	'markdown' | 'contentJson' | 'propertiesJson' | 'frontmatterJson'
-> & {
-	frontmatterPresent: boolean;
+type StoredPageDoc = Omit<PagePayload, 'markdown'> & {
 	bodyObject: string;
 	bodyHash: string;
 	serverVersion: string;
@@ -47,10 +43,7 @@ type ChangeDoc = {
 };
 
 type PageBody = {
-	markdown?: string;
-	contentJson?: string;
-	propertiesJson?: string;
-	frontmatterJson?: string;
+	markdown: string;
 };
 
 export type PushStatus = 'accepted' | 'stale';
@@ -104,12 +97,7 @@ async function savePageBody(
 	page: PagePayload
 ): Promise<{ object: string; hash: string }> {
 	const object = pageBodyObject(userId, page);
-	const body: PageBody = {
-		...(page.markdown !== undefined ? { markdown: page.markdown } : {}),
-		...(page.contentJson !== undefined ? { contentJson: page.contentJson } : {}),
-		...(page.propertiesJson !== undefined ? { propertiesJson: page.propertiesJson } : {}),
-		...(page.frontmatterJson ? { frontmatterJson: page.frontmatterJson } : {})
-	};
+	const body: PageBody = { markdown: page.markdown };
 	const data = Buffer.from(JSON.stringify(body));
 	const hash = createHash('sha256').update(data).digest('hex');
 
@@ -172,7 +160,6 @@ export async function pushPageLww(userId: string, page: PagePayload): Promise<Pu
 		const metadata = pagePayloadMetadata(page);
 		tx.set(pageRef, {
 			...metadata,
-			frontmatterPresent: page.frontmatterJson !== undefined,
 			bodyObject: body.object,
 			bodyHash: body.hash,
 			serverVersion: changeRef.id
@@ -349,6 +336,18 @@ export async function pullSince(
 	};
 }
 
+export async function getPageBySlug(userId: string, slug: string): Promise<RemotePageDoc | null> {
+	const snapshot = await userCollection(userId, PAGES_COLLECTION)
+		.where('slug', '==', slug)
+		.limit(1)
+		.get();
+	const stored = snapshot.docs[0]?.data() as StoredPageDoc | undefined;
+	if (!stored) return null;
+
+	const body = await readPageBody(stored.bodyObject, stored.bodyHash);
+	return { ...storedPagePayloadMetadata(stored), ...body };
+}
+
 async function resolveCurrentRecord(
 	userId: string,
 	change: ChangeDoc
@@ -379,7 +378,12 @@ async function resolveCurrentRecord(
 	return null;
 }
 
-function pagePayloadMetadata(page: PagePayload) {
+function pagePayloadMetadata(
+	page: Pick<
+		PagePayload,
+		'id' | 'slug' | 'title' | 'tags' | 'createdAt' | 'updatedAt' | 'mutationId'
+	>
+) {
 	return {
 		id: page.id,
 		slug: page.slug,

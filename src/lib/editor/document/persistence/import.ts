@@ -109,7 +109,7 @@ async function importAssets(
 }
 
 function inferAssetsFromPages(files: Map<string, Uint8Array>, pages: NotePage[]): ManifestAsset[] {
-	const referencedIds = unique(pages.flatMap((page) => getReferencedAssetIds(page.content)));
+	const referencedIds = unique(pages.flatMap((page) => getReferencedAssetIds(page.markdown)));
 	const assetPaths = [...files.keys()].filter((path) => path.startsWith('assets/'));
 
 	return referencedIds

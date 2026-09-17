@@ -16,6 +16,7 @@ export const DEFAULT_NOTE_SLUG = DEFAULT_DOCUMENT_SLUG;
 export const DEFAULT_NOTE_ID = 'page_default';
 
 export type NotePageFrontmatter = {
+	id?: string;
 	title?: string;
 	slug?: string;
 	description?: string;
@@ -50,6 +51,7 @@ export type NotePageMetadataPatch = Partial<NotePageFrontmatter>;
 export function createNotePage(input: Partial<NotePage> = {}): NotePage {
 	const now = new Date().toISOString();
 	const parsed = parseCanonicalMarkdownSource(input.markdown ?? '');
+	const parsedProperties = metadataEntriesToRecord(parsed.properties);
 	const properties = normalizeMetadataEntries(
 		input.properties ??
 			(parsed.hasFrontmatter
@@ -57,7 +59,7 @@ export function createNotePage(input: Partial<NotePage> = {}): NotePage {
 				: { ...(input.frontmatter ?? {}), ...(input.tags?.length ? { tags: input.tags } : {}) })
 	);
 	const seed = {
-		id: input.id || createPageId(),
+		id: normalizePageId(input.id || parsedProperties.id) || createPageId(),
 		slug: normalizePageSlug(input.slug || DEFAULT_NOTE_SLUG),
 		title: normalizePageTitle(input.title || getFirstMarkdownHeading(parsed.body)),
 		tags: normalizePageTags(input.tags),
@@ -83,7 +85,12 @@ export function createNotePage(input: Partial<NotePage> = {}): NotePage {
 }
 
 export function createDefaultNotePage(): NotePage {
-	return createNotePage({ id: DEFAULT_NOTE_ID, slug: DEFAULT_NOTE_SLUG, title: 'Default' });
+	return createNotePage({
+		id: DEFAULT_NOTE_ID,
+		slug: DEFAULT_NOTE_SLUG,
+		title: 'Default',
+		properties: [{ key: 'draft', value: true }]
+	});
 }
 
 export function createPageId() {
@@ -170,6 +177,8 @@ export function metadataPropertiesToNotePageFrontmatter(
 ): NotePageFrontmatter | undefined {
 	const properties = normalizeMetadataProperties(value);
 	const frontmatter: NotePageFrontmatter = {};
+	if (typeof properties.id === 'string' && properties.id.trim())
+		frontmatter.id = normalizePageId(properties.id);
 	if (typeof properties.title === 'string' && properties.title.trim())
 		frontmatter.title = normalizePageTitle(properties.title);
 	if (typeof properties.slug === 'string' && properties.slug.trim())
@@ -187,6 +196,8 @@ export function normalizeNotePageFrontmatter(value: unknown): NotePageFrontmatte
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return;
 	const record = value as Record<string, unknown>;
 	const frontmatter: NotePageFrontmatter = {};
+	if (typeof record.id === 'string' && record.id.trim())
+		frontmatter.id = normalizePageId(record.id);
 	if (typeof record.title === 'string' && record.title.trim())
 		frontmatter.title = normalizePageTitle(record.title);
 	if (typeof record.slug === 'string' && record.slug.trim())
@@ -242,10 +253,14 @@ function parseCanonicalMarkdownSource(markdown: string) {
 }
 
 function createCanonicalProperties(
-	page: Pick<NotePage, 'properties' | 'title' | 'slug' | 'tags' | 'createdAt' | 'frontmatter'>
+	page: Pick<
+		NotePage,
+		'id' | 'properties' | 'title' | 'slug' | 'tags' | 'createdAt' | 'frontmatter'
+	>
 ) {
 	return normalizeMetadataEntries({
 		...metadataEntriesToRecord(page.properties),
+		id: page.id,
 		title: page.title,
 		...(page.frontmatter?.slug ? { slug: page.slug } : {}),
 		...(page.frontmatter?.description ? { description: page.frontmatter.description } : {}),
@@ -253,6 +268,11 @@ function createCanonicalProperties(
 		date: page.frontmatter?.date || page.createdAt.slice(0, 10),
 		...(typeof page.frontmatter?.draft === 'boolean' ? { draft: page.frontmatter.draft } : {})
 	});
+}
+
+function normalizePageId(value: unknown) {
+	const id = typeof value === 'string' ? value.trim() : '';
+	return /^[A-Za-z0-9_-]{1,180}$/.test(id) ? id : '';
 }
 
 function normalizeTag(value: unknown) {

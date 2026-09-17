@@ -10,6 +10,9 @@ build/
 .pnpm-store/
 infra/.terraform/
 
+# Authored CMS content is validated by the Markdown parser during build.
+content/crafts/
+
 # Tool-owned worktrees and generated puzzle-search data
 .claude/worktrees/
 .claude/settings.local.json

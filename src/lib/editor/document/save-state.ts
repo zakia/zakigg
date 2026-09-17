@@ -1,11 +1,11 @@
 export type SaveState = 'loading' | 'saving' | 'saved' | 'error';
 
-export type SyncLabelStatus = 'disabled' | 'idle' | 'pending' | 'syncing' | 'synced' | 'error';
+export type CommitStatus = 'disabled' | 'idle' | 'pending' | 'committing' | 'committed' | 'error';
 
 export function formatSaveLabel(
 	saveState: SaveState,
 	lastSavedAt?: string,
-	syncStatus: SyncLabelStatus = 'disabled'
+	commitStatus: CommitStatus = 'disabled'
 ) {
 	if (saveState === 'loading') return 'Loading';
 	if (saveState === 'saving') return 'Saving...';
@@ -18,10 +18,10 @@ export function formatSaveLabel(
 			}).format(new Date(lastSavedAt))}`
 		: 'Saved';
 
-	if (syncStatus === 'disabled' || syncStatus === 'idle') return `${savedLabel} locally`;
-	if (syncStatus === 'syncing') return `${savedLabel} · Syncing...`;
-	if (syncStatus === 'pending') return `${savedLabel} · Sync pending`;
-	if (syncStatus === 'error') return `${savedLabel} · Sync error`;
+	if (commitStatus === 'disabled' || commitStatus === 'idle') return `${savedLabel} locally`;
+	if (commitStatus === 'committing') return `${savedLabel} · Committing...`;
+	if (commitStatus === 'pending') return `${savedLabel} · Git changes pending`;
+	if (commitStatus === 'error') return `${savedLabel} · Git commit failed`;
 
-	return `${savedLabel} · Synced`;
+	return `${savedLabel} · Committed`;
 }

@@ -1,192 +1,105 @@
-# Google Cloud deployment and Notes sync
+# Deployment and content storage
 
-The SvelteKit app runs on Cloud Run in `us-east1`. Artifact Registry stores the
-container image, a named Firestore database stores note metadata and the ordered
-sync change log, and a private Cloud Storage bucket stores complete note bodies and assets.
-Firebase Hosting is the stable HTTPS/custom-domain front door and forwards all
-requests to Cloud Run.
+The application runs on Cloud Run behind Firebase Hosting. Git stores Markdown, GCS stores binary
+assets, Google Identity protects the private editor, and a GitHub App performs repository writes.
 
-IndexedDB remains the immediate local store. Editing never waits for the
-network; signed-in devices push and pull in the background.
+## GitHub App
 
-## What is automatic and what is manual
+Create a GitHub App with:
 
-Terraform manages the Google APIs, Artifact Registry, Cloud Run, Firestore,
-the weekly Firestore backup schedule, Cloud Storage, Firebase Hosting, the
-custom-domain association, service accounts, IAM, Secret Manager, and GitHub
-Workload Identity Federation.
+- Repository access limited to this repository.
+- Repository permission: Contents, read and write.
+- No user authorization flow or callback URL is required.
+- The target branch must allow this App to commit directly.
 
-Two operations remain manual:
-
-1. Creating the Google Identity Services OAuth web client in Cloud Console.
-2. Adding the DNS records Terraform receives from Firebase at the domain
-   registrar. Terraform deliberately does not manage the registrar account.
-
-## 1. Prerequisites
-
-Install and authenticate these tools:
+Install it on the repository and record its app and installation IDs in `infra/terraform.tfvars`.
+The bootstrap script creates the secret container and uploads the PEM without putting the value in
+Terraform state:
 
 ```sh
-gcloud auth login
+GITHUB_APP_PRIVATE_KEY_FILE=/absolute/path/to/private-key.pem ./scripts/bootstrap.sh
+```
+
+For an existing installation where the rest of Terraform is already applied, create the new secret
+container first, upload the key, and then apply normally:
+
+```sh
+terraform -chdir=infra apply -target=google_secret_manager_secret.github_app_private_key
+gcloud secrets versions add github-app-private-key --data-file=private-key.pem
+terraform -chdir=infra apply
+```
+
+Terraform provides these runtime values:
+
+- `GITHUB_CLIENT_ID`
+- `GITHUB_INSTALLATION_ID`
+- `GITHUB_OWNER`
+- `GITHUB_REPO`
+- `GITHUB_BRANCH`
+- `GITHUB_PRIVATE_KEY` from Secret Manager
+
+The server exchanges the app JWT for a short-lived installation token. GitHub credentials are
+never sent to the browser.
+
+## Administrator authentication
+
+Configure:
+
+```text
+PUBLIC_GOOGLE_CLIENT_ID
+AUTH_ALLOWED_EMAIL
+AUTH_SESSION_SECRET
+```
+
+Google ID tokens are verified server-side. Only the allowlisted verified email receives the
+signed `__session` cookie. All Git commands and GCS uploads check that session and request origin.
+
+## Content build
+
+Published Markdown lives under `content/crafts`. A Git commit starts the normal deployment. The
+build imports those files and prerenders public craft routes. Files with `draft: true` are omitted.
+
+The runtime does not contact GitHub when serving public pages. `/media/<asset-id>` streams immutable
+objects from the private GCS bucket through the public application route.
+
+## One-time Firestore export
+
+Before deploying the Git-backed version, authenticate Application Default Credentials. The
+exporter discovers the project, bucket, and database from the active Cloud Run service. Environment
+variables or an optional `.env` file override discovery. The active us-east1 installation uses
+database `zakigg` and bucket `<project>-note-assets-us-east1`; the older Toronto installation uses
+database `(default)` and bucket `<project>-note-assets`:
+
+```sh
 gcloud auth application-default login
-gh auth login
-terraform version
+bun run migrate:firestore
 ```
 
-Create or select a billing-enabled GCP project. The active runtime uses the Tier 1
-`us-east1` region for Cloud Run, Firestore, Cloud Storage, and Artifact Registry.
-The original Toronto resources and Terraform state remain intact as a rollback
-copy after the migration.
+The exporter:
 
-## 2. Create the Google sign-in client
+1. Reads the legacy page metadata through the Firestore REST API.
+2. Verifies and reads each body object from GCS.
+3. Preserves canonical Markdown bodies and converts the older editor JSON bodies once during export.
+4. Writes a self-contained `content/crafts/<id>.md` file.
+5. Marks only previously published documents as non-drafts.
+6. Copies referenced assets into the flat `assets/<asset-id>` GCS namespace.
+7. Rejects duplicate IDs, duplicate slugs, missing bodies, or hash mismatches.
 
-In Google Cloud Console, open **Google Auth Platform → Clients**, create a
-**Web application** client, and add these Authorized JavaScript origins:
+Review and commit the generated Markdown before deploying. The application has no Firestore
+package, IAM role, environment variable, or runtime call. The protected legacy databases and
+backup schedules remain in Terraform only until the export and production deployment are
+verified; remove `infra/firestore.tf`, its API entry, and its legacy variable afterward.
 
-- `https://zaki.gg`
-- `https://YOUR_HOSTING_SITE_ID.web.app`
-- `http://localhost:5173`
+## Verification
 
-The default Hosting site id is the GCP project id. No redirect URI or client
-secret is required because the app uses the Google Identity Services popup and
-verifies its ID token on the server.
-
-Copy the client id ending in `.apps.googleusercontent.com`.
-
-## 3. Configure and bootstrap Terraform
+Run:
 
 ```sh
-cp infra/terraform.tfvars.example infra/terraform.tfvars
+bun run check
+bun run test
+bun run build
+terraform fmt -check infra
 ```
 
-Fill in the project id, allowed Google email, OAuth client id, GitHub repository,
-and—if the project id is not available as a globally unique Hosting site id—a
-different `hosting_site_id`.
-
-Then run:
-
-```sh
-./scripts/bootstrap.sh
-```
-
-The script performs five ordered operations:
-
-1. Creates a private, versioned Terraform-state bucket.
-2. Initializes Terraform and creates the Secret Manager container.
-3. Generates the session-signing secret outside Terraform state.
-4. Applies the complete infrastructure.
-5. Adds the non-secret GitHub Actions variables used by CI.
-
-Infrastructure changes stay explicit: CI checks Terraform formatting and
-validity, while `terraform apply` runs from an authenticated administrator's
-machine. The GitHub deployment identity therefore cannot change project-wide
-IAM, databases, storage, or domain configuration.
-
-The first Terraform apply creates Cloud Run with Google's hello image. That is
-only a bootstrap revision; the application workflow replaces it with the real
-image.
-
-## 4. Deploy without touching DNS
-
-Push the branch through `main`, or run the **Deploy** GitHub workflow manually.
-The workflow checks and builds the app, pushes an immutable commit-tagged image
-to Artifact Registry, deploys it to Cloud Run, and calls `/healthz`.
-
-Get both preview addresses:
-
-```sh
-terraform -chdir=infra output -raw service_url
-terraform -chdir=infra output -raw hosting_preview_url
-```
-
-Before changing DNS, verify both URLs:
-
-- `/healthz` returns `{"ok":true}`.
-- `/crafts?edit` loads normally.
-- Google sign-in works on the `web.app` URL.
-- A local note can be created and remains after a reload.
-- The browser shows a registered service worker.
-
-## 5. Connect `zaki.gg` without downtime
-
-First print the records requested by Firebase:
-
-```sh
-terraform -chdir=infra apply -refresh-only
-terraform -chdir=infra output -json domain_dns_records
-```
-
-The output can contain two classes of records:
-
-- A TXT ownership/certificate-verification record.
-- A/AAAA serving records that direct traffic to Firebase Hosting.
-
-Use this cutover sequence:
-
-1. Record the site's current A, AAAA, and CNAME values so rollback is one DNS
-   edit away. Lower their TTL to about 300 seconds at least one TTL before the
-   cutover when practical.
-2. Add the requested ownership/certificate TXT records first. Do **not** remove
-   the current serving records yet; the existing site remains live while
-   Firebase verifies domain control. The certificate can remain pending until
-   the serving records point at Firebase.
-3. Wait for DNS propagation, then run the refresh/output commands again. The
-   custom-domain resource is configured not to block Terraform while DNS is
-   still pending.
-4. Confirm the Cloud Run and `web.app` previews still pass the checks above.
-5. Replace only the old A/AAAA/CNAME serving records with Firebase's requested
-   serving records. Keep the TXT verification record.
-6. Verify `https://zaki.gg/healthz`, `/crafts?edit`, Google sign-in, the manifest,
-   and the service worker from a clean browser profile and the installed PWA.
-
-Rollback is simply restoring the old serving records. Firestore and Cloud
-Storage remain untouched, so no note data is rolled back or discarded.
-
-## 6. First sync and multi-device test
-
-Open `/crafts?edit`, sign in with the allowlisted Google account, and wait for the
-cloud indicator to show synced. Existing local records are enrolled on first
-sign-in. Complete note bodies and binary assets go to Cloud Storage; Firestore
-only holds metadata, version pointers, tombstones, and the change log.
-
-Test from a second browser profile or phone:
-
-1. Sign in and confirm the first device's notes appear.
-2. Go offline, edit a note, and confirm it still reads **Saved locally**.
-3. Reconnect or foreground the app and confirm it becomes **Synced**.
-4. Delete a test note and confirm the deletion reaches the second device.
-5. Add an image and confirm the asset downloads on the second device.
-6. Open a previously visited note with the phone offline to verify the cached
-   PWA shell and IndexedDB data.
-
-Mobile browsers do not guarantee execution while an installed PWA is fully
-closed. Pending changes sync after the app reopens, reconnects, or returns to
-the foreground.
-
-## Local development
-
-```sh
-bun run dev
-```
-
-The dev command reads the non-secret project, bucket, allowlisted email, and
-OAuth client id from the deployed Cloud Run service. It generates a separate
-session-signing key in memory for each dev-server process; the production key
-remains in Secret Manager. Application Default Credentials provide Firestore
-and Storage access, so run `gcloud auth application-default login` once if
-needed.
-
-Use `bun run dev:local` to bypass Cloud Run discovery and provide configuration
-through a local `.env`. For Firestore-only local work,
-`FIRESTORE_EMULATOR_HOST` can point the server client at the emulator; use a
-disposable GCS bucket for asset tests.
-
-## Recovery and protection
-
-- Firestore has deletion protection and a weekly backup retained for 14 weeks.
-- Cloud Storage has public access prevention and object versioning; replaced or
-  deleted asset generations remain recoverable for 90 days.
-- Every uploaded note body is immutable and hash-checked when downloaded.
-- Losing concurrent note revisions are retained in Cloud Storage and recorded
-  in Firestore's `revisions` collection rather than silently discarded.
-- Cloud Run scales to zero and is capped at two instances for cost control.
+Then verify Google sign-in, Git save, publish deployment, direct public loading without a session,
+asset rendering, and offline reload of previously visited craft pages.

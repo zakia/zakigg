@@ -1,9 +1,14 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import type { Snippet } from 'svelte';
 	import { auth } from '$lib/auth';
 	import Icon from '$lib/components/Icon.svelte';
 
 	let { children }: { children: Snippet } = $props();
+
+	onMount(() => {
+		void auth.refresh();
+	});
 </script>
 
 {#if !auth.ready}

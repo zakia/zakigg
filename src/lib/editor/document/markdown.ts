@@ -94,6 +94,7 @@ export function serializeNotePageMarkdown(
 
 export function getNotePageFrontmatter(page: NotePage): NoteMarkdownFrontmatter {
 	return {
+		id: page.id,
 		title: page.title,
 		...(page.frontmatter?.slug ? { slug: page.slug } : {}),
 		...(page.frontmatter?.description ? { description: page.frontmatter.description } : {}),

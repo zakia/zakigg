@@ -4,7 +4,7 @@ import type { User } from '$lib/auth/types';
 import type { ExternalIdentity } from './providers';
 
 export async function resolveUser(identity: ExternalIdentity): Promise<User> {
-	const allowedEmail = env.AUTH_ALLOWED_EMAIL || env.NOTES_SYNC_ALLOWED_EMAIL;
+	const allowedEmail = env.AUTH_ALLOWED_EMAIL;
 	if (!allowedEmail) throw error(500, 'AUTH_ALLOWED_EMAIL is not configured');
 	if (!identity.email || !identity.emailVerified) {
 		throw error(401, 'A verified email address is required');

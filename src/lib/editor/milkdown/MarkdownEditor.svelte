@@ -293,6 +293,88 @@
 		text-underline-offset: 0.2em;
 	}
 
+	.milkdown-editor :global(.milkdown .ProseMirror p a:not(:has(code)):hover) {
+		color: var(--brand-content);
+	}
+
+	.milkdown-editor :global(.milkdown-link-preview),
+	.milkdown-editor :global(.milkdown-link-edit) {
+		background: var(--base-1);
+		border: 1px solid var(--edge-1);
+		border-radius: calc(var(--radius) * 0.8);
+		box-shadow: 0 0.6rem 1.8rem rgb(0 0 0 / 0.14);
+		box-sizing: border-box;
+		padding: 4px;
+		position: absolute;
+		z-index: 50;
+	}
+
+	.milkdown-editor :global(.milkdown-link-preview[data-show='false']),
+	.milkdown-editor :global(.milkdown-link-edit[data-show='false']) {
+		display: none;
+	}
+
+	.milkdown-editor :global(.milkdown-link-preview .link-preview),
+	.milkdown-editor :global(.milkdown-link-edit .link-edit) {
+		align-items: center;
+		display: flex;
+		gap: 3px;
+	}
+
+	.milkdown-editor :global(.milkdown-link-preview .link-display) {
+		background: transparent;
+		border-radius: calc(var(--radius) * 0.5);
+		color: var(--content);
+		font-size: var(--s-1);
+		max-width: min(24rem, 55vw);
+		overflow: hidden;
+		padding: 0.42rem 0.55rem;
+		text-decoration-color: var(--brand);
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.milkdown-editor :global(.milkdown-link-preview .link-display:hover),
+	.milkdown-editor :global(.milkdown-link-preview .link-display:focus-visible) {
+		background: var(--base-2);
+		color: var(--brand);
+		outline: none;
+	}
+
+	.milkdown-editor :global(.milkdown-link-preview .milkdown-icon.button),
+	.milkdown-editor :global(.milkdown-link-edit .milkdown-icon.button) {
+		align-items: center;
+		border-radius: calc(var(--radius) * 0.5);
+		color: var(--content-1);
+		cursor: pointer;
+		display: inline-flex;
+		font-size: var(--s-2);
+		min-height: 2rem;
+		padding-inline: 0.55rem;
+		user-select: none;
+	}
+
+	.milkdown-editor :global(.milkdown-link-preview .milkdown-icon.button:hover),
+	.milkdown-editor :global(.milkdown-link-edit .milkdown-icon.button:hover) {
+		background: var(--base-2);
+		color: var(--content);
+	}
+
+	.milkdown-editor :global(.milkdown-link-edit .input-area) {
+		background: var(--base-2);
+		border: 1px solid transparent;
+		border-radius: calc(var(--radius) * 0.55);
+		color: var(--content);
+		font: 0.82rem/1.2 var(--font-body);
+		min-width: min(18rem, 62vw);
+		outline: none;
+		padding: 0.52rem 0.65rem;
+	}
+
+	.milkdown-editor :global(.milkdown-link-edit .input-area:focus) {
+		border-color: var(--brand);
+	}
+
 	.milkdown-editor :global(.milkdown .ProseMirror :not(pre) > code) {
 		background: color-mix(in oklch, var(--brand) 9%, var(--base-2));
 		border-radius: calc(var(--radius) * 0.45);

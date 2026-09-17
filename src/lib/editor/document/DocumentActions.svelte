@@ -2,7 +2,7 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import ActionTooltip from './ActionTooltip.svelte';
 	import SaveStatus from './SaveStatus.svelte';
-	import type { SaveState, SyncLabelStatus } from './save-state';
+	import type { CommitStatus, SaveState } from './save-state';
 
 	type DocumentAction = {
 		title: string;
@@ -14,12 +14,13 @@
 	type Props = {
 		saveState: SaveState;
 		saveLabel: string;
-		syncStatus?: SyncLabelStatus;
+		commitStatus?: CommitStatus;
 		historyOpen: boolean;
 		propertiesOpen: boolean;
 		publicationState?: 'loading' | 'unpublished' | 'published' | 'working' | 'error';
 		publicHref?: string;
 		onDownloadMarkdown: () => void;
+		onCommit?: () => void | Promise<void>;
 		onToggleHistory?: () => void;
 		onToggleProperties: () => void;
 		onTogglePublication?: () => void | Promise<void>;
@@ -28,12 +29,13 @@
 	let {
 		saveState,
 		saveLabel,
-		syncStatus = 'disabled',
+		commitStatus = 'disabled',
 		historyOpen,
 		propertiesOpen,
 		publicationState = 'loading',
 		publicHref,
 		onDownloadMarkdown,
+		onCommit,
 		onToggleHistory,
 		onToggleProperties,
 		onTogglePublication
@@ -90,7 +92,19 @@
 </script>
 
 <div class="document-actions" aria-label="Document actions">
-	<SaveStatus state={saveState} label={saveLabel} sync={syncStatus} />
+	<SaveStatus state={saveState} label={saveLabel} commit={commitStatus} />
+	{#if onCommit}
+		<button
+			type="button"
+			class="commit-action"
+			disabled={commitStatus === 'committing'}
+			title="Save Markdown to Git"
+			onclick={() => void onCommit()}
+		>
+			<Icon icon={commitStatus === 'committing' ? 'mdi:loading' : 'mdi:content-save-outline'} />
+			<span>{commitStatus === 'committing' ? 'Saving…' : 'Save'}</span>
+		</button>
+	{/if}
 	{#if onTogglePublication}
 		{#if publicationState === 'published' && publicHref}
 			<div class="publication-controls">
@@ -187,6 +201,30 @@
 		display: inline-flex;
 		min-height: 2rem;
 		padding: var(--s-4) var(--s-2);
+	}
+
+	.commit-action {
+		backdrop-filter: blur(10px);
+		background: var(--brand);
+		border: 1px solid color-mix(in oklch, var(--brand) 80%, var(--edge));
+		border-radius: 999px;
+		color: var(--brand-content);
+		font-size: var(--s-1);
+		font-weight: 700;
+		gap: var(--s-4);
+		height: auto;
+		min-height: 2rem;
+		padding: var(--s-4) var(--s-2);
+	}
+
+	.commit-action:disabled {
+		cursor: wait;
+		opacity: 0.72;
+	}
+
+	.commit-action :global(svg) {
+		height: 1rem;
+		width: 1rem;
 	}
 
 	.publication-controls {

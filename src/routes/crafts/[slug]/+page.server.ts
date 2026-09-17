@@ -1,46 +1,15 @@
 import { error, redirect } from '@sveltejs/kit';
 import { toolSlugs } from '$lib/tools/registry';
-import { toPublishedCraftSummary } from '$lib/crafts/publication';
-import {
-	getPublishedCraftDocument,
-	getPublishedCraftMetadata
-} from '$lib/server/crafts/publication';
-import type { PageServerLoad } from './$types';
+import { getStaticCraft, listStaticCraftSlugs } from '$lib/server/content/static';
+import type { EntryGenerator, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ params, setHeaders, url }) => {
+export const prerender = 'auto';
+
+export const entries: EntryGenerator = () => listStaticCraftSlugs().map((slug) => ({ slug }));
+
+export const load: PageServerLoad = async ({ params }) => {
 	if (toolSlugs.has(params.slug)) redirect(308, `/tools/${params.slug}`);
-
-	if (url.searchParams.has('edit')) {
-		setHeaders({ 'Cache-Control': 'private, no-store' });
-		return { edit: true, published: null, document: null };
-	}
-
-	const published = await getPublishedCraftMetadata(params.slug);
-
-	if (!published) error(404, 'Craft not found');
-
-	setHeaders({
-		'Cache-Control': 'public, max-age=0, s-maxage=60, stale-while-revalidate=300'
-	});
-
-	return {
-		edit: false,
-		published: toPublishedCraftSummary(published),
-		document: loadPublishedDocument(published)
-	};
+	const craft = getStaticCraft(params.slug);
+	if (!craft) error(404, 'Craft not found');
+	return { meta: craft.summary, document: craft.document };
 };
-
-async function loadPublishedDocument(
-	published: NonNullable<Awaited<ReturnType<typeof getPublishedCraftMetadata>>>
-) {
-	try {
-		return await getPublishedCraftDocument(published);
-	} catch (cause) {
-		console.error('Published craft document could not be loaded', {
-			slug: published.slug,
-			pageId: published.pageId,
-			cause
-		});
-		throw cause;
-	}
-}

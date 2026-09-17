@@ -42,13 +42,15 @@
 
 	const entries = $derived(normalizeMetadataEntries(properties));
 	const rows = $derived(
-		entries.map(
-			(entry): PropertyRow => ({
-				id: entry.key,
-				definition: getMetadataPropertyDefinition(entry.key),
-				value: entry.value
-			})
-		)
+		entries
+			.filter((entry) => entry.key !== 'id')
+			.map(
+				(entry): PropertyRow => ({
+					id: entry.key,
+					definition: getMetadataPropertyDefinition(entry.key),
+					value: entry.value
+				})
+			)
 	);
 	// Writable derived: dnd consider/finalize events reassign it mid-drag, and it
 	// snaps back to the committed entry order whenever the properties change.
@@ -287,9 +289,10 @@
 		dndRows = event.detail.items;
 
 		const byKey = new Map(entries.map((entry) => [entry.key, entry]));
-		const next = event.detail.items
+		const visible = event.detail.items
 			.map((item) => byKey.get(item.id))
 			.filter((entry): entry is MetadataEntry => Boolean(entry));
+		const next = [...entries.filter((entry) => entry.key === 'id'), ...visible];
 
 		commitEntries(next);
 	}

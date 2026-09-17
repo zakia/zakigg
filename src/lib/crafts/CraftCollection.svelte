@@ -17,14 +17,12 @@
 	let {
 		initialCrafts = [],
 		editable = false,
-		showEditLink = false,
 		pending = false,
 		loadError = false,
 		onRetry
 	}: {
 		initialCrafts?: CraftListItem[];
 		editable?: boolean;
-		showEditLink?: boolean;
 		pending?: boolean;
 		loadError?: boolean;
 		onRetry?: () => void;
@@ -43,7 +41,6 @@
 
 	const filteredPages = $derived(filterPages(pages));
 	const yearGroups = $derived(groupPagesByYear(filteredPages));
-	const editCollectionHref = `${resolve('/crafts')}?edit`;
 
 	onMount(() => {
 		if (editable) void refresh();
@@ -56,10 +53,11 @@
 			const { createNotePageRecord } = await import('$lib/editor/document/persistence/storage');
 			const page = await createNotePageRecord({
 				markdown: '',
-				properties: [{ key: 'date', value: new Date().toISOString().slice(0, 10) }]
+				properties: [
+					{ key: 'date', value: new Date().toISOString().slice(0, 10) },
+					{ key: 'draft', value: true }
+				]
 			});
-			// The query string is intentionally composed after resolving the typed route.
-			// eslint-disable-next-line svelte/no-navigation-without-resolve
 			await goto(craftHref(page.slug, true));
 		} finally {
 			busy = '';
@@ -122,14 +120,14 @@
 				return;
 			}
 
+			const { commitRepositoryCraft } = await import('./repository.client');
+			for (const page of result.pages) await commitRepositoryCraft(page);
 			await refresh();
 			showToast(
 				`Created ${importedPages} ${importedPages === 1 ? 'craft' : 'crafts'}${result.failed.length ? ` · ${result.failed.length} skipped` : ''}`
 			);
 
 			if (importedPages === 1) {
-				// The query string is intentionally composed after resolving the typed route.
-				// eslint-disable-next-line svelte/no-navigation-without-resolve
 				await goto(craftHref(result.pages[0].slug, true));
 			}
 		} finally {
@@ -142,9 +140,18 @@
 		localLoadError = null;
 
 		try {
-			const { initializeNotesDb, listNotePages } =
-				await import('$lib/editor/document/persistence/storage');
+			const [{ loadRepositoryCrafts }, storage] = await Promise.all([
+				import('./repository.client'),
+				import('$lib/editor/document/persistence/storage')
+			]);
+			const { cacheRepositoryNotePage, initializeNotesDb, listNotePages } = storage;
 			await initializeNotesDb();
+			try {
+				const repositoryPages = await loadRepositoryCrafts();
+				for (const page of repositoryPages) await cacheRepositoryNotePage(page);
+			} catch (cause) {
+				console.warn('Git repository is unavailable; showing local Markdown drafts', cause);
+			}
 			pages = await listNotePages();
 		} catch (error) {
 			console.error('Failed to load local crafts', error);
@@ -152,6 +159,29 @@
 				error instanceof Error && error.name === 'NotesDatabaseBlockedError' ? 'blocked' : 'failed';
 		} finally {
 			loading = false;
+		}
+	}
+
+	async function reloadFromRepository() {
+		if (
+			!confirm(
+				'Replace local Markdown drafts with the current Git repository? Uncommitted local changes will be discarded.'
+			)
+		)
+			return;
+
+		busy = 'reload';
+		try {
+			const [{ loadRepositoryCrafts }, { replaceLocalNotePages, listNotePages }] =
+				await Promise.all([
+					import('./repository.client'),
+					import('$lib/editor/document/persistence/storage')
+				]);
+			await replaceLocalNotePages(await loadRepositoryCrafts());
+			pages = await listNotePages();
+			showToast('Reloaded Markdown from Git');
+		} finally {
+			busy = '';
 		}
 	}
 
@@ -251,12 +281,12 @@
 
 		busy = 'delete';
 		try {
-			const [{ deleteNotePage }, { unpublishNoteCraft }] = await Promise.all([
+			const [{ deleteNotePage }, { removeRepositoryCraft }] = await Promise.all([
 				import('$lib/editor/document/persistence/storage'),
-				import('$lib/crafts/publication.remote')
+				import('./repository.client')
 			]);
 			for (const id of selectedIds) {
-				await unpublishNoteCraft(id);
+				await removeRepositoryCraft(id);
 				await deleteNotePage(id);
 			}
 			leaveSelectionMode();
@@ -289,8 +319,7 @@
 	}
 
 	function craftHref(slug: string, edit = false) {
-		const pathname = resolve('/crafts/[slug]', { slug });
-		return edit ? `${pathname}?edit` : pathname;
+		return edit ? resolve('/admin/crafts/[slug]', { slug }) : resolve('/crafts/[slug]', { slug });
 	}
 </script>
 
@@ -308,12 +337,6 @@
 		<h1>Crafts</h1>
 		{#if editable}
 			<a class="mode-link" href={resolve('/crafts')}>Done</a>
-		{:else if showEditLink}
-			<!-- The query string is intentionally composed after resolving the typed route. -->
-			<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
-			<a class="mode-link" href={editCollectionHref}>
-				<Icon icon="mdi:pencil-outline" /> Edit
-			</a>
 		{/if}
 	</header>
 
@@ -365,15 +388,16 @@
 				<Icon icon="mdi:plus" />
 				New
 			</button>
-			{#await import('$lib/editor/document/sync/SyncControls.svelte')}
-				<span class="sync-control-loading" aria-label="Loading sync controls">
-					<Icon icon="mdi:loading" />
-				</span>
-			{:then { default: SyncControls }}
-				<SyncControls onSynced={refresh} />
-			{:catch}
-				<span class="sync-control-error" role="status">Sync unavailable</span>
-			{/await}
+			<button
+				type="button"
+				class="quiet-button"
+				title="Reload local drafts from Git"
+				aria-label="Reload local drafts from Git"
+				disabled={Boolean(busy)}
+				onclick={() => void reloadFromRepository()}
+			>
+				<Icon icon={busy === 'reload' ? 'mdi:loading' : 'mdi:source-branch-sync'} />
+			</button>
 		{/if}
 	</div>
 
@@ -439,8 +463,6 @@
 									</span>
 								</button>
 							{:else}
-								<!-- craftHref resolves the typed pathname before adding edit mode. -->
-								<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
 								<a class="page-link" href={craftHref(page.slug, editable)}>
 									<span class="page-title">{page.title}</span>
 									<span class="page-meta">
@@ -621,21 +643,6 @@
 		width: 1.05rem;
 	}
 
-	.sync-control-loading,
-	.sync-control-error {
-		align-items: center;
-		color: var(--content-1);
-		display: inline-flex;
-		font-size: var(--s-2);
-		min-height: 2.25rem;
-	}
-
-	.sync-control-loading :global(svg) {
-		animation: sync-control-spin 0.8s linear infinite;
-		height: 1rem;
-		width: 1rem;
-	}
-
 	.year-group {
 		padding-top: 3rem;
 		position: relative;
@@ -813,15 +820,8 @@
 		}
 	}
 
-	@keyframes sync-control-spin {
-		to {
-			transform: rotate(1turn);
-		}
-	}
-
 	@media (prefers-reduced-motion: reduce) {
-		.pending-row span,
-		.sync-control-loading :global(svg) {
+		.pending-row span {
 			animation: none;
 		}
 	}

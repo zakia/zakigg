@@ -1,11 +1,11 @@
 <script lang="ts">
-	import { onDestroy, untrack, type Snippet } from 'svelte';
+	import { onDestroy, onMount, untrack, type Snippet } from 'svelte';
 	import type { ComponentEmbedRegistry } from '$lib/editor/components/registry';
 	import MarkdownEditor from '$lib/editor/milkdown/MarkdownEditor.svelte';
 	import type { NotePage } from './model';
 	import { getMarkdownText } from './markdown-ast';
 	import { parseMarkdownFrontmatter } from './markdown';
-	import { DocumentSession, type DocumentPublicationAdapter } from './session.svelte';
+	import { DocumentSession, type DocumentRepositoryAdapter } from './session.svelte';
 	import DocumentActions from './DocumentActions.svelte';
 	import DocumentCanvas from './DocumentCanvas.svelte';
 	import DocumentHeader from './DocumentHeader.svelte';
@@ -17,16 +17,14 @@
 		onSaved,
 		publicHref,
 		navigation,
-		publication,
-		isSyncEnabled
+		repository
 	}: {
 		page: NotePage;
 		embeds: ComponentEmbedRegistry;
 		onSaved?: (page: NotePage) => void;
 		publicHref?: string;
 		navigation?: Snippet;
-		publication?: DocumentPublicationAdapter;
-		isSyncEnabled?: () => boolean;
+		repository?: DocumentRepositoryAdapter;
 	} = $props();
 
 	const embedRegistry = untrack(() => embeds);
@@ -39,8 +37,7 @@
 		getMarkdown: () => bodyMarkdown,
 		onDraftChange: () => undefined,
 		onSaved: (nextPage) => onSaved?.(nextPage),
-		publication: untrack(() => publication),
-		isSyncEnabled: untrack(() => isSyncEnabled)
+		repository: untrack(() => repository)
 	});
 	const wordCount = $derived.by(() => {
 		const text = `${session.title} ${getMarkdownText(bodyMarkdown)}`.trim();
@@ -48,6 +45,15 @@
 	});
 
 	onDestroy(() => session.destroy());
+	onMount(() => {
+		function handleSaveShortcut(event: KeyboardEvent) {
+			if (event.key.toLowerCase() !== 's' || (!event.metaKey && !event.ctrlKey)) return;
+			event.preventDefault();
+			void session.commitNow();
+		}
+		window.addEventListener('keydown', handleSaveShortcut);
+		return () => window.removeEventListener('keydown', handleSaveShortcut);
+	});
 
 	function updateMarkdown(markdown: string) {
 		if (markdown === bodyMarkdown) return;
@@ -70,12 +76,13 @@
 	<DocumentActions
 		saveState={session.saveState}
 		saveLabel={session.saveLabel}
-		syncStatus={session.syncLabelStatus}
+		commitStatus={session.commitStatus}
 		publicationState={session.publicationState}
 		{publicHref}
 		historyOpen={false}
 		{propertiesOpen}
 		onDownloadMarkdown={downloadMarkdown}
+		onCommit={session.canCommit ? async () => void (await session.commitNow()) : undefined}
 		onToggleProperties={() => (propertiesOpen = !propertiesOpen)}
 		onTogglePublication={session.canPublish ? () => session.togglePublication() : undefined}
 	/>

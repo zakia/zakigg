@@ -1,10 +1,15 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { auth } from '$lib/auth';
 	import { theme } from '$lib/theme.svelte';
 	import { renderAuthProviderButton } from './provider-buttons';
 
 	let buttonContainer = $state<HTMLElement>();
 	let message = $state('');
+
+	onMount(() => {
+		void auth.refresh();
+	});
 
 	$effect(() => {
 		if (!buttonContainer || !auth.ready || auth.user) return;
@@ -45,7 +50,7 @@
 <section class="settings-section" aria-labelledby="account-heading">
 	<div class="section-heading">
 		<h2 id="account-heading">Account</h2>
-		<p>Private crafts and publishing.</p>
+		<p>Private Git-backed craft editor.</p>
 	</div>
 
 	{#if !auth.ready}
@@ -59,7 +64,7 @@
 			<button type="button" onclick={() => void signOut()}> Sign out </button>
 		</div>
 	{:else}
-		<p class="muted">Sign in to edit, sync, and publish crafts.</p>
+		<p class="muted">Sign in to edit and publish crafts.</p>
 		{#key theme.mode}
 			<div class="provider-button" bind:this={buttonContainer}></div>
 		{/key}

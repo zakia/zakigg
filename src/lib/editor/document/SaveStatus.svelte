@@ -1,16 +1,16 @@
 <script lang="ts">
-	import type { SaveState, SyncLabelStatus } from './save-state';
+	import type { CommitStatus, SaveState } from './save-state';
 
 	let {
 		state,
 		label,
-		sync = 'disabled'
-	}: { state: SaveState; label: string; sync?: SyncLabelStatus } = $props();
+		commit = 'disabled'
+	}: { state: SaveState; label: string; commit?: CommitStatus } = $props();
 </script>
 
-<div class="save-status" data-state={state} data-sync={sync}>
+<div class="save-status" data-state={state} data-commit={commit}>
 	<span class="status-dot"></span>
-	{#if sync !== 'disabled' && sync !== 'idle'}
+	{#if commit !== 'disabled' && commit !== 'idle'}
 		<span class="sync-dot"></span>
 	{/if}
 	<span>{label}</span>
@@ -58,12 +58,12 @@
 		width: 0.5rem;
 	}
 
-	.save-status[data-sync='syncing'] .sync-dot,
-	.save-status[data-sync='pending'] .sync-dot {
+	.save-status[data-commit='committing'] .sync-dot,
+	.save-status[data-commit='pending'] .sync-dot {
 		background: var(--warning);
 	}
 
-	.save-status[data-sync='error'] .sync-dot {
+	.save-status[data-commit='error'] .sync-dot {
 		background: var(--error);
 	}
 

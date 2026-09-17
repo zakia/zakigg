@@ -4,124 +4,61 @@
 	let {
 		viewState,
 		onToggle,
-		onSetLink,
-		onRemoveLink
+		onToggleLink
 	}: {
 		viewState: SelectionToolbarState;
 		onToggle: (mark: 'bold' | 'italic' | 'strike' | 'code') => void;
-		onSetLink: (href: string) => void;
-		onRemoveLink: () => void;
+		onToggleLink: () => void;
 	} = $props();
-
-	let editingLink = $state(false);
-	let href = $state('');
-	let linkInput = $state<HTMLInputElement>();
-
-	$effect(() => {
-		if (!viewState.visible) editingLink = false;
-	});
-
-	async function openLinkEditor() {
-		href = viewState.linkHref;
-		editingLink = true;
-		await Promise.resolve();
-		linkInput?.focus();
-		linkInput?.select();
-	}
-
-	function submitLink() {
-		const value = href.trim();
-		if (value) onSetLink(value);
-		else if (viewState.link) onRemoveLink();
-		editingLink = false;
-	}
-
-	function handleLinkKeydown(event: KeyboardEvent) {
-		if (event.key === 'Enter') {
-			event.preventDefault();
-			submitLink();
-		}
-		if (event.key === 'Escape') {
-			event.preventDefault();
-			editingLink = false;
-		}
-	}
 </script>
 
 <div class="toolbar-surface" aria-label="Text formatting">
-	{#if editingLink}
-		<div class="link-editor">
-			<input
-				bind:this={linkInput}
-				bind:value={href}
-				type="url"
-				aria-label="Link URL"
-				placeholder="https://example.com"
-				onkeydown={handleLinkKeydown}
-			/>
-			<button type="button" aria-label="Apply link" title="Apply link" onclick={submitLink}
-				>↵</button
-			>
-			{#if viewState.link}
-				<button
-					type="button"
-					aria-label="Remove link"
-					title="Remove link"
-					onclick={() => {
-						onRemoveLink();
-						editingLink = false;
-					}}>×</button
-				>
-			{/if}
-		</div>
-	{:else}
-		<button
-			type="button"
-			class:active={viewState.bold}
-			aria-label="Bold"
-			aria-pressed={viewState.bold}
-			title="Bold (⌘B)"
-			onpointerdown={(event) => event.preventDefault()}
-			onclick={() => onToggle('bold')}><strong>B</strong></button
-		>
-		<button
-			type="button"
-			class:active={viewState.italic}
-			aria-label="Italic"
-			aria-pressed={viewState.italic}
-			title="Italic (⌘I)"
-			onpointerdown={(event) => event.preventDefault()}
-			onclick={() => onToggle('italic')}><em>I</em></button
-		>
-		<button
-			type="button"
-			class:active={viewState.strike}
-			aria-label="Strikethrough"
-			aria-pressed={viewState.strike}
-			title="Strikethrough"
-			onpointerdown={(event) => event.preventDefault()}
-			onclick={() => onToggle('strike')}><s>S</s></button
-		>
-		<button
-			type="button"
-			class:active={viewState.code}
-			aria-label="Inline code"
-			aria-pressed={viewState.code}
-			title="Inline code"
-			onpointerdown={(event) => event.preventDefault()}
-			onclick={() => onToggle('code')}><code>&lt;/&gt;</code></button
-		>
-		<span class="divider" aria-hidden="true"></span>
-		<button
-			type="button"
-			class:active={viewState.link}
-			aria-label={viewState.link ? 'Edit link' : 'Add link'}
-			aria-pressed={viewState.link}
-			title={viewState.link ? 'Edit link' : 'Add link'}
-			onpointerdown={(event) => event.preventDefault()}
-			onclick={openLinkEditor}>↗</button
-		>
-	{/if}
+	<button
+		type="button"
+		class:active={viewState.bold}
+		aria-label="Bold"
+		aria-pressed={viewState.bold}
+		title="Bold (⌘B)"
+		onpointerdown={(event) => event.preventDefault()}
+		onclick={() => onToggle('bold')}><strong>B</strong></button
+	>
+	<button
+		type="button"
+		class:active={viewState.italic}
+		aria-label="Italic"
+		aria-pressed={viewState.italic}
+		title="Italic (⌘I)"
+		onpointerdown={(event) => event.preventDefault()}
+		onclick={() => onToggle('italic')}><em>I</em></button
+	>
+	<button
+		type="button"
+		class:active={viewState.strike}
+		aria-label="Strikethrough"
+		aria-pressed={viewState.strike}
+		title="Strikethrough"
+		onpointerdown={(event) => event.preventDefault()}
+		onclick={() => onToggle('strike')}><s>S</s></button
+	>
+	<button
+		type="button"
+		class:active={viewState.code}
+		aria-label="Inline code"
+		aria-pressed={viewState.code}
+		title="Inline code"
+		onpointerdown={(event) => event.preventDefault()}
+		onclick={() => onToggle('code')}><code>&lt;/&gt;</code></button
+	>
+	<span class="divider" aria-hidden="true"></span>
+	<button
+		type="button"
+		class:active={viewState.link}
+		aria-label={viewState.link ? 'Remove link' : 'Add link'}
+		aria-pressed={viewState.link}
+		title={viewState.link ? 'Remove link' : 'Add link'}
+		onpointerdown={(event) => event.preventDefault()}
+		onclick={onToggleLink}>↗</button
+	>
 </div>
 
 <style>
@@ -174,26 +111,5 @@
 		height: 1.35rem;
 		margin-inline: 3px;
 		width: 1px;
-	}
-
-	.link-editor {
-		align-items: center;
-		display: flex;
-		gap: 3px;
-	}
-
-	.link-editor input {
-		background: var(--base-2);
-		border: 1px solid transparent;
-		border-radius: calc(var(--radius) * 0.55);
-		color: var(--content);
-		font: 0.82rem/1.2 var(--font-body);
-		min-width: min(17rem, 55vw);
-		outline: none;
-		padding: 0.48rem 0.6rem;
-	}
-
-	.link-editor input:focus {
-		border-color: var(--brand);
 	}
 </style>

@@ -5,9 +5,7 @@ import {
 	createPublishedCraftSummary,
 	createPublicCraftList,
 	countCraftWords,
-	isPublishedCraftOutdated,
-	rewritePublishedAssetSources,
-	toPublishedCraftSummary
+	rewritePublishedAssetSources
 } from './publication';
 
 describe('published craft snapshots', () => {
@@ -47,40 +45,9 @@ describe('published craft snapshots', () => {
 				'<Carousel images={["local-asset://image_one"]} />\n\n<Video src="local-asset://video_two" />'
 		};
 
-		expect(rewritePublishedAssetSources(document, 'demo craft').markdown).toBe(
-			'<Carousel images={["/crafts/demo%20craft/assets/image_one"]} />\n\n<Video src="/crafts/demo%20craft/assets/video_two" />'
+		expect(rewritePublishedAssetSources(document).markdown).toBe(
+			'<Carousel images={["/media/image_one"]} />\n\n<Video src="/media/video_two" />'
 		);
-	});
-
-	it('returns a serializable public summary without storage-only fields', () => {
-		const metadata = {
-			pageId: 'page_test',
-			slug: 'a-useful-note',
-			title: 'A Useful Note',
-			description: 'A deliberate description.',
-			tags: ['notes'],
-			date: '2025-03-16',
-			updatedAt: '2025-04-04T12:00:00.000Z',
-			draft: false,
-			fullBleed: false,
-			ownerId: 'owner_test',
-			assetIds: [],
-			bodyHash: 'hash',
-			bodyObject: 'published-crafts/page_test/body.json',
-			publishedAt: '2025-04-04T12:00:00.000Z'
-		};
-
-		expect(toPublishedCraftSummary(metadata)).not.toHaveProperty('ownerId');
-		expect(toPublishedCraftSummary(metadata)).toMatchObject({ pageId: 'page_test', draft: false });
-	});
-
-	it('detects when a private note is newer than its published snapshot', () => {
-		expect(
-			isPublishedCraftOutdated(
-				{ updatedAt: '2025-04-05T12:00:00.000Z' },
-				{ updatedAt: '2025-04-04T12:00:00.000Z' }
-			)
-		).toBe(true);
 	});
 
 	it('builds one date-ordered public list', () => {

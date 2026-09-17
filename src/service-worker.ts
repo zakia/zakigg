@@ -19,9 +19,7 @@ worker.addEventListener('install', (event) => {
 		(async () => {
 			const cache = await caches.open(CACHE);
 			await cache.addAll(STATIC_ASSETS);
-			// The private craft manager is the offline entry point. Individual edit
-			// routes are cached after they are visited.
-			await cache.add('/crafts?edit');
+			await cache.add('/crafts');
 			await worker.skipWaiting();
 		})()
 	);
@@ -48,6 +46,10 @@ worker.addEventListener('fetch', (event) => {
 		event.respondWith(handleNavigation(event.request));
 		return;
 	}
+	if (url.pathname.startsWith('/media/')) {
+		event.respondWith(cacheFirst(event.request));
+		return;
+	}
 
 	if (STATIC_ASSETS.includes(url.pathname)) {
 		event.respondWith(cacheFirst(event.request));
@@ -59,14 +61,14 @@ async function handleNavigation(request: Request): Promise<Response> {
 	try {
 		const response = await fetch(request);
 		const url = new URL(request.url);
-		if (response.ok && url.pathname.startsWith('/crafts') && url.searchParams.has('edit')) {
+		if (response.ok && url.pathname.startsWith('/crafts')) {
 			await cache.put(request, response.clone());
 		}
 		return response;
 	} catch {
 		return (
 			(await cache.match(request)) ??
-			(await cache.match('/crafts?edit')) ??
+			(await cache.match('/crafts')) ??
 			new Response('This page is unavailable offline.', {
 				status: 503,
 				headers: { 'content-type': 'text/plain; charset=utf-8' }

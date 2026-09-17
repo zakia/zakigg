@@ -1,5 +1,6 @@
 import { mount, unmount } from 'svelte';
 import type { Ctx } from '@milkdown/kit/ctx';
+import { toggleLinkCommand as toggleLinkTooltipCommand } from '@milkdown/kit/component/link-tooltip';
 import { commandsCtx } from '@milkdown/kit/core';
 import { TooltipProvider } from '@milkdown/kit/plugin/tooltip';
 import {
@@ -13,9 +14,7 @@ import {
 	linkSchema,
 	toggleEmphasisCommand,
 	toggleInlineCodeCommand,
-	toggleLinkCommand,
-	toggleStrongCommand,
-	updateLinkCommand
+	toggleStrongCommand
 } from '@milkdown/kit/preset/commonmark';
 import { strikethroughSchema, toggleStrikethroughCommand } from '@milkdown/kit/preset/gfm';
 import { $prose } from '@milkdown/kit/utils';
@@ -24,6 +23,7 @@ import {
 	SelectionToolbarState,
 	type SelectionToolbarSnapshot
 } from './selection-toolbar-state.svelte';
+import { trimLinkText } from '../link/link-selection';
 
 function hasMark(state: EditorState, markName: string) {
 	const mark = state.schema.marks[markName];
@@ -33,33 +33,40 @@ function hasMark(state: EditorState, markName: string) {
 	return state.doc.rangeHasMark(from, to, mark);
 }
 
-function getLinkHref(ctx: Ctx, state: EditorState) {
-	const type = linkSchema.type(ctx);
-	const { from, to, $from } = state.selection;
-	if (state.selection.empty)
-		return type.isInSet(state.storedMarks ?? $from.marks())?.attrs.href ?? '';
-
-	let href = '';
-	state.doc.nodesBetween(from, to, (node) => {
-		const mark = type.isInSet(node.marks);
-		if (mark?.attrs.href) {
-			href = String(mark.attrs.href);
-			return false;
-		}
-		return undefined;
-	});
-	return href;
-}
-
 function readToolbarSnapshot(ctx: Ctx, state: EditorState): SelectionToolbarSnapshot {
 	return {
 		bold: hasMark(state, 'strong'),
 		italic: hasMark(state, 'emphasis'),
 		strike: hasMark(state, strikethroughSchema.type(ctx).name),
 		code: hasMark(state, 'inlineCode'),
-		link: hasMark(state, linkSchema.type(ctx).name),
-		linkHref: getLinkHref(ctx, state)
+		link: hasMark(state, linkSchema.type(ctx).name)
 	};
+}
+
+/** Keep invisible boundary whitespace out of newly-created Markdown links. */
+export function trimLinkSelection(view: EditorView) {
+	const { selection } = view.state;
+	if (
+		!(selection instanceof TextSelection) ||
+		selection.empty ||
+		!selection.$from.sameParent(selection.$to)
+	)
+		return true;
+
+	const selectedText = selection.$from.parent.textBetween(
+		selection.$from.parentOffset,
+		selection.$to.parentOffset,
+		'',
+		'\ufffc'
+	);
+	const offsets = trimLinkText(selectedText);
+	if (!offsets) return false;
+	const from = selection.from + offsets.from;
+	const to = selection.from + offsets.to;
+	if (from === selection.from && to === selection.to) return true;
+
+	view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, from, to)));
+	return true;
 }
 
 class SelectionToolbarView implements PluginView {
@@ -95,14 +102,9 @@ class SelectionToolbarView implements PluginView {
 			props: {
 				viewState: this.#state,
 				onToggle: runMark,
-				onSetLink: (href: string) => {
-					const commands = ctx.get(commandsCtx);
-					if (this.#state.link) commands.call(updateLinkCommand.key, { href });
-					else commands.call(toggleLinkCommand.key, { href });
-					view.focus();
-				},
-				onRemoveLink: () => {
-					ctx.get(commandsCtx).call(toggleLinkCommand.key);
+				onToggleLink: () => {
+					if (!this.#state.link && !trimLinkSelection(view)) return;
+					ctx.get(commandsCtx).call(toggleLinkTooltipCommand.key);
 					view.focus();
 				}
 			}

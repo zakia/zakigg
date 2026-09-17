@@ -1,28 +1,19 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { auth } from '$lib/auth';
 	import Icon from '$lib/components/Icon.svelte';
 	import BackLink from '$lib/components/BackLink.svelte';
 	import { componentEmbeds } from '$lib/embeds';
 	import {
 		DocumentEditor,
 		createNotePageRecord,
-		applyRemotePage,
+		cacheRepositoryNotePage,
 		loadNotePageBySlug,
 		titleFromSlug,
-		toStoredNotePage,
-		type DocumentPublicationAdapter,
+		type DocumentRepositoryAdapter,
 		type NotePage
 	} from '$lib/editor/document';
-	import { payloadToPage } from '$lib/editor/document/sync/protocol';
-	import {
-		getCraftPublication,
-		getEditableCraft,
-		publishNoteCraft,
-		unpublishNoteCraft
-	} from './publication.remote';
-	import { isPublishedCraftOutdated, type PublishedCraftSummary } from './publication';
+	import { commitRepositoryCraft, loadRepositoryCraft } from './repository.client';
 
 	let { slug }: { slug: string } = $props();
 
@@ -32,19 +23,10 @@
 	let loadedSlug = '';
 	let titleInput = $state('');
 	let tagsInput = $state('');
-	const editCollectionHref = `${resolve('/crafts')}?edit`;
-	const publication: DocumentPublicationAdapter = {
-		isReady: () => auth.ready,
-		isEnabled: () => Boolean(auth.user),
-		load: (documentId) => getCraftPublication(documentId),
-		isOutdated: (document, current) =>
-			isPublishedCraftOutdated(document, current as PublishedCraftSummary),
-		publish: async (document) => {
-			await publishNoteCraft({ pageJson: JSON.stringify(toStoredNotePage(document)) });
-		},
-		unpublish: async (documentId) => {
-			await unpublishNoteCraft(documentId);
-		}
+	const editCollectionHref = resolve('/admin/crafts');
+	const repository: DocumentRepositoryAdapter = {
+		isEnabled: () => true,
+		save: commitRepositoryCraft
 	};
 
 	$effect(() => {
@@ -59,12 +41,14 @@
 		craft = null;
 
 		try {
-			let page = await loadNotePageBySlug(slug);
-			if (!page) {
-				const remote = await getEditableCraft(slug);
-				page = remote ? payloadToPage(remote) : null;
-				if (page && remote) await applyRemotePage(page, remote.mutationId);
+			let page: NotePage | null = null;
+			try {
+				const remote = await loadRepositoryCraft(slug);
+				page = remote ? await cacheRepositoryNotePage(remote) : null;
+			} catch (cause) {
+				console.warn('Git repository is unavailable; opening the local draft', cause);
 			}
+			page ??= await loadNotePageBySlug(slug);
 			craft = page;
 			syncMetadataInputs(page);
 		} finally {
@@ -84,9 +68,7 @@
 		}
 
 		event.preventDefault();
-		// The query string is intentionally composed after resolving the typed route.
-		// eslint-disable-next-line svelte/no-navigation-without-resolve
-		void goto(`${resolve('/crafts')}?edit`);
+		void goto(resolve('/admin/crafts'));
 	}
 
 	function handleSaved(page: NotePage) {
@@ -111,7 +93,14 @@
 			const page = await createNotePageRecord({
 				title: titleInput || titleFromSlug(slug),
 				slug,
-				tags: parseTagsInput(tagsInput)
+				tags: parseTagsInput(tagsInput),
+				properties: [
+					{ key: 'title', value: titleInput || titleFromSlug(slug) },
+					{ key: 'slug', value: slug },
+					{ key: 'tags', value: parseTagsInput(tagsInput) },
+					{ key: 'date', value: new Date().toISOString().slice(0, 10) },
+					{ key: 'draft', value: true }
+				]
 			});
 
 			craft = page;
@@ -134,9 +123,7 @@
 	}
 
 	function navigateToEditCraft(slug: string, options?: Parameters<typeof goto>[1]) {
-		// The query string is intentionally composed after resolving the typed route.
-		// eslint-disable-next-line svelte/no-navigation-without-resolve
-		return goto(`${resolve('/crafts/[slug]', { slug })}?edit`, options);
+		return goto(resolve('/admin/crafts/[slug]', { slug }), options);
 	}
 </script>
 
@@ -184,8 +171,7 @@
 				embeds={componentEmbeds}
 				publicHref={craftHref(craft.slug)}
 				onSaved={handleSaved}
-				{publication}
-				isSyncEnabled={() => Boolean(auth.user)}
+				{repository}
 				{navigation}
 			/>
 		{/key}

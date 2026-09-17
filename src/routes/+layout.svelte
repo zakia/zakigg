@@ -1,8 +1,6 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import { page } from '$app/state';
-	import { onMount } from 'svelte';
-	import { auth } from '$lib/auth';
 	import { useGridSettings } from '$lib/grid-settings.svelte';
 	import { theme } from '$lib/theme.svelte';
 	import '$lib/prism.css';
@@ -16,10 +14,6 @@
 	let { children }: { children: Snippet } = $props();
 	useGridSettings();
 	if (browser) theme.initialize();
-
-	onMount(() => {
-		void auth.refresh();
-	});
 
 	function titleFromPathname(pathname: string) {
 		const segment = decodeURIComponent(pathname).split('/').filter(Boolean).at(-1);

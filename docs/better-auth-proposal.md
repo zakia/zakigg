@@ -6,7 +6,7 @@
 
 ## Summary
 
-When the product needs general user accounts, adopt [Better Auth](https://better-auth.com/) inside the existing SvelteKit application and store authentication data in Cloud SQL for PostgreSQL. Continue using Firestore for notes and product metadata, and Cloud Storage for large content and assets.
+When the product needs general user accounts, adopt [Better Auth](https://better-auth.com/) inside the existing SvelteKit application and store authentication data in Cloud SQL for PostgreSQL. Keep published content in Git and binary assets in Cloud Storage.
 
 This approach keeps the initial implementation small while avoiding dependence on a proprietary identity database. Better Auth is MIT licensed, PostgreSQL is portable, and application code will depend on a small internal authentication interface rather than Better Auth-specific types.
 
@@ -36,8 +36,8 @@ SvelteKit application on Cloud Run
     |      `-- Cloud SQL for PostgreSQL
     |          users, identities, credentials, sessions, verification tokens
     |
-    |-- Firestore
-    |      notes and application metadata
+	|-- Git repository
+	|      canonical Markdown content
     |
     `-- Cloud Storage
            note bodies, uploads, and other large objects
@@ -63,10 +63,10 @@ Better Auth should run in the existing SvelteKit service. A separate Go or authe
 - Notes, publishing permissions, and product behavior.
 - Email delivery integration.
 
-### Firestore and Cloud Storage
+### Git and Cloud Storage
 
-- Existing note metadata remains in Firestore.
-- Existing document bodies and assets remain in Cloud Storage.
+- Canonical Markdown and document metadata remain in Git.
+- Binary assets remain in Cloud Storage.
 - Neither store should contain plaintext passwords, password hashes, or raw session tokens.
 
 ## Portability Boundary
@@ -95,13 +95,12 @@ The PostgreSQL schema must be managed through checked-in migrations. Regular bac
 
 The application must own a stable user ID that is independent of Google, Better Auth, or any other provider.
 
-The current admin's notes are keyed using the Google subject identifier. Before enabling the new system:
+The current administrator is authorized by verified Google email. Before enabling the new system:
 
 1. Create a permanent internal user ID for the existing admin.
 2. Associate the existing Google identity with that internal user.
 3. Associate the future email/password credential with the same user.
-4. Migrate existing note ownership, or introduce an explicit legacy-to-internal ID mapping.
-5. Verify that both sign-in methods resolve to the same notes and permissions.
+4. Verify that both sign-in methods resolve to the same editing permissions.
 
 New accounts should receive random, provider-independent IDs from the start.
 
@@ -135,7 +134,7 @@ The initial production deployment would add:
 - Automated PostgreSQL backups and point-in-time recovery appropriate to production.
 - Monitoring for authentication failures, unusual signup activity, database saturation, and email-delivery failures.
 
-Cloud SQL is the recommended starting database. AlloyDB and Spanner are unnecessary at the current scale. Firestore has a community Better Auth adapter, but using a first-party PostgreSQL integration is preferable for the security-critical authentication store.
+Cloud SQL is the recommended starting database. AlloyDB and Spanner are unnecessary at the current scale. Authentication state belongs in PostgreSQL; document content remains independent in Git.
 
 ## Implementation Phases
 
@@ -171,10 +170,6 @@ Cloud SQL is the recommended starting database. AlloyDB and Spanner are unnecess
 - Document account recovery and incident-response procedures.
 
 ## Alternatives Considered
-
-### Better Auth with Firestore
-
-Lower infrastructure cost, but the adapter is community-maintained and Firestore makes relational identity constraints less natural. It also retains more GCP database lock-in.
 
 ### SuperTokens with PostgreSQL
 

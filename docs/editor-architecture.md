@@ -1,161 +1,78 @@
 # Editor architecture
 
-The editor follows a one-way dependency model inspired by Gutenberg:
+Canonical Markdown is the only persisted document format. Milkdown/ProseMirror provides the
+visual editing projection, CodeMirror provides source editing, and both round-trip through the
+same Markdown string.
 
 ```text
-application route
-    ↓
-document editor
-    ↓
-editor core
+public build                     private editor
+content/crafts/*.md              /admin/crafts/*
+        ↓                               ↓
+Markdown parser                  Milkdown + CodeMirror
+        ↓                               ↓
+static craft pages               IndexedDB draft
+                                        ↓ explicit Save
+                                  Git repository adapter
 ```
 
-## Core
+## Ownership
 
-`src/lib/editor/core` owns the reusable block-editing mechanics: Tiptap extensions, block
-identity and handles, formatting controls, links, lists, tables, media blocks, and the component
-embed contract. It operates on editor content and an injected embed registry. It must not import
-document persistence, synchronization, publication, application routes, or craft modules.
+- `src/lib/editor/milkdown` owns visual editing behavior and Markdown serialization.
+- `src/lib/editor/document` owns the canonical document model, frontmatter, local drafts,
+  import/export, and the editing session.
+- `src/lib/crafts` owns craft routes, Git commit commands, publication controls, and the custom
+  component registry.
+- `src/lib/server/content` owns repository reads and writes.
+- `content/crafts` is the public build input and remote source of truth.
+- GCS stores binary assets only.
 
-## Document
+The editor layer does not import application routes or GitHub. The application injects a
+`DocumentRepositoryAdapter` that commits a complete Markdown document.
 
-`src/lib/editor/document` composes the core into a complete document editing experience. It owns
-the document model, metadata, history, import/export, local persistence, asset storage, and sync.
-Publication is optional and supplied through `DocumentPublicationAdapter`; the document editor does
-not know which application feature publishes it.
+## Document contract
 
-## Application
+Every file is self-contained:
 
-Routes own screen layout, navigation, authentication gates, URLs, and publication implementations.
-They provide the document editor with its embed registry and optional adapters. Code in
-`src/lib/editor` must never import from `src/lib/crafts` or from a route.
+```md
+---
+id: page_...
+title: Example
+slug: example
+description: Optional summary
+date: 2026-09-16
+tags:
+  - notes
+draft: true
+---
 
-Public consumers should prefer the entry points at `src/lib/editor/core/index.ts` and
-`src/lib/editor/document/index.ts` instead of reaching into implementation folders.
-
-## Direction
-
-The editor uses an app-owned block architecture with Tiptap as its text-editing and rendering
-adapter. Tiptap is not the product data model, command registry, persistence coordinator, or
-collaboration protocol.
-
-This keeps the mature ProseMirror editing behavior we already rely on while preserving the
-important boundaries found in block-native editors: stable block identity, a unified block
-catalog, independent embed lifecycles, and block-addressable operations.
-
-## Ownership details
-
-```text
-Document model
-├── title, properties, slug, timestamps
-└── content (body-only Tiptap JSON)
-    └── addressable blocks with stable blockId attributes
-
-Block catalog
-├── palette metadata
-├── insertion commands
-├── turn-into commands
-└── gutter labels and editability
-
-Tiptap adapter
-├── schema and text editing
-├── block identity repair
-├── selection and keyboard behavior
-└── NodeViews for isolated embeds
-
-Editor command service
-├── typed block insertion and block-menu commands
-├── media, table, and list commands
-└── translates product intent into Tiptap operations
-
-Document session
-├── autosave and persistence
-├── document properties
-├── sync presentation state
-└── optional publication adapter
-
-Svelte document editor
-├── composes menus, toolbars, overlays, and panels
-├── delegates slash-menu and history state to interaction controllers
-└── translates user intent into command-service and session calls
+Markdown and allowed custom components.
 ```
 
-## Invariants
+`id` is stable and determines the repository filename. `slug` may change without renaming the
+file. `draft: true` excludes the document from public builds. Publishing changes that field and
+commits the same file.
 
-- The document title is owned by the document envelope/properties and is rendered once by the
-  document header. An H1 inside `content` is an ordinary body heading.
-- Markdown frontmatter maps to document properties. Markdown body maps to editor content.
-- Every document-level block has a durable `blockId`. List items also have IDs because they are
-  independently movable and mutable.
-- Paragraphs inside list items, quotes, and table cells do not receive independent IDs. Their
-  owning container is the addressable block.
-- Block IDs survive ordinary edits and saves. Missing or duplicated IDs are repaired at both the
-  storage boundary and the editor transaction boundary.
-- Block positions and paths are derived through `buildBlockIndex`; positions are never persisted
-  because editing makes them stale.
-- Slash insertion, gutter descriptions, turn-into behavior, and custom-block edit behavior come
-  from one block catalog.
-- Embedded components own their internal state and edit lifecycle through NodeViews. The editor
-  communicates with them using generic block events rather than component-specific branches.
-- Persistence, cloud-sync labels, and publication do not belong to editor core.
+## Saving
 
-## Canonical data
+Typing autosaves to IndexedDB after a short debounce. It does not create remote writes. Save or
+Cmd/Ctrl+S uploads referenced local assets to GCS and commits the complete Markdown file to Git.
+Delete creates a normal Git deletion commit. Git history supplies revisions and recovery; there
+are no mutation records, checkpoints, publication snapshots, or tombstones.
 
-The current document content remains versioned Tiptap JSON. Persisting a second shadow block tree
-would create two sources of truth without improving the product. Stable IDs make the existing tree
-block-addressable; `buildBlockIndex` supplies the flat lookup needed by commands and future
-synchronization.
+The admin manager normally refreshes repository documents into the local cache. “Reload from Git”
+is the explicit destructive recovery path for discarding local drafts.
 
-```ts
-{
-  type: 'doc',
-  content: [
-    {
-      type: 'paragraph',
-      attrs: { blockId: 'block_...' },
-      content: [{ type: 'text', text: 'Hello' }]
-    }
-  ]
-}
-```
+## Public rendering and offline behavior
 
-## Normalization
+Public routes never query authentication, GitHub, or a database. Vite imports all Markdown under
+`content/crafts` during the build, and SvelteKit prerenders the collection and known craft routes.
+The service worker precaches the craft collection and caches visited craft pages and media.
 
-Normalization happens whenever a document is created, imported, or read from storage:
+Document text, UI, and previously visited media therefore remain available offline. Large videos
+are cached only after they are requested.
 
-1. Legacy in-document metadata nodes are lifted into document properties.
-2. A leading H1 is removed only when it matches the document title.
-3. A presentation-only description heading is removed only alongside that matching title.
-4. Stable block IDs are added and collisions are repaired.
+## Custom components
 
-## Collaboration path
-
-The current cloud sync remains document-record synchronization. A future collaboration layer
-should operate on block-addressed mutations instead of shipping opaque editor transactions:
-
-```ts
-type BlockOperation = {
-	operationId: string;
-	documentId: string;
-	blockId: string;
-	baseVersion: number;
-	kind: 'insert' | 'move' | 'update-content' | 'update-attrs' | 'delete';
-	payload: unknown;
-};
-```
-
-An OT engine can transform structural operations by `blockId`, while inline text operations use
-positions relative to the addressed text block. Cursor presence should likewise use
-`{ blockId, anchorOffset, headOffset }`, never a raw document-wide position.
-
-OT is intentionally a later layer. Stable identity and explicit commands must exist first;
-otherwise the sync engine would be forced to infer product intent from ProseMirror transactions.
-
-## Next steps
-
-1. Extend the typed command service to cover movement and inline structural edits, then emit
-   `BlockOperation` records from that single boundary.
-2. Persist a local operation journal beside document snapshots and add deterministic replay tests.
-3. Add block-relative selection bookmarks so history preview and remote presence survive moves.
-4. Specify transform rules for concurrent move/delete, split/merge, and inline text edits.
-5. Introduce real-time transport only after operation replay and transform tests are reliable.
+Custom components use the MDX-like syntax supported by the shared Markdown parser. Component
+definitions own validation, editor NodeViews, and public rendering. Unknown or invalid components
+must fail visibly while source mode remains available for recovery.

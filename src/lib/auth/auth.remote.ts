@@ -11,8 +11,6 @@ import {
 	createSessionCookieValue
 } from '$lib/server/auth/session';
 
-const LEGACY_SESSION_COOKIE_NAME = 'notes_sync_session';
-
 const SignInSchema = v.variant('provider', [
 	v.object({
 		provider: v.literal('google'),
@@ -41,7 +39,6 @@ export const signIn = command(SignInSchema, async ({ provider, credentials }) =>
 		sameSite: 'lax',
 		maxAge: SESSION_TTL_SECONDS
 	});
-	event.cookies.delete(LEGACY_SESSION_COOKIE_NAME, { path: '/' });
 
 	return session;
 });
@@ -49,6 +46,5 @@ export const signIn = command(SignInSchema, async ({ provider, credentials }) =>
 export const signOut = command(async () => {
 	const event = getRequestEvent();
 	event.cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
-	event.cookies.delete(LEGACY_SESSION_COOKIE_NAME, { path: '/' });
 	return null;
 });

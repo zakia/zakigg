@@ -1,6 +1,6 @@
 import { getMarkdownText } from '$lib/editor/document/markdown-ast';
 import { parseMarkdownFrontmatter } from '$lib/editor/document/markdown';
-import { getReferencedAssetIds, type NotePage } from '$lib/editor/document/model';
+import type { NotePage } from '$lib/editor/document/model';
 import type { CraftDocument, CraftListItem, CraftMeta } from './types';
 
 export type PublishedCraftSummary = CraftMeta & {
@@ -9,16 +9,8 @@ export type PublishedCraftSummary = CraftMeta & {
 	updatedAt: string;
 };
 
-export type PublishedCraftMetadata = PublishedCraftSummary & {
-	ownerId: string;
-	assetIds: string[];
-	bodyHash: string;
-	bodyObject: string;
-	publishedAt: string;
-};
-
-export function createPublicCraftList(publishedCrafts: PublishedCraftSummary[]): CraftListItem[] {
-	return [...publishedCrafts]
+export function createPublicCraftList(crafts: PublishedCraftSummary[]): CraftListItem[] {
+	return [...crafts]
 		.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
 		.map((craft) => ({
 			id: craft.pageId,
@@ -39,42 +31,18 @@ export function countCraftWords(markdown: string, title = '') {
 export function createPublishedCraftSummary(page: NotePage): PublishedCraftSummary {
 	const body = parseMarkdownFrontmatter(page.markdown).markdown;
 	const text = getMarkdownText(body);
-	const description = page.frontmatter?.description?.trim() || createExcerpt(text, page.title);
-
 	return {
 		pageId: page.id,
 		slug: page.slug,
 		title: page.title,
-		description,
+		description: page.frontmatter?.description?.trim() || createExcerpt(text, page.title),
 		tags: page.tags,
 		date: page.frontmatter?.date?.trim() || page.createdAt.slice(0, 10),
 		wordCount: countCraftWords(page.markdown, page.title),
 		updatedAt: page.updatedAt,
-		draft: false,
+		draft: page.frontmatter?.draft === true,
 		fullBleed: false
 	};
-}
-
-export function toPublishedCraftSummary(record: PublishedCraftMetadata): PublishedCraftSummary {
-	return {
-		pageId: record.pageId,
-		slug: record.slug,
-		title: record.title,
-		description: record.description,
-		tags: record.tags,
-		date: record.date,
-		...(typeof record.wordCount === 'number' ? { wordCount: record.wordCount } : {}),
-		updatedAt: record.updatedAt,
-		draft: false,
-		fullBleed: false
-	};
-}
-
-export function isPublishedCraftOutdated(
-	page: Pick<NotePage, 'updatedAt'>,
-	publication: Pick<PublishedCraftSummary, 'updatedAt'>
-) {
-	return Date.parse(page.updatedAt) > Date.parse(publication.updatedAt);
 }
 
 export function createPublishedCraftDocument(page: NotePage): CraftDocument {
@@ -86,23 +54,17 @@ export function createPublishedCraftDocument(page: NotePage): CraftDocument {
 	};
 }
 
-export function getPublishedCraftAssetIds(page: NotePage) {
-	return getReferencedAssetIds(page.markdown);
-}
-
-export function rewritePublishedAssetSources(document: CraftDocument, slug: string): CraftDocument {
+export function rewritePublishedAssetSources(document: CraftDocument): CraftDocument {
 	return {
 		...document,
 		markdown: document.markdown.replace(
 			/local-asset:\/\/([^\s"')}>]+)/g,
-			(_match, encodedId) => `/crafts/${encodeURIComponent(slug)}/assets/${encodedId}`
+			(_match, encodedId) => `/media/${encodedId}`
 		)
 	};
 }
 
 function createExcerpt(text: string, title: string) {
 	const withoutTitle = text.startsWith(title) ? text.slice(title.length).trim() : text;
-	if (withoutTitle.length <= 180) return withoutTitle;
-
-	return `${withoutTitle.slice(0, 177).trimEnd()}…`;
+	return withoutTitle.length <= 180 ? withoutTitle : `${withoutTitle.slice(0, 177).trimEnd()}…`;
 }

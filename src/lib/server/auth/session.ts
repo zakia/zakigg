@@ -15,7 +15,7 @@ type LegacySessionPayload = {
 };
 
 function getSessionSecret(): string {
-	const secret = env.AUTH_SESSION_SECRET || env.NOTES_SYNC_SESSION_SECRET;
+	const secret = env.AUTH_SESSION_SECRET;
 	if (!secret) throw error(500, 'AUTH_SESSION_SECRET is not configured');
 
 	return secret;
@@ -107,6 +107,6 @@ function signSession(encodedPayload: string): string {
 }
 
 function isAllowedEmail(email: string | null): boolean {
-	const allowedEmail = env.AUTH_ALLOWED_EMAIL || env.NOTES_SYNC_ALLOWED_EMAIL;
+	const allowedEmail = env.AUTH_ALLOWED_EMAIL;
 	return Boolean(email && allowedEmail && email.toLowerCase() === allowedEmail.toLowerCase());
 }

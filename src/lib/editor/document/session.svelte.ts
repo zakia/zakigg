@@ -4,26 +4,13 @@ import {
 	type MetadataEntry,
 	type MetadataProperties
 } from '$lib/editor/document/metadata';
-import {
-	formatSaveLabel,
-	type SaveState,
-	type SyncLabelStatus
-} from '$lib/editor/document/save-state';
-import { saveNotePage } from '$lib/editor/document/persistence/storage';
-import { startSyncEngine, syncState } from '$lib/editor/document/sync/engine.svelte';
-import {
-	createCanonicalMarkdownSource,
-	createNotePage,
-	type NotePage
-} from '$lib/editor/document/model';
+import { formatSaveLabel, type CommitStatus, type SaveState } from './save-state';
+import { saveNotePage } from './persistence/storage';
+import { createCanonicalMarkdownSource, createNotePage, type NotePage } from './model';
 
-export type DocumentPublicationAdapter = {
-	isReady: () => boolean;
+export type DocumentRepositoryAdapter = {
 	isEnabled: () => boolean;
-	load: (documentId: string) => Promise<unknown | null>;
-	isOutdated: (document: NotePage, publication: unknown) => boolean;
-	publish: (document: NotePage) => Promise<void>;
-	unpublish: (documentId: string) => Promise<void>;
+	save: (document: NotePage) => Promise<unknown>;
 };
 
 type DocumentSessionOptions = {
@@ -31,29 +18,23 @@ type DocumentSessionOptions = {
 	getMarkdown: () => string;
 	onDraftChange: () => void;
 	onSaved?: (page: NotePage) => void;
-	publication?: DocumentPublicationAdapter;
-	isSyncEnabled?: () => boolean;
+	repository?: DocumentRepositoryAdapter;
 };
 
 export class DocumentSession {
 	page = $state({} as NotePage);
 	properties = $state<MetadataEntry[]>([]);
 	saveState = $state<SaveState>('loading');
+	commitStatus = $state<CommitStatus>('disabled');
 	lastSavedAt = $state<string>();
-	publicationState = $state<'loading' | 'unpublished' | 'published' | 'working' | 'error'>(
-		'loading'
-	);
+	publicationState = $state<'unpublished' | 'published' | 'working' | 'error'>('unpublished');
 	publicationExists = $state(false);
 
 	#getMarkdown: () => string;
 	#onDraftChange: () => void;
 	#onSaved?: (page: NotePage) => void;
-	#publication?: DocumentPublicationAdapter;
-	#isSyncEnabled: () => boolean;
+	#repository?: DocumentRepositoryAdapter;
 	#pendingSave = false;
-	#pendingPublicationPage = $state<NotePage | null>(null);
-	#publicationUpdateInFlight = false;
-	#publicationChecked = false;
 	#saveTimer = createTimer();
 
 	constructor({
@@ -61,8 +42,7 @@ export class DocumentSession {
 		getMarkdown,
 		onDraftChange,
 		onSaved,
-		publication,
-		isSyncEnabled = () => true
+		repository
 	}: DocumentSessionOptions) {
 		const page = getPage();
 		this.page = page;
@@ -72,45 +52,14 @@ export class DocumentSession {
 		this.#getMarkdown = getMarkdown;
 		this.#onDraftChange = onDraftChange;
 		this.#onSaved = onSaved;
-		this.#publication = publication;
-		this.#isSyncEnabled = isSyncEnabled;
-		if (!publication) this.publicationState = 'unpublished';
-
-		startSyncEngine();
-
-		$effect(() => {
-			if (
-				!this.#publication?.isReady() ||
-				!this.#publication.isEnabled() ||
-				this.#publicationChecked
-			)
-				return;
-			this.#publicationChecked = true;
-			void this.#refreshPublicationState();
-		});
-
-		$effect(() => {
-			if (
-				!this.#publication?.isEnabled() ||
-				!this.publicationExists ||
-				!this.#pendingPublicationPage ||
-				this.#publicationUpdateInFlight ||
-				this.publicationState === 'error' ||
-				syncState.status !== 'synced'
-			) {
-				return;
-			}
-
-			void this.#updatePublication();
-		});
-	}
-
-	get syncLabelStatus(): SyncLabelStatus {
-		return this.#isSyncEnabled() ? syncState.status : 'disabled';
+		this.#repository = repository;
+		this.commitStatus = repository?.isEnabled() ? 'idle' : 'disabled';
+		this.publicationExists = page.frontmatter?.draft !== true;
+		this.publicationState = this.publicationExists ? 'published' : 'unpublished';
 	}
 
 	get saveLabel() {
-		return formatSaveLabel(this.saveState, this.lastSavedAt, this.syncLabelStatus);
+		return formatSaveLabel(this.saveState, this.lastSavedAt, this.commitStatus);
 	}
 
 	get title() {
@@ -121,8 +70,12 @@ export class DocumentSession {
 		return String(this.getPropertyValue('date') || this.page.createdAt);
 	}
 
+	get canCommit() {
+		return Boolean(this.#repository?.isEnabled());
+	}
+
 	get canPublish() {
-		return Boolean(this.#publication?.isEnabled());
+		return this.canCommit;
 	}
 
 	markError() {
@@ -135,6 +88,7 @@ export class DocumentSession {
 
 	scheduleSave() {
 		this.saveState = 'saving';
+		if (this.canCommit) this.commitStatus = 'pending';
 		this.#pendingSave = true;
 		this.#saveTimer.schedule(() => {
 			void this.persistNow();
@@ -142,20 +96,35 @@ export class DocumentSession {
 	}
 
 	async persistNow({ notify = true }: { notify?: boolean } = {}) {
-		const markdown = this.#getMarkdown();
-
+		this.#saveTimer.cancel();
 		this.#pendingSave = false;
-
 		try {
-			const nextPage = await saveNotePage(this.#createDraftPage(markdown));
+			const nextPage = await saveNotePage(this.#createDraftPage(this.#getMarkdown()));
 			this.page = nextPage;
 			if (notify) this.#onSaved?.(nextPage);
 			this.lastSavedAt = nextPage.updatedAt;
 			this.saveState = 'saved';
-			if (this.publicationExists) this.#pendingPublicationPage = nextPage;
 			return nextPage;
 		} catch {
 			this.saveState = 'error';
+			return null;
+		}
+	}
+
+	async commitNow() {
+		if (!this.#repository?.isEnabled() || this.commitStatus === 'committing') return null;
+		const page = await this.persistNow();
+		if (!page) return null;
+
+		this.commitStatus = 'committing';
+		try {
+			await this.#repository.save(page);
+			this.commitStatus = 'committed';
+			return page;
+		} catch (cause) {
+			console.error('Git commit failed', cause);
+			this.commitStatus = 'error';
+			return null;
 		}
 	}
 
@@ -167,25 +136,16 @@ export class DocumentSession {
 
 	mergeProperties(incoming: MetadataProperties) {
 		const merged = [...normalizeMetadataEntries(this.properties)];
-
 		for (const entry of normalizeMetadataEntries(incoming)) {
 			const index = merged.findIndex((existing) => existing.key === entry.key);
-
 			if (index >= 0) merged[index] = entry;
 			else merged.push(entry);
 		}
-
 		this.updateProperties(merged);
 	}
 
 	updateTitle(value: string) {
-		const next = [...normalizeMetadataEntries(this.properties)];
-		const index = next.findIndex((property) => property.key === 'title');
-
-		if (index >= 0) next[index] = { key: 'title', value };
-		else next.unshift({ key: 'title', value });
-
-		this.updateProperties(next);
+		this.setProperty('title', value, true);
 	}
 
 	getPropertyValue(key: string) {
@@ -196,41 +156,22 @@ export class DocumentSession {
 		return this.#createDraftPage(this.#getMarkdown());
 	}
 
-	#createDraftPage(bodyMarkdown: string) {
-		const properties = $state.snapshot(this.properties) as MetadataEntry[];
-		return createNotePage({
-			...this.page,
-			properties,
-			markdown: createCanonicalMarkdownSource(properties, bodyMarkdown)
-		});
-	}
-
 	async togglePublication() {
-		if (!this.#publication) return;
-		if (this.publicationState === 'working' || this.publicationState === 'loading') return;
-
-		const shouldUnpublish = this.publicationExists && this.publicationState !== 'error';
+		if (!this.canPublish || this.publicationState === 'working') return;
+		const nextPublished = !this.publicationExists;
 		this.publicationState = 'working';
+		this.setProperty('draft', !nextPublished, false);
+		this.#onDraftChange();
+		this.scheduleSave();
 
-		try {
-			if (shouldUnpublish) {
-				await this.#publication.unpublish(this.page.id);
-				this.publicationExists = false;
-				this.#pendingPublicationPage = null;
-				this.publicationState = 'unpublished';
-				return;
-			}
-
-			const savedPage = await this.persistNow();
-			if (!savedPage) throw new Error('Save failed');
-
-			await this.#publication.publish(savedPage);
-			this.publicationExists = true;
-			this.#pendingPublicationPage = null;
-			this.publicationState = 'published';
-		} catch {
+		const committed = await this.commitNow();
+		if (!committed) {
 			this.publicationState = 'error';
+			return;
 		}
+
+		this.publicationExists = nextPublished;
+		this.publicationState = nextPublished ? 'published' : 'unpublished';
 	}
 
 	destroy() {
@@ -238,37 +179,29 @@ export class DocumentSession {
 		if (this.#pendingSave) void this.persistNow({ notify: false });
 	}
 
-	async #refreshPublicationState() {
-		if (!this.#publication) return;
-		try {
-			const publication = await this.#publication.load(this.page.id);
-			this.publicationExists = Boolean(publication);
-			this.publicationState = this.publicationExists ? 'published' : 'unpublished';
-			if (publication && this.#publication.isOutdated(this.page, publication)) {
-				this.#pendingPublicationPage = this.page;
-			}
-		} catch {
-			this.publicationState = 'error';
+	#setProperties(next: MetadataEntry[]) {
+		this.properties = normalizeMetadataEntries(next);
+	}
+
+	setProperty(key: string, value: MetadataEntry['value'], schedule = true) {
+		const next = [...normalizeMetadataEntries(this.properties)];
+		const index = next.findIndex((property) => property.key === key);
+		if (index >= 0) next[index] = { key, value };
+		else next.push({ key, value });
+		this.#setProperties(next);
+		if (schedule) {
+			this.#onDraftChange();
+			this.scheduleSave();
 		}
 	}
 
-	async #updatePublication() {
-		if (!this.#publication) return;
-		const nextPage = this.#pendingPublicationPage;
-		if (!nextPage || this.#publicationUpdateInFlight) return;
-
-		this.#pendingPublicationPage = null;
-		this.#publicationUpdateInFlight = true;
-		this.publicationState = 'working';
-
-		try {
-			await this.#publication.publish(nextPage);
-			this.publicationState = 'published';
-		} catch {
-			this.#pendingPublicationPage = nextPage;
-			this.publicationState = 'error';
-		} finally {
-			this.#publicationUpdateInFlight = false;
-		}
+	#createDraftPage(bodyMarkdown: string) {
+		const properties = $state.snapshot(this.properties) as MetadataEntry[];
+		return createNotePage({
+			...this.page,
+			id: this.page.id,
+			properties,
+			markdown: createCanonicalMarkdownSource(properties, bodyMarkdown)
+		});
 	}
 }

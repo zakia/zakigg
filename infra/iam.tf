@@ -1,13 +1,7 @@
-# Runtime identity for the Cloud Run service (Firestore + GCS via ADC, no keys)
+# Runtime identity for the Cloud Run service (GCS via ADC, no service-account keys)
 resource "google_service_account" "app_runtime" {
   account_id   = "app-runtime"
   display_name = "Cloud Run runtime for ${var.service_name}"
-}
-
-resource "google_project_iam_member" "app_runtime_datastore" {
-  project = var.project_id
-  role    = "roles/datastore.user"
-  member  = "serviceAccount:${google_service_account.app_runtime.email}"
 }
 
 resource "google_storage_bucket_iam_member" "app_runtime_assets" {

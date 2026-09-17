@@ -26,8 +26,10 @@ variable "active_region" {
   }
 }
 
+# Retained only until the one-time Markdown export has been verified. The app
+# has no Firestore runtime access.
 variable "target_firestore_database_id" {
-  description = "Named Firestore database used by the replacement service"
+  description = "Legacy Firestore backup database pending verified export"
   type        = string
   default     = "zakigg"
 }
@@ -43,8 +45,24 @@ variable "github_repo" {
   type        = string
 }
 
+variable "github_client_id" {
+  description = "GitHub App client id used as the CMS JWT issuer"
+  type        = string
+}
+
+variable "github_installation_id" {
+  description = "Installation id for the GitHub App on github_repo"
+  type        = string
+}
+
+variable "github_content_branch" {
+  description = "Branch receiving Markdown commits from the CMS"
+  type        = string
+  default     = "main"
+}
+
 variable "allowed_email" {
-  description = "The single Google account email allowed to use notes sync"
+  description = "The single Google account email allowed to use the private editor"
   type        = string
 }
 

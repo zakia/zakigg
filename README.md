@@ -1,7 +1,7 @@
 # zaki.gg
 
-The source for zaki.gg: a SvelteKit PWA for publishing interactive crafts and editing local-first,
-block-based documents.
+The source for zaki.gg: a SvelteKit PWA for publishing and editing canonical Markdown with custom
+interactive components.
 
 ## Development
 
@@ -9,7 +9,7 @@ Requirements:
 
 - Bun 1.3+
 - Node.js 22+
-- Google Cloud Application Default Credentials for cloud-backed development
+- Google Cloud Application Default Credentials for GCS asset development
 
 Install dependencies and start the configured development server:
 
@@ -38,4 +38,8 @@ bun run build
 - [Number Snug puzzle](docs/puzzle.md)
 
 The public reader lives at `/crafts/<slug>`. The private manager and editor live at
-`/crafts?edit` and `/crafts/<slug>?edit`.
+`/admin/crafts` and `/admin/crafts/<slug>`.
+
+Markdown files under `content/crafts` are the canonical content store. The private editor saves
+local drafts to IndexedDB and commits explicitly to Git through a server-side GitHub App. Binary
+assets remain in GCS and are served publicly through `/media/<asset-id>`.

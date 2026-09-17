@@ -70,19 +70,24 @@ export function trimLinkSelection(view: EditorView) {
 }
 
 class SelectionToolbarView implements PluginView {
+	static readonly SHOW_DELAY_MS = 160;
+
 	readonly #ctx: Ctx;
 	readonly #content: HTMLElement;
 	readonly #component: ReturnType<typeof mount>;
 	readonly #provider: TooltipProvider;
 	readonly #state = new SelectionToolbarState();
+	readonly #view: EditorView;
+	#pointerDown = false;
+	#showTimer: number | undefined;
 
 	constructor(ctx: Ctx, view: EditorView) {
 		this.#ctx = ctx;
+		this.#view = view;
 		const content = document.createElement('div');
 		content.className = 'zaki-selection-toolbar';
 		Object.assign(content.style, {
 			position: 'fixed',
-			visibility: 'hidden',
 			pointerEvents: 'none',
 			zIndex: '40'
 		});
@@ -113,13 +118,18 @@ class SelectionToolbarView implements PluginView {
 		this.#provider = new TooltipProvider({
 			content,
 			root: document.body,
-			debounce: 20,
+			debounce: 30,
 			offset: 10,
 			shift: { padding: 10 },
 			floatingUIOptions: { strategy: 'fixed' },
 			shouldShow: (currentView) => {
 				const selection = currentView.state.selection;
-				if (!(selection instanceof TextSelection) || selection.empty || !currentView.editable)
+				if (
+					this.#pointerDown ||
+					!(selection instanceof TextSelection) ||
+					selection.empty ||
+					!currentView.editable
+				)
 					return false;
 				const activeElement =
 					currentView.dom.getRootNode() instanceof Document
@@ -129,17 +139,46 @@ class SelectionToolbarView implements PluginView {
 			}
 		});
 		this.#provider.onShow = () => {
-			content.style.visibility = 'visible';
-			content.style.pointerEvents = 'auto';
-			this.#state.visible = true;
+			if (this.#state.visible) return;
+			window.clearTimeout(this.#showTimer);
+			this.#showTimer = window.setTimeout(() => {
+				const selection = this.#view.state.selection;
+				if (
+					this.#pointerDown ||
+					!(selection instanceof TextSelection) ||
+					selection.empty ||
+					!this.#view.editable
+				)
+					return;
+				content.style.pointerEvents = 'auto';
+				this.#state.visible = true;
+			}, SelectionToolbarView.SHOW_DELAY_MS);
 		};
 		this.#provider.onHide = () => {
-			content.style.visibility = 'hidden';
+			window.clearTimeout(this.#showTimer);
+			this.#showTimer = undefined;
 			content.style.pointerEvents = 'none';
 			this.#state.visible = false;
 		};
+		view.dom.addEventListener('pointerdown', this.#onPointerDown);
+		window.addEventListener('pointerup', this.#onPointerUp, true);
+		window.addEventListener('pointercancel', this.#onPointerUp, true);
 		this.update(view);
 	}
+
+	#onPointerDown = () => {
+		this.#pointerDown = true;
+		window.clearTimeout(this.#showTimer);
+		this.#showTimer = undefined;
+		this.#content.style.pointerEvents = 'none';
+		this.#state.visible = false;
+	};
+
+	#onPointerUp = () => {
+		if (!this.#pointerDown) return;
+		this.#pointerDown = false;
+		queueMicrotask(() => this.#provider.update(this.#view));
+	};
 
 	update = (view: EditorView, prevState?: EditorState) => {
 		this.#state.update(readToolbarSnapshot(this.#ctx, view.state));
@@ -147,6 +186,10 @@ class SelectionToolbarView implements PluginView {
 	};
 
 	destroy = () => {
+		window.clearTimeout(this.#showTimer);
+		this.#view.dom.removeEventListener('pointerdown', this.#onPointerDown);
+		window.removeEventListener('pointerup', this.#onPointerUp, true);
+		window.removeEventListener('pointercancel', this.#onPointerUp, true);
 		this.#provider.destroy();
 		void unmount(this.#component);
 		this.#content.remove();

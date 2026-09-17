@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '$lib/components/Icon.svelte';
 	import type { SelectionToolbarState } from './selection-toolbar-state.svelte';
 
 	let {
@@ -12,7 +13,7 @@
 	} = $props();
 </script>
 
-<div class="toolbar-surface" aria-label="Text formatting">
+<div class:visible={viewState.visible} class="toolbar-surface" aria-label="Text formatting">
 	<button
 		type="button"
 		class:active={viewState.bold}
@@ -20,7 +21,7 @@
 		aria-pressed={viewState.bold}
 		title="Bold (⌘B)"
 		onpointerdown={(event) => event.preventDefault()}
-		onclick={() => onToggle('bold')}><strong>B</strong></button
+		onclick={() => onToggle('bold')}><Icon icon="mdi:format-bold" /></button
 	>
 	<button
 		type="button"
@@ -29,7 +30,7 @@
 		aria-pressed={viewState.italic}
 		title="Italic (⌘I)"
 		onpointerdown={(event) => event.preventDefault()}
-		onclick={() => onToggle('italic')}><em>I</em></button
+		onclick={() => onToggle('italic')}><Icon icon="mdi:format-italic" /></button
 	>
 	<button
 		type="button"
@@ -38,7 +39,7 @@
 		aria-pressed={viewState.strike}
 		title="Strikethrough"
 		onpointerdown={(event) => event.preventDefault()}
-		onclick={() => onToggle('strike')}><s>S</s></button
+		onclick={() => onToggle('strike')}><Icon icon="mdi:format-strikethrough-variant" /></button
 	>
 	<button
 		type="button"
@@ -47,7 +48,7 @@
 		aria-pressed={viewState.code}
 		title="Inline code"
 		onpointerdown={(event) => event.preventDefault()}
-		onclick={() => onToggle('code')}><code>&lt;/&gt;</code></button
+		onclick={() => onToggle('code')}><Icon icon="mdi:code-tags" /></button
 	>
 	<span class="divider" aria-hidden="true"></span>
 	<button
@@ -57,20 +58,39 @@
 		aria-pressed={viewState.link}
 		title={viewState.link ? 'Remove link' : 'Add link'}
 		onpointerdown={(event) => event.preventDefault()}
-		onclick={onToggleLink}>↗</button
+		onclick={onToggleLink}
+		><Icon icon={viewState.link ? 'mdi:link-off' : 'mdi:link-variant-plus'} /></button
 	>
 </div>
 
 <style>
 	.toolbar-surface {
 		align-items: center;
-		background: var(--base-1);
-		border: 1px solid var(--edge-1);
-		border-radius: calc(var(--radius) * 0.8);
-		box-shadow: 0 0.6rem 1.8rem rgb(0 0 0 / 0.14);
+		backdrop-filter: blur(18px);
+		background: color-mix(in oklch, var(--base-1) 92%, transparent);
+		border: 1px solid color-mix(in oklch, var(--edge-1) 84%, transparent);
+		border-radius: var(--radius);
+		box-shadow:
+			0 0.75rem 2rem rgb(0 0 0 / 0.13),
+			0 2px 6px rgb(0 0 0 / 0.06);
 		display: flex;
 		gap: 2px;
+		opacity: 0;
 		padding: 4px;
+		transform: translateY(6px) scale(0.98);
+		transform-origin: bottom center;
+		transition:
+			opacity 0.14s ease,
+			transform 0.14s ease,
+			visibility 0s linear 0.14s;
+		visibility: hidden;
+	}
+
+	.toolbar-surface.visible {
+		opacity: 1;
+		transform: translateY(0) scale(1);
+		transition-delay: 0s;
+		visibility: visible;
 	}
 
 	button {
@@ -82,7 +102,6 @@
 		cursor: pointer;
 		display: inline-flex;
 		font-family: var(--font-body);
-		font-size: 0.9rem;
 		height: 2rem;
 		justify-content: center;
 		min-width: 2rem;
@@ -97,13 +116,13 @@
 	}
 
 	button.active {
-		background: color-mix(in oklch, var(--brand) 16%, var(--base-1));
+		background: color-mix(in oklch, var(--brand) 14%, var(--base-1));
 		color: var(--brand);
 	}
 
-	button code {
-		font-family: var(--font-mono);
-		font-size: 0.75rem;
+	button :global(svg) {
+		height: 1rem;
+		width: 1rem;
 	}
 
 	.divider {
@@ -111,5 +130,11 @@
 		height: 1.35rem;
 		margin-inline: 3px;
 		width: 1px;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.toolbar-surface {
+			transition: none;
+		}
 	}
 </style>

@@ -22,7 +22,7 @@ static craft pages               IndexedDB draft
   import/export, and the editing session.
 - `src/lib/crafts` owns craft routes, Git commit commands, publication controls, and the custom
   component registry.
-- `src/lib/server/content` owns repository reads and writes.
+- `src/lib/server/content` owns bundled content reads and explicit Git repository operations.
 - `content/crafts` is the public build input and remote source of truth.
 - GCS stores binary assets only.
 
@@ -59,8 +59,10 @@ Cmd/Ctrl+S uploads referenced local assets to GCS and commits the complete Markd
 Delete creates a normal Git deletion commit. Git history supplies revisions and recovery; there
 are no mutation records, checkpoints, publication snapshots, or tombstones.
 
-The admin manager normally refreshes repository documents into the local cache. “Reload from Git”
-is the explicit destructive recovery path for discarding local drafts.
+The admin manager opens from IndexedDB immediately. On a browser's first editor visit, the bundled
+Markdown snapshot seeds documents that are not already local; it never overwrites a local draft.
+Normal list and document reads do not contact GitHub. “Reload from Git” is the explicit destructive
+recovery path for discarding local drafts and fetching the current branch.
 
 ## Public rendering and offline behavior
 

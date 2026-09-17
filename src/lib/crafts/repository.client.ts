@@ -8,6 +8,7 @@ import { loadNoteAsset } from '$lib/editor/document/persistence/storage';
 import {
 	deleteRepositoryCraft,
 	getRepositoryCraft,
+	listLiveRepositoryCrafts,
 	listRepositoryCrafts,
 	saveRepositoryCraft
 } from './repository.remote';
@@ -18,6 +19,10 @@ export async function loadRepositoryCraft(slug: string) {
 
 export async function loadRepositoryCrafts() {
 	return (await listRepositoryCrafts()).map(parseStoredPage).filter(isNotePage);
+}
+
+export async function loadLiveRepositoryCrafts() {
+	return (await listLiveRepositoryCrafts()).map(parseStoredPage).filter(isNotePage);
 }
 
 export async function commitRepositoryCraft(page: NotePage) {

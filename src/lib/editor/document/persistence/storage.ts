@@ -17,6 +17,7 @@ import { normalizeMetadataEntries } from '../metadata';
 
 const DB_NAME = 'zaki.gg-notes';
 const NOTES_INITIALIZED_FLAG_KEY = 'zaki.gg:notes:markdown-v3:initialized';
+const REPOSITORY_SNAPSHOT_SEEDED_FLAG_KEY = 'zaki.gg:notes:repository-snapshot-v1:seeded';
 const DB_VERSION = 7;
 const PAGES_STORE_NAME = 'pages';
 const ASSETS_STORE_NAME = 'assets';
@@ -156,6 +157,31 @@ export async function cacheRepositoryNotePage(page: NotePage): Promise<NotePage>
 	return next;
 }
 
+export async function seedRepositoryNotePages(pages: NotePage[]): Promise<void> {
+	if (!browser || !pages.length || !needsRepositorySnapshotSeed()) return;
+	await initializeNotesDb();
+	const db = await getDb();
+	const tx = db.transaction(PAGES_STORE_NAME, 'readwrite');
+	const store = tx.objectStore(PAGES_STORE_NAME);
+	const existingIds = new Set(await store.getAllKeys());
+	for (const page of pages) {
+		if (existingIds.has(page.id)) continue;
+		await store.put(toStoredNotePage(createNotePage(page)), page.id);
+	}
+	await tx.done;
+	setInitializedNotesFlag();
+	setRepositorySnapshotSeededFlag();
+}
+
+export function needsRepositorySnapshotSeed() {
+	if (!browser) return false;
+	try {
+		return window.localStorage.getItem(REPOSITORY_SNAPSHOT_SEEDED_FLAG_KEY) !== 'true';
+	} catch {
+		return true;
+	}
+}
+
 export async function replaceLocalNotePages(pages: NotePage[]): Promise<void> {
 	if (!browser) return;
 	await initializeNotesDb();
@@ -170,6 +196,7 @@ export async function replaceLocalNotePages(pages: NotePage[]): Promise<void> {
 	}
 	await tx.done;
 	setInitializedNotesFlag();
+	setRepositorySnapshotSeededFlag();
 }
 
 export async function importNotePage(input: Partial<NotePage>): Promise<NotePage> {
@@ -327,6 +354,14 @@ function hasInitializedNotesFlag() {
 function setInitializedNotesFlag() {
 	try {
 		window.localStorage.setItem(NOTES_INITIALIZED_FLAG_KEY, 'true');
+	} catch {
+		// Best effort only.
+	}
+}
+
+function setRepositorySnapshotSeededFlag() {
+	try {
+		window.localStorage.setItem(REPOSITORY_SNAPSHOT_SEEDED_FLAG_KEY, 'true');
 	} catch {
 		// Best effort only.
 	}

@@ -4,6 +4,7 @@ import * as v from 'valibot';
 import { parseStoredPage, toStoredNotePage } from '$lib/editor/document/model';
 import { auth } from '$lib/server/auth';
 import { getContentRepository } from '$lib/server/content/repository';
+import { getStaticRepositoryPage, listStaticRepositoryPages } from '$lib/server/content/static';
 
 const SafeIdSchema = v.pipe(
 	v.string(),
@@ -18,13 +19,18 @@ const PageJsonSchema = v.object({
 
 export const listRepositoryCrafts = query(async () => {
 	auth({ required: true });
-	return (await getContentRepository().list()).map(({ page }) => toStoredNotePage(page));
+	return listStaticRepositoryPages().map(toStoredNotePage);
 });
 
 export const getRepositoryCraft = query(SlugSchema, async (slug) => {
 	auth({ required: true });
-	const document = await getContentRepository().readBySlug(slug);
-	return document ? toStoredNotePage(document.page) : null;
+	const page = getStaticRepositoryPage(slug);
+	return page ? toStoredNotePage(page) : null;
+});
+
+export const listLiveRepositoryCrafts = query(async () => {
+	auth({ required: true });
+	return (await getContentRepository().list()).map(({ page }) => toStoredNotePage(page));
 });
 
 export const saveRepositoryCraft = command(PageJsonSchema, async ({ pageJson }) => {
@@ -44,7 +50,6 @@ export const saveRepositoryCraft = command(PageJsonSchema, async ({ pageJson }) 
 	);
 	if (duplicate) throw error(409, `Another document already uses /crafts/${page.slug}`);
 	const saved = await repository.save(page);
-	listRepositoryCrafts().refresh();
 	getRepositoryCraft(page.slug).set(toStoredNotePage(saved.page));
 	return { sha: saved.sha, path: saved.path };
 });
@@ -53,7 +58,6 @@ export const deleteRepositoryCraft = command(SafeIdSchema, async (id) => {
 	auth({ required: true });
 	assertSameOrigin();
 	await getContentRepository().delete(id);
-	listRepositoryCrafts().refresh();
 });
 
 function assertSameOrigin() {

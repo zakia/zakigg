@@ -41,14 +41,15 @@
 		craft = null;
 
 		try {
-			let page: NotePage | null = null;
-			try {
-				const remote = await loadRepositoryCraft(slug);
-				page = remote ? await cacheRepositoryNotePage(remote) : null;
-			} catch (cause) {
-				console.warn('Git repository is unavailable; opening the local draft', cause);
+			let page = await loadNotePageBySlug(slug);
+			if (!page) {
+				try {
+					const bundled = await loadRepositoryCraft(slug);
+					page = bundled ? await cacheRepositoryNotePage(bundled) : null;
+				} catch (cause) {
+					console.warn('Bundled repository snapshot is unavailable', cause);
+				}
 			}
-			page ??= await loadNotePageBySlug(slug);
 			craft = page;
 			syncMetadataInputs(page);
 		} finally {

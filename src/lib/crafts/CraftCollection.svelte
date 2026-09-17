@@ -140,19 +140,25 @@
 		localLoadError = null;
 
 		try {
-			const [{ loadRepositoryCrafts }, storage] = await Promise.all([
-				import('./repository.client'),
-				import('$lib/editor/document/persistence/storage')
-			]);
-			const { cacheRepositoryNotePage, initializeNotesDb, listNotePages } = storage;
+			const storage = await import('$lib/editor/document/persistence/storage');
+			const {
+				initializeNotesDb,
+				listNotePages,
+				needsRepositorySnapshotSeed,
+				seedRepositoryNotePages
+			} = storage;
 			await initializeNotesDb();
-			try {
-				const repositoryPages = await loadRepositoryCrafts();
-				for (const page of repositoryPages) await cacheRepositoryNotePage(page);
-			} catch (cause) {
-				console.warn('Git repository is unavailable; showing local Markdown drafts', cause);
-			}
 			pages = await listNotePages();
+			loading = false;
+			if (needsRepositorySnapshotSeed()) {
+				try {
+					const { loadRepositoryCrafts } = await import('./repository.client');
+					await seedRepositoryNotePages(await loadRepositoryCrafts());
+					pages = await listNotePages();
+				} catch (cause) {
+					console.warn('Bundled repository snapshot is unavailable; showing local drafts', cause);
+				}
+			}
 		} catch (error) {
 			console.error('Failed to load local crafts', error);
 			localLoadError =
@@ -172,12 +178,12 @@
 
 		busy = 'reload';
 		try {
-			const [{ loadRepositoryCrafts }, { replaceLocalNotePages, listNotePages }] =
+			const [{ loadLiveRepositoryCrafts }, { replaceLocalNotePages, listNotePages }] =
 				await Promise.all([
 					import('./repository.client'),
 					import('$lib/editor/document/persistence/storage')
 				]);
-			await replaceLocalNotePages(await loadRepositoryCrafts());
+			await replaceLocalNotePages(await loadLiveRepositoryCrafts());
 			pages = await listNotePages();
 			showToast('Reloaded Markdown from Git');
 		} finally {

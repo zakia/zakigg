@@ -13,8 +13,11 @@ const markdownModules = import.meta.glob('/content/crafts/*.md', {
 	import: 'default'
 }) as Record<string, string>;
 
-const published = Object.values(markdownModules)
-	.map((markdown) => parseRepositoryMarkdown(markdown))
+const repositoryPages = Object.values(markdownModules).map((markdown) =>
+	parseRepositoryMarkdown(markdown)
+);
+
+const published = repositoryPages
 	.filter((page) => page.frontmatter?.draft !== true)
 	.map((page) => ({
 		page,
@@ -24,6 +27,14 @@ const published = Object.values(markdownModules)
 
 export function listStaticCrafts(): CraftListItem[] {
 	return createPublicCraftList(published.map(({ summary }) => summary));
+}
+
+export function listStaticRepositoryPages() {
+	return repositoryPages;
+}
+
+export function getStaticRepositoryPage(slug: string) {
+	return repositoryPages.find((page) => page.slug === slug);
 }
 
 export function listStaticCraftSlugs() {

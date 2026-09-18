@@ -4,6 +4,7 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import type { ComponentEmbedRegistry } from '../components/registry';
 	import { createMarkdownEditor } from './create-editor';
+	import { createLinkAttachment } from './features/link/link-attachment.svelte';
 	import MarkdownSourceEditor from './MarkdownSourceEditor.svelte';
 
 	let {
@@ -31,6 +32,7 @@
 	let visualError = $state('');
 	let disposed = false;
 	let setupRevision = 0;
+	const linkAttachment = createLinkAttachment(() => editor);
 
 	async function destroyEditor() {
 		const current = editor;
@@ -145,7 +147,7 @@
 			/>
 		</div>
 	{:else}
-		<div class="milkdown-editor" bind:this={editorHost}></div>
+		<div class="milkdown-editor" bind:this={editorHost} {@attach linkAttachment}></div>
 	{/if}
 </section>
 
@@ -335,102 +337,6 @@
 		color: var(--brand-content);
 	}
 
-	.milkdown-editor :global(.milkdown-link-preview),
-	.milkdown-editor :global(.milkdown-link-edit) {
-		backdrop-filter: blur(18px);
-		background: var(--base-1);
-		border: 1px solid var(--edge-1);
-		border-radius: calc(var(--radius) * 0.8);
-		box-shadow: 0 0.6rem 1.8rem rgb(0 0 0 / 0.14);
-		box-sizing: border-box;
-		opacity: 0;
-		padding: 4px;
-		pointer-events: none;
-		position: absolute;
-		transform: translateY(5px) scale(0.985);
-		transform-origin: bottom center;
-		transition:
-			opacity 0.13s ease,
-			transform 0.13s ease,
-			visibility 0s linear 0.13s;
-		visibility: hidden;
-		z-index: 50;
-	}
-
-	.milkdown-editor :global(.milkdown-link-preview[data-show='true']),
-	.milkdown-editor :global(.milkdown-link-edit[data-show='true']) {
-		opacity: 1;
-		pointer-events: auto;
-		transform: translateY(0) scale(1);
-		transition-delay: 0s;
-		visibility: visible;
-	}
-
-	.milkdown-editor :global(.milkdown-link-preview[data-show='true']) {
-		transition-delay: 0.16s;
-	}
-
-	.milkdown-editor :global(.milkdown-link-preview .link-preview),
-	.milkdown-editor :global(.milkdown-link-edit .link-edit) {
-		align-items: center;
-		display: flex;
-		gap: 3px;
-	}
-
-	.milkdown-editor :global(.milkdown-link-preview .link-display) {
-		background: transparent;
-		border-radius: calc(var(--radius) * 0.5);
-		color: var(--content);
-		font-size: var(--s-1);
-		max-width: min(24rem, 55vw);
-		overflow: hidden;
-		padding: 0.42rem 0.55rem;
-		text-decoration-color: var(--brand);
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-
-	.milkdown-editor :global(.milkdown-link-preview .link-display:hover),
-	.milkdown-editor :global(.milkdown-link-preview .link-display:focus-visible) {
-		background: var(--base-2);
-		color: var(--brand);
-		outline: none;
-	}
-
-	.milkdown-editor :global(.milkdown-link-preview .milkdown-icon.button),
-	.milkdown-editor :global(.milkdown-link-edit .milkdown-icon.button) {
-		align-items: center;
-		border-radius: calc(var(--radius) * 0.5);
-		color: var(--content-1);
-		cursor: pointer;
-		display: inline-flex;
-		font-size: var(--s-2);
-		min-height: 2rem;
-		padding-inline: 0.55rem;
-		user-select: none;
-	}
-
-	.milkdown-editor :global(.milkdown-link-preview .milkdown-icon.button:hover),
-	.milkdown-editor :global(.milkdown-link-edit .milkdown-icon.button:hover) {
-		background: var(--base-2);
-		color: var(--content);
-	}
-
-	.milkdown-editor :global(.milkdown-link-edit .input-area) {
-		background: var(--base-2);
-		border: 1px solid transparent;
-		border-radius: calc(var(--radius) * 0.55);
-		color: var(--content);
-		font: 0.82rem/1.2 var(--font-body);
-		min-width: min(18rem, 62vw);
-		outline: none;
-		padding: 0.52rem 0.65rem;
-	}
-
-	.milkdown-editor :global(.milkdown-link-edit .input-area:focus) {
-		border-color: var(--brand);
-	}
-
 	.milkdown-editor :global(.milkdown .ProseMirror :not(pre) > code) {
 		background: color-mix(in oklch, var(--brand) 9%, var(--base-2));
 		border-radius: calc(var(--radius) * 0.45);
@@ -458,9 +364,7 @@
 	}
 
 	@media (prefers-reduced-motion: reduce) {
-		.editor-mode-switch button,
-		.milkdown-editor :global(.milkdown-link-preview),
-		.milkdown-editor :global(.milkdown-link-edit) {
+		.editor-mode-switch button {
 			transition: none;
 		}
 	}

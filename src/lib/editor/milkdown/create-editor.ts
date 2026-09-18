@@ -1,9 +1,4 @@
 import { defaultValueCtx, Editor, editorViewOptionsCtx, rootCtx } from '@milkdown/kit/core';
-import {
-	configureLinkTooltip,
-	linkTooltipConfig,
-	linkTooltipPlugin
-} from '@milkdown/kit/component/link-tooltip';
 import { clipboard } from '@milkdown/kit/plugin/clipboard';
 import { history } from '@milkdown/kit/plugin/history';
 import { indent, indentConfig } from '@milkdown/kit/plugin/indent';
@@ -15,7 +10,8 @@ import type { ComponentEmbedRegistry } from '../components/registry';
 import { componentEmbedFeature, componentRegistryCtx } from './features/component/component-embed';
 import { codeBlockFeature } from './features/code-block/code-block';
 import { columnsFeature } from './features/columns/columns';
-import { linkNavigationFeature } from './features/link/link-navigation';
+import { linkInteractionApiCtx } from './features/link/link-interaction';
+import { markdownLinkInputRule } from './features/link/markdown-link-input';
 import { selectionToolbarFeature } from './features/selection-toolbar/selection-toolbar';
 import { configureSlashMenu, markdownSlashMenu } from './features/slash-menu/slash-menu';
 import { youtubeEmbedFeature } from './features/youtube/youtube-embed';
@@ -54,17 +50,6 @@ export function createMarkdownEditor(options: MarkdownEditorOptions) {
 			}));
 		})
 		.config(configureSlashMenu)
-		.config(configureLinkTooltip)
-		.config((ctx) => {
-			ctx.update(linkTooltipConfig.key, (current) => ({
-				...current,
-				linkIcon: 'Copy',
-				editButton: 'Edit',
-				removeButton: 'Remove',
-				confirmButton: 'Save',
-				inputPlaceholder: 'Paste a link…'
-			}));
-		})
 		.config((ctx) => {
 			ctx
 				.get(listenerCtx)
@@ -76,13 +61,13 @@ export function createMarkdownEditor(options: MarkdownEditorOptions) {
 		.use(commonmark)
 		.use(gfm)
 		.use(paragraphMdxSchema)
+		.use(linkInteractionApiCtx)
+		.use(markdownLinkInputRule)
 		.use(listener)
 		.use(history)
 		.use(indent)
 		.use(trailing)
 		.use(clipboard)
-		.use(linkTooltipPlugin)
-		.use(linkNavigationFeature)
 		.use(markdownSlashMenu)
 		.use(selectionToolbarFeature)
 		.use(codeBlockFeature)

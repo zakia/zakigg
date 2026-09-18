@@ -54,12 +54,12 @@
 	<button
 		type="button"
 		class:active={viewState.link}
-		aria-label={viewState.link ? 'Remove link' : 'Add link'}
+		aria-label={viewState.link ? 'Edit link' : 'Add link'}
 		aria-pressed={viewState.link}
-		title={viewState.link ? 'Remove link' : 'Add link'}
+		title={viewState.link ? 'Edit link' : 'Add link'}
 		onpointerdown={(event) => event.preventDefault()}
 		onclick={onToggleLink}
-		><Icon icon={viewState.link ? 'mdi:link-off' : 'mdi:link-variant-plus'} /></button
+		><Icon icon={viewState.link ? 'mdi:link-variant' : 'mdi:link-variant-plus'} /></button
 	>
 </div>
 

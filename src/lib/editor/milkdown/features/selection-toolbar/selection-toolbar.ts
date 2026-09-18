@@ -1,6 +1,5 @@
 import { mount, unmount } from 'svelte';
 import type { Ctx } from '@milkdown/kit/ctx';
-import { toggleLinkCommand as toggleLinkTooltipCommand } from '@milkdown/kit/component/link-tooltip';
 import { commandsCtx } from '@milkdown/kit/core';
 import { TooltipProvider } from '@milkdown/kit/plugin/tooltip';
 import {
@@ -24,6 +23,8 @@ import {
 	type SelectionToolbarSnapshot
 } from './selection-toolbar-state.svelte';
 import { trimLinkText } from '../link/link-selection';
+import { linkInteractionApiCtx } from '../link/link-interaction';
+import { wikiLinkMark } from '../../syntax/wiki-links';
 
 function hasMark(state: EditorState, markName: string) {
 	const mark = state.schema.marks[markName];
@@ -39,7 +40,7 @@ function readToolbarSnapshot(ctx: Ctx, state: EditorState): SelectionToolbarSnap
 		italic: hasMark(state, 'emphasis'),
 		strike: hasMark(state, strikethroughSchema.type(ctx).name),
 		code: hasMark(state, 'inlineCode'),
-		link: hasMark(state, linkSchema.type(ctx).name)
+		link: hasMark(state, linkSchema.type(ctx).name) || hasMark(state, wikiLinkMark.type(ctx).name)
 	};
 }
 
@@ -109,8 +110,8 @@ class SelectionToolbarView implements PluginView {
 				onToggle: runMark,
 				onToggleLink: () => {
 					if (!this.#state.link && !trimLinkSelection(view)) return;
-					ctx.get(commandsCtx).call(toggleLinkTooltipCommand.key);
-					view.focus();
+					this.#provider.hide();
+					ctx.get(linkInteractionApiCtx.key).editSelection(view);
 				}
 			}
 		});

@@ -1,9 +1,7 @@
 <script lang="ts">
-	import Icon from '$lib/components/Icon.svelte';
 	import { renderMarkdownInlineToHtml } from '$lib/markdown/render';
 
 	type CardProps = {
-		icon?: string;
 		company: string;
 		subtitle?: string;
 		position?: {
@@ -12,8 +10,6 @@
 			endDate?: string;
 		};
 		description: string[];
-		link?: string;
-		compact?: boolean;
 	};
 
 	let props: CardProps = $props();
@@ -45,8 +41,9 @@
 		</p>
 	{/if}
 	<ul>
-		{#each props.description as item}
+		{#each props.description as item, i (i)}
 			<li>
+				<!-- eslint-disable-next-line svelte/no-at-html-tags -- trusted, HTML-escaped content -->
 				{@html renderMarkdownInlineToHtml(item)}
 			</li>
 		{/each}

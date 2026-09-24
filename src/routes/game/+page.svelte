@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { resolve } from '$app/paths';
+	import { SvelteSet } from 'svelte/reactivity';
 
 	type GameStatus = 'playing' | 'dead';
 	type EnemyType = 'charger' | 'sniper' | 'scatter' | 'seeker';
@@ -61,7 +63,7 @@
 		}
 		const world = { width: window.innerWidth, height: window.innerHeight };
 		const player = { x: world.width / 2, y: world.height / 2, size: 32 * gameScale, speed: 290 };
-		const held = new Set<string>();
+		const held = new SvelteSet<string>();
 		const enemies: Enemy[] = [];
 		let particles: Particle[] = [];
 		let bullets: Bullet[] = [];
@@ -952,7 +954,7 @@
 	<canvas bind:this={canvas} aria-label="Game arena"></canvas>
 	<div class="hud" aria-live="polite">
 		<div class="title-block">
-			<a href="/" aria-label="Leave game">&larr;</a>
+			<a href={resolve('/')} aria-label="Leave game">&larr;</a>
 			<div>
 				<h1>Boogie Woogie</h1>
 				<p>

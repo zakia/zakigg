@@ -1,3 +1,7 @@
+<script lang="ts">
+	import { resolve } from '$app/paths';
+</script>
+
 <article class="layout">
 	<h1 class="font-hand">Adham Zaki</h1>
 	<p>
@@ -19,6 +23,6 @@
 	<h3>Connect</h3>
 	<p>
 		Reach me at <a href="mailto:a@zaki.gg">a@zaki.gg</a> or read more on
-		<a href="/resume">my resume.</a>
+		<a href={resolve('/resume')}>my resume.</a>
 	</p>
 </article>

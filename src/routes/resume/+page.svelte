@@ -19,11 +19,12 @@
 				<span class="font-bold">Zaki</span>
 			</h1>
 			<div class="gap-s0 ml-auto flex">
-				{#each contactLinks as link}
+				{#each contactLinks as link (link.href)}
 					<a
 						href={link.href}
 						class="slide-link flex items-center gap-1 text-sm font-semibold"
 						target="_blank"
+						rel="external"
 					>
 						<Icon icon={link.icon} class="h-5 w-5" />
 						{link.text}
@@ -45,7 +46,7 @@
 	<section class="flex flex-col">
 		<h2 class="text-brand border-edge mb-1 border-b pb-1 font-bold uppercase">Experience</h2>
 		<div class="gap-s0 flex flex-col">
-			{#each experiences as experience}
+			{#each experiences as experience (experience.company)}
 				<Card {...experience} />
 			{/each}
 		</div>
@@ -54,7 +55,7 @@
 	<section class="flex flex-col">
 		<h2 class="text-brand border-edge mb-1 border-b pb-1 font-bold uppercase">Projects</h2>
 		<div class="gap-s1 grid grid-cols-2">
-			{#each projects as project}
+			{#each projects as project (project.company)}
 				<ProjectCard {...project} />
 			{/each}
 		</div>
@@ -64,7 +65,7 @@
 		<h2 class="text-brand border-edge mb-1 border-b pb-1 font-bold uppercase">Technical Skills</h2>
 
 		<div class="gap-s-2 mt-2 flex flex-wrap">
-			{#each skills as skill}
+			{#each skills as skill (skill.label)}
 				<div
 					class="skill-chip bg-base-1 gap-s-2 px-s-1 py-s-4 border-base-2 flex items-center rounded-lg border text-sm font-medium"
 				>

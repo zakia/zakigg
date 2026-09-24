@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onDestroy, tick } from 'svelte';
+	import { SvelteSet } from 'svelte/reactivity';
 	import Icon from '$lib/components/Icon.svelte';
 	import { createLocalAssetSrc, getLocalAssetId } from '$lib/editor/document/persistence/assets';
 	import {
@@ -38,7 +39,7 @@
 	let uploading = $state(false);
 	let resolvedSources = $state<Record<string, string>>({});
 	let scrollFrame = 0;
-	const ownedObjectUrls = new Set<string>();
+	const ownedObjectUrls = new SvelteSet<string>();
 	const activeSlide = $derived(slides[activeIndex]);
 
 	$effect(() => {
@@ -351,7 +352,7 @@
 								updateActive({
 									objectPosition: event.currentTarget.value as CarouselSlide['objectPosition']
 								})}
-							>{#each carouselObjectPositions as position}<option value={position}
+							>{#each carouselObjectPositions as position (position)}<option value={position}
 									>{position}</option
 								>{/each}</select
 						></label
@@ -365,7 +366,7 @@
 						value={aspectRatio}
 						onchange={(event) =>
 							commit({ aspectRatio: event.currentTarget.value as CarouselProps['aspectRatio'] })}
-						>{#each carouselAspectRatios as ratio}<option value={ratio}>{ratio}</option
+						>{#each carouselAspectRatios as ratio (ratio)}<option value={ratio}>{ratio}</option
 							>{/each}</select
 					></label
 				>
@@ -374,7 +375,8 @@
 						value={navigation}
 						onchange={(event) =>
 							commit({ navigation: event.currentTarget.value as CarouselProps['navigation'] })}
-						>{#each carouselNavigationOptions as option}<option value={option}>{option}</option
+						>{#each carouselNavigationOptions as option (option)}<option value={option}
+								>{option}</option
 							>{/each}</select
 					></label
 				>

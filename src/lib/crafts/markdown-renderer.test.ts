@@ -77,4 +77,22 @@ Side
 			attrs: { component: 'Callout', props: { kind: 'warning', markdown: 'Back up first.' } }
 		});
 	});
+
+	it('renders GFM tables', () => {
+		const [block] = renderCraftMarkdown('| A | B |\n| - | - |\n| 1 | 2 |');
+
+		expect(block).toMatchObject({ kind: 'html' });
+		if (block?.kind !== 'html') throw new Error('Expected an HTML block');
+		expect(block.html).toContain('<table>');
+		expect(block.html).toContain('<td>1</td>');
+	});
+
+	it('escapes raw HTML like the previous markdown-it html:false behaviour', () => {
+		const [block] = renderCraftMarkdown('before <div>raw</div> after');
+
+		expect(block).toMatchObject({ kind: 'html' });
+		if (block?.kind !== 'html') throw new Error('Expected an HTML block');
+		expect(block.html).not.toContain('<div>');
+		expect(block.html).toMatch(/&(lt|#x3C);div/);
+	});
 });

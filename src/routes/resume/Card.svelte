@@ -1,7 +1,6 @@
 <script lang="ts">
 	import Icon from '$lib/components/Icon.svelte';
-	import markdownIt from 'markdown-it';
-	import mdAttr from 'markdown-it-attrs';
+	import { renderMarkdownInlineToHtml } from '$lib/markdown/render';
 
 	type CardProps = {
 		icon?: string;
@@ -16,8 +15,6 @@
 		link?: string;
 		compact?: boolean;
 	};
-
-	const md = new markdownIt().use(mdAttr);
 
 	let props: CardProps = $props();
 
@@ -50,7 +47,7 @@
 	<ul>
 		{#each props.description as item}
 			<li>
-				{@html md.renderInline(item)}
+				{@html renderMarkdownInlineToHtml(item)}
 			</li>
 		{/each}
 	</ul>

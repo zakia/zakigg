@@ -1,6 +1,6 @@
-import MarkdownIt from 'markdown-it';
-import markdownItAttrs from 'markdown-it-attrs';
 import type { Root } from 'mdast';
+import { toHast } from 'mdast-util-to-hast';
+import { toHtml } from 'hast-util-to-html';
 import { gfmToMarkdown } from 'mdast-util-gfm';
 import { mdxJsxToMarkdown } from 'mdast-util-mdx-jsx';
 import { toMarkdown } from 'mdast-util-to-markdown';
@@ -29,9 +29,6 @@ export type CraftRenderBlock =
 	| { kind: 'code'; code: string; language: string; title: string }
 	| { kind: 'component'; attrs: ComponentEmbedAttrs };
 
-const markdown = new MarkdownIt({ html: false, linkify: true, typographer: true }).use(
-	markdownItAttrs
-);
 const EVENT_PROP_RE = /^on[A-Z]/;
 
 export function renderCraftMarkdown(source: string): CraftRenderBlock[] {
@@ -42,8 +39,26 @@ export function renderCraftMarkdown(source: string): CraftRenderBlock[] {
 
 	const flushStandardNodes = () => {
 		if (!standardNodes.length) return;
-		const markdownSource = serializeNodes(standardNodes);
-		blocks.push({ kind: 'html', html: markdown.render(markdownSource) });
+		const hast = toHast({ type: 'root', children: standardNodes } as Root, {
+			allowDangerousHtml: false,
+			handlers: {
+				// Preserve the previous `markdown-it` `html: false` behaviour: escape raw
+				// HTML rather than dropping or passing it through.
+				html(_state, node) {
+					return { type: 'text', value: (node as { value?: string }).value ?? '' };
+				},
+				// Unrecognized JSX (lowercase tags that aren't registered components) is
+				// serialized back to its source text and escaped, matching the previous
+				// `markdown-it` `html: false` behaviour.
+				mdxJsxFlowElement(_state, node) {
+					return { type: 'text', value: serializeNodes([node as AstNode]) };
+				},
+				mdxJsxTextElement(_state, node) {
+					return { type: 'text', value: serializeNodes([node as AstNode]) };
+				}
+			}
+		});
+		blocks.push({ kind: 'html', html: toHtml(hast) });
 		standardNodes = [];
 	};
 

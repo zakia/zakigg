@@ -3,7 +3,6 @@
 	import { page } from '$app/state';
 	import { useGridSettings } from '$lib/grid-settings.svelte';
 	import { theme } from '$lib/theme.svelte';
-	import '$lib/prism.css';
 	import '@fontsource-variable/inter/index.css';
 	import '@fontsource/fira-mono/400.css';
 	import type { Snippet } from 'svelte';
@@ -28,17 +27,6 @@
 
 	const pageTitle = $derived(titleFromPathname(page.url.pathname));
 	const immersive = $derived(page.url.pathname === '/game');
-
-	// onNavigate((navigation) => {
-	// 	if (!document.startViewTransition) return;
-
-	// 	return new Promise((resolve) => {
-	// 		document.startViewTransition(async () => {
-	// 			resolve();
-	// 			await navigation.complete;
-	// 		});
-	// 	});
-	// });
 </script>
 
 <svelte:head>

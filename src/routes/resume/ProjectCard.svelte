@@ -1,10 +1,7 @@
 <script lang="ts">
 	import Icon from '$lib/components/Icon.svelte';
-	import markdownIt from 'markdown-it';
-	import mdAttr from 'markdown-it-attrs';
+	import { renderMarkdownInlineToHtml } from '$lib/markdown/render';
 	import type { projects } from './data';
-
-	const md = new markdownIt().use(mdAttr);
 
 	let props: (typeof projects)[0] = $props();
 </script>
@@ -24,5 +21,5 @@
 			<Icon icon="mdi:github" class="size-5" />
 		</a>
 	</div>
-	<p>{@html md.renderInline(props.description)}</p>
+	<p>{@html renderMarkdownInlineToHtml(props.description)}</p>
 </div>

@@ -9,9 +9,3 @@ export type Session = {
 	user: User;
 	expires: number;
 };
-
-export type AuthProviderCredentials = {
-	google: { credential: string };
-};
-
-export type AuthProviderId = keyof AuthProviderCredentials;

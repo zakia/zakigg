@@ -60,7 +60,6 @@ export function verifySessionCookieValue(value: string): Session | null {
 
 		const session = parseCurrentSession(payload) ?? parseLegacySession(payload);
 		if (!session || session.expires * 1000 < Date.now()) return null;
-		if (!isAllowedEmail(session.user.email)) return null;
 
 		return session;
 	} catch {
@@ -104,9 +103,4 @@ function parseLegacySession(payload: Partial<LegacySessionPayload>): Session | n
 
 function signSession(encodedPayload: string): string {
 	return createHmac('sha256', getSessionSecret()).update(encodedPayload).digest('base64url');
-}
-
-function isAllowedEmail(email: string | null): boolean {
-	const allowedEmail = env.AUTH_ALLOWED_EMAIL;
-	return Boolean(email && allowedEmail && email.toLowerCase() === allowedEmail.toLowerCase());
 }

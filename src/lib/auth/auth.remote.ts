@@ -1,9 +1,7 @@
 import { command, getRequestEvent, query } from '$app/server';
 import { error } from '@sveltejs/kit';
 import * as v from 'valibot';
-import type { AuthProviderCredentials, AuthProviderId } from './types';
-import { resolveUser } from '$lib/server/auth/accounts';
-import { verifyProviderIdentity } from '$lib/server/auth/providers';
+import { adminUser, verifyAdminPassword } from '$lib/server/auth/admin';
 import {
 	SESSION_COOKIE_NAME,
 	SESSION_TTL_SECONDS,
@@ -11,27 +9,21 @@ import {
 	createSessionCookieValue
 } from '$lib/server/auth/session';
 
-const SignInSchema = v.variant('provider', [
-	v.object({
-		provider: v.literal('google'),
-		credentials: v.object({ credential: v.pipe(v.string(), v.nonEmpty()) })
-	})
-]);
+const SignInSchema = v.object({
+	password: v.pipe(v.string(), v.nonEmpty())
+});
 
 export const getSession = query(async () => getRequestEvent().locals.session);
 
-export const signIn = command(SignInSchema, async ({ provider, credentials }) => {
+export const signIn = command(SignInSchema, async ({ password }) => {
 	const event = getRequestEvent();
 	const requestOrigin = event.request.headers.get('origin');
 	if (requestOrigin && requestOrigin !== event.url.origin) {
 		throw error(403, 'Sign-in origin did not match');
 	}
 
-	const identity = await verifyProviderIdentity(
-		provider as AuthProviderId,
-		credentials as AuthProviderCredentials[AuthProviderId]
-	);
-	const session = createSession(await resolveUser(identity));
+	verifyAdminPassword(password);
+	const session = createSession(adminUser());
 	event.cookies.set(SESSION_COOKIE_NAME, createSessionCookieValue(session), {
 		path: '/',
 		httpOnly: true,

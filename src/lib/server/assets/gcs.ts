@@ -5,9 +5,9 @@ let bucket: Bucket | null = null;
 
 export function getAssetBucket(): Bucket {
 	if (bucket) return bucket;
-	if (!env.NOTES_GCS_BUCKET) throw new Error('NOTES_GCS_BUCKET is not configured');
+	if (!env.GCS_BUCKET) throw new Error('GCS_BUCKET is not configured');
 	bucket = new Storage(env.GCP_PROJECT_ID ? { projectId: env.GCP_PROJECT_ID } : undefined).bucket(
-		env.NOTES_GCS_BUCKET
+		env.GCS_BUCKET
 	);
 	return bucket;
 }

@@ -11,13 +11,13 @@ if (existsSync('.env')) process.loadEnvFile('.env');
 
 const discovered = discoverCloudConfiguration();
 const projectId = process.env.GCP_PROJECT_ID || discovered.projectId;
-const bucketName = process.env.NOTES_GCS_BUCKET || discovered.environment.NOTES_GCS_BUCKET;
+const bucketName = process.env.GCS_BUCKET || discovered.environment.GCS_BUCKET;
 const databaseId =
 	process.env.FIRESTORE_DATABASE_ID || discovered.environment.FIRESTORE_DATABASE_ID || '(default)';
 
 if (!projectId || !bucketName) {
 	throw new Error(
-		'Could not discover GCP_PROJECT_ID and NOTES_GCS_BUCKET. Set them in the environment or deploy the configured Cloud Run service.'
+		'Could not discover GCP_PROJECT_ID and GCS_BUCKET. Set them in the environment or deploy the configured Cloud Run service.'
 	);
 }
 
@@ -296,7 +296,7 @@ function discoverCloudConfiguration() {
 					.filter((entry) => typeof entry.value === 'string')
 					.map((entry) => [entry.name, entry.value])
 			);
-			if (environment.NOTES_GCS_BUCKET) return { projectId, environment };
+			if (environment.GCS_BUCKET) return { projectId, environment };
 		} catch {
 			// Try the next configured region.
 		}

@@ -61,16 +61,6 @@ variable "github_content_branch" {
   default     = "main"
 }
 
-variable "allowed_email" {
-  description = "The single Google account email allowed to use the private editor"
-  type        = string
-}
-
-variable "google_client_id" {
-  description = "OAuth 2.0 Web Client ID used for Google Sign-In (not secret)"
-  type        = string
-}
-
 variable "custom_domain" {
   description = "Custom domain served by Firebase Hosting in front of Cloud Run (empty to skip)"
   type        = string

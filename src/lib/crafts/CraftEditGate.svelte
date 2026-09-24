@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import type { Snippet } from 'svelte';
+	import { resolve } from '$app/paths';
 	import { auth } from '$lib/auth';
 	import Icon from '$lib/components/Icon.svelte';
 
@@ -20,7 +21,10 @@
 	<section class="edit-gate">
 		<Icon icon="mdi:lock-outline" />
 		<h1>Sign in to edit</h1>
-		<p>Use the account control in the dock to open the private craft editor.</p>
+		<p>
+			Sign in with the admin password on the <a href={resolve('/profile')}>profile</a> page to open the
+			private craft editor.
+		</p>
 	</section>
 {:else}
 	{@render children()}

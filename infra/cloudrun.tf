@@ -46,16 +46,8 @@ resource "google_cloud_run_v2_service" "app" {
         value = "20M"
       }
       env {
-        name  = "NOTES_GCS_BUCKET"
+        name  = "GCS_BUCKET"
         value = google_storage_bucket.note_assets.name
-      }
-      env {
-        name  = "AUTH_ALLOWED_EMAIL"
-        value = var.allowed_email
-      }
-      env {
-        name  = "PUBLIC_GOOGLE_CLIENT_ID"
-        value = var.google_client_id
       }
       env {
         name  = "GITHUB_CLIENT_ID"
@@ -154,16 +146,8 @@ resource "google_cloud_run_v2_service" "app_us_east1" {
         value = "20M"
       }
       env {
-        name  = "NOTES_GCS_BUCKET"
+        name  = "GCS_BUCKET"
         value = google_storage_bucket.note_assets_us_east1.name
-      }
-      env {
-        name  = "AUTH_ALLOWED_EMAIL"
-        value = var.allowed_email
-      }
-      env {
-        name  = "PUBLIC_GOOGLE_CLIENT_ID"
-        value = var.google_client_id
       }
       env {
         name  = "GITHUB_CLIENT_ID"

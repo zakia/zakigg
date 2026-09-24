@@ -11,7 +11,7 @@
 		"protobufjs"
 	],
 	"scripts": {
-		"dev": "node scripts/dev-gcp.mjs",
+		"dev": "vite dev --open",
 		"dev:local": "vite dev --open",
 		"build": "vite build",
 		"test": "vitest run",

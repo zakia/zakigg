@@ -1,6 +1,6 @@
 import { browser } from '$app/environment';
 import { getSession, signIn, signOut } from './auth.remote';
-import type { AuthProviderCredentials, AuthProviderId, Session, User } from './types';
+import type { Session, User } from './types';
 
 const state = $state({
 	ready: false,
@@ -29,11 +29,8 @@ async function loadSession(): Promise<void> {
 	}
 }
 
-async function startSignIn<P extends AuthProviderId>(
-	provider: P,
-	credentials: AuthProviderCredentials[P]
-): Promise<User> {
-	const session = await signIn({ provider, credentials } as Parameters<typeof signIn>[0]);
+async function startSignIn(password: string): Promise<User> {
+	const session = await signIn({ password });
 	state.session = session;
 	state.ready = true;
 	return session.user;

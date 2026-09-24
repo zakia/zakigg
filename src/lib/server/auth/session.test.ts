@@ -15,7 +15,6 @@ import {
 describe('auth session cookie', () => {
 	afterEach(() => {
 		delete privateEnv.AUTH_SESSION_SECRET;
-		delete privateEnv.AUTH_ALLOWED_EMAIL;
 	});
 
 	it('uses the cookie name Firebase Hosting forwards to Cloud Run', () => {
@@ -24,7 +23,6 @@ describe('auth session cookie', () => {
 
 	it('round-trips a signed session and rejects tampering', () => {
 		privateEnv.AUTH_SESSION_SECRET = 'a-test-secret-that-is-long-enough';
-		privateEnv.AUTH_ALLOWED_EMAIL = 'owner@example.com';
 
 		const session = createSession({
 			id: 'app-user-id',
@@ -40,7 +38,6 @@ describe('auth session cookie', () => {
 
 	it('keeps existing Google-subject sessions valid during migration', () => {
 		privateEnv.AUTH_SESSION_SECRET = 'a-test-secret-that-is-long-enough';
-		privateEnv.AUTH_ALLOWED_EMAIL = 'owner@example.com';
 		const encoded = Buffer.from(
 			JSON.stringify({
 				sub: 'legacy-google-subject',

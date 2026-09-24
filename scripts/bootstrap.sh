@@ -9,16 +9,6 @@
 #   5. Full Terraform apply
 #   6. GitHub Actions repository variables
 #
-# The remaining console step is creating the OAuth 2.0 Web Client in the
-# console (no public API exists for non-IAP OAuth clients):
-#   https://console.cloud.google.com/apis/credentials
-#   -> Create OAuth client ID -> Web application
-#   -> Authorized JavaScript origins:
-#      https://zaki.gg, https://YOUR_HOSTING_SITE_ID.web.app,
-#      and http://localhost:5173
-# Put the client id in infra/terraform.tfvars as google_client_id BEFORE
-# running this script.
-#
 # Prereqs: gcloud (authed), terraform, gh (authed), openssl.
 # Usage: GITHUB_APP_PRIVATE_KEY_FILE=/path/to/app.private-key.pem ./scripts/bootstrap.sh
 
@@ -41,8 +31,6 @@ tfvar() {
 }
 
 PROJECT_ID=$(tfvar project_id)
-GOOGLE_CLIENT_ID=$(tfvar google_client_id)
-ALLOWED_EMAIL=$(tfvar allowed_email)
 GITHUB_CLIENT_ID=$(tfvar github_client_id)
 GITHUB_INSTALLATION_ID=$(tfvar github_installation_id)
 REGION=$(tfvar region)
@@ -51,15 +39,6 @@ REGION=${REGION:-northamerica-northeast2}
 
 if [[ -z "$PROJECT_ID" ]]; then
   echo "error: project_id missing from $TFVARS" >&2
-  exit 1
-fi
-if [[ -z "$GOOGLE_CLIENT_ID" || "$GOOGLE_CLIENT_ID" == *"1234567890"* ]]; then
-  echo "error: google_client_id in $TFVARS is missing or still the example value." >&2
-  echo "Create the OAuth Web Client first (see comment at the top of this script)." >&2
-  exit 1
-fi
-if [[ -z "$ALLOWED_EMAIL" || "$ALLOWED_EMAIL" == "you@example.com" ]]; then
-  echo "error: allowed_email in $TFVARS is missing or still the example value." >&2
   exit 1
 fi
 if [[ -z "$GITHUB_CLIENT_ID" || "$GITHUB_CLIENT_ID" == "Iv1.example" ]]; then
@@ -117,8 +96,6 @@ DEPLOYER_SA=$(terraform -chdir="$INFRA_DIR" output -raw deployer_service_account
 gh variable set GCP_PROJECT_ID --body "$PROJECT_ID"
 gh variable set WIF_PROVIDER --body "$WIF_PROVIDER"
 gh variable set DEPLOYER_SA --body "$DEPLOYER_SA"
-gh variable set GOOGLE_CLIENT_ID --body "$GOOGLE_CLIENT_ID"
-gh variable set AUTH_ALLOWED_EMAIL --body "$ALLOWED_EMAIL"
 
 echo
 echo "Done. Next:"

@@ -1,44 +1,25 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { auth } from '$lib/auth';
-	import { theme } from '$lib/theme.svelte';
-	import { renderAuthProviderButton } from './provider-buttons';
 
-	let buttonContainer = $state<HTMLElement>();
+	let password = $state('');
+	let busy = $state(false);
 	let message = $state('');
 
 	onMount(() => {
 		void auth.refresh();
 	});
 
-	$effect(() => {
-		if (!buttonContainer || !auth.ready || auth.user) return;
-		void renderSignInButton(theme.mode);
-	});
-
-	async function renderSignInButton(colorScheme: 'light' | 'dark') {
-		if (!buttonContainer) return;
-		// The provider SDK owns the contents of this host element.
-		// eslint-disable-next-line svelte/no-dom-manipulating
-		buttonContainer.replaceChildren();
+	async function submit() {
+		busy = true;
+		message = '';
 		try {
-			await renderAuthProviderButton(
-				'google',
-				buttonContainer,
-				(credentials) => void completeSignIn(credentials),
-				{ colorScheme }
-			);
+			await auth.signIn(password);
+			password = '';
 		} catch {
-			message = 'Google sign-in is unavailable right now.';
-		}
-	}
-
-	async function completeSignIn(credentials: { credential: string }) {
-		try {
-			await auth.signIn('google', credentials);
-			message = '';
-		} catch {
-			message = 'This account is not allowed.';
+			message = 'Incorrect password.';
+		} finally {
+			busy = false;
 		}
 	}
 
@@ -50,7 +31,7 @@
 <section class="settings-section" aria-labelledby="account-heading">
 	<div class="section-heading">
 		<h2 id="account-heading">Account</h2>
-		<p>Private Git-backed craft editor.</p>
+		<p>Private craft editor.</p>
 	</div>
 
 	{#if !auth.ready}
@@ -59,15 +40,24 @@
 		<div class="account-row">
 			<div>
 				<span class="eyebrow">Signed in as</span>
-				<strong>{auth.user.email}</strong>
+				<strong>Admin</strong>
 			</div>
 			<button type="button" onclick={() => void signOut()}> Sign out </button>
 		</div>
 	{:else}
-		<p class="muted">Sign in to edit and publish crafts.</p>
-		{#key theme.mode}
-			<div class="provider-button" bind:this={buttonContainer}></div>
-		{/key}
+		<form
+			class="login-form"
+			onsubmit={(event) => {
+				event.preventDefault();
+				void submit();
+			}}
+		>
+			<label class="field">
+				<span>Password</span>
+				<input type="password" bind:value={password} autocomplete="current-password" required />
+			</label>
+			<button type="submit" class="submit" disabled={busy || !password}> Sign in </button>
+		</form>
 	{/if}
 
 	{#if message}<p class="error" role="alert">{message}</p>{/if}
@@ -126,14 +116,46 @@
 		padding: var(--s-2) 0;
 	}
 
-	button:hover {
+	button:hover:not(:disabled) {
 		color: var(--brand);
 	}
 
-	.provider-button {
-		align-items: center;
-		display: flex;
-		min-height: 2.75rem;
+	.login-form {
+		display: grid;
+		gap: var(--s-2);
+	}
+
+	.field {
+		display: grid;
+		gap: var(--s-3);
+	}
+
+	.field span {
+		color: var(--content-1);
+		font-size: 0.8rem;
+	}
+
+	.field input {
+		background: var(--base-1);
+		border: 1px solid var(--edge);
+		border-radius: 0.375rem;
+		color: var(--content);
+		font-size: 0.9rem;
+		padding: 0.5rem 0.625rem;
+		width: 100%;
+	}
+
+	.submit {
+		justify-content: center;
+		background: var(--brand);
+		border-radius: 0.375rem;
+		color: var(--base-1);
+		font-weight: 600;
+		padding: 0.5rem;
+	}
+
+	.submit:disabled {
+		opacity: 0.5;
 	}
 
 	.error {

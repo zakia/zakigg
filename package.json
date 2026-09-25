@@ -58,6 +58,7 @@
 		"@google-cloud/storage": "^7.21.0",
 		"@iconify/svelte": "^5.2.2",
 		"@lezer/highlight": "^1.2.3",
+		"@milkdown/kit": "^7.22.1",
 		"@sveltejs/enhanced-img": "^0.9.3",
 		"@tailwindcss/postcss": "4.1.18",
 		"@tailwindcss/vite": "4.1.18",

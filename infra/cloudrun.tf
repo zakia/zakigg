@@ -3,110 +3,9 @@ locals {
   github_content_repo  = split("/", var.github_repo)[1]
 }
 
-resource "google_cloud_run_v2_service" "app" {
-  name                = var.service_name
-  location            = var.region
-  ingress             = "INGRESS_TRAFFIC_ALL"
-  deletion_protection = true
-
-  template {
-    service_account = google_service_account.app_runtime.email
-
-    scaling {
-      min_instance_count = 0
-      max_instance_count = 2
-    }
-
-    containers {
-      # Placeholder for the first apply; CI owns the real image (see ignore_changes)
-      image = "us-docker.pkg.dev/cloudrun/container/hello"
-
-      resources {
-        limits = {
-          cpu    = "1"
-          memory = "512Mi"
-        }
-        cpu_idle = true
-      }
-
-      env {
-        name  = "GCP_PROJECT_ID"
-        value = var.project_id
-      }
-      env {
-        name  = "PROTOCOL_HEADER"
-        value = "x-forwarded-proto"
-      }
-      env {
-        name  = "HOST_HEADER"
-        value = "x-forwarded-host"
-      }
-      env {
-        name  = "BODY_SIZE_LIMIT"
-        value = "20M"
-      }
-      env {
-        name  = "GCS_BUCKET"
-        value = google_storage_bucket.note_assets.name
-      }
-      env {
-        name  = "GITHUB_CLIENT_ID"
-        value = var.github_client_id
-      }
-      env {
-        name  = "GITHUB_INSTALLATION_ID"
-        value = var.github_installation_id
-      }
-      env {
-        name  = "GITHUB_OWNER"
-        value = local.github_content_owner
-      }
-      env {
-        name  = "GITHUB_REPO"
-        value = local.github_content_repo
-      }
-      env {
-        name  = "GITHUB_BRANCH"
-        value = var.github_content_branch
-      }
-      env {
-        name = "GITHUB_PRIVATE_KEY"
-        value_source {
-          secret_key_ref {
-            secret  = google_secret_manager_secret.github_app_private_key.secret_id
-            version = "latest"
-          }
-        }
-      }
-      env {
-        name = "AUTH_SESSION_SECRET"
-        value_source {
-          secret_key_ref {
-            secret  = google_secret_manager_secret.session_secret.secret_id
-            version = "latest"
-          }
-        }
-      }
-    }
-  }
-
-  lifecycle {
-    # CI deploys new images with `gcloud run deploy --image`; Terraform must not revert them
-    ignore_changes = [template[0].containers[0].image, client, client_version]
-  }
-
-  depends_on = [
-    google_project_service.services,
-    google_secret_manager_secret_iam_member.app_runtime_session_secret,
-    google_secret_manager_secret_iam_member.app_runtime_github_app_private_key,
-  ]
-}
-
-# Parallel replacement in a Tier 1 region. The Toronto service remains intact
-# until the data copy is verified and Firebase Hosting is explicitly switched.
 resource "google_cloud_run_v2_service" "app_us_east1" {
   name                = var.service_name
-  location            = var.target_region
+  location            = var.region
   ingress             = "INGRESS_TRAFFIC_ALL"
   deletion_protection = true
 
@@ -187,6 +86,15 @@ resource "google_cloud_run_v2_service" "app_us_east1" {
           }
         }
       }
+      env {
+        name = "ADMIN_PASSWORD"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.admin_password.secret_id
+            version = "latest"
+          }
+        }
+      }
     }
   }
 
@@ -198,6 +106,7 @@ resource "google_cloud_run_v2_service" "app_us_east1" {
     google_project_service.services,
     google_secret_manager_secret_iam_member.app_runtime_session_secret,
     google_secret_manager_secret_iam_member.app_runtime_github_app_private_key,
+    google_secret_manager_secret_iam_member.app_runtime_admin_password,
   ]
 }
 
@@ -206,17 +115,4 @@ resource "google_cloud_run_v2_service_iam_member" "public_us_east1" {
   location = google_cloud_run_v2_service.app_us_east1.location
   role     = "roles/run.invoker"
   member   = "allUsers"
-}
-
-resource "google_cloud_run_v2_service_iam_member" "public" {
-  count    = var.active_region == var.region ? 1 : 0
-  name     = google_cloud_run_v2_service.app.name
-  location = google_cloud_run_v2_service.app.location
-  role     = "roles/run.invoker"
-  member   = "allUsers"
-}
-
-moved {
-  from = google_cloud_run_v2_service_iam_member.public
-  to   = google_cloud_run_v2_service_iam_member.public[0]
 }

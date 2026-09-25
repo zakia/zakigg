@@ -21,8 +21,7 @@
 ## Authentication
 
 - Public reading performs no account check.
-- Google verifies the administrator identity server-side.
-- `AUTH_ALLOWED_EMAIL` permits one account.
+- An admin password is verified server-side; the single administrator signs in with a password.
 - A signed HTTP-only session protects every repository mutation and asset upload.
 - A server-side GitHub App writes only to the configured repository and branch.
 

@@ -2,7 +2,6 @@ locals {
   services = [
     "run.googleapis.com",
     "artifactregistry.googleapis.com",
-    "firestore.googleapis.com",
     "storage.googleapis.com",
     "secretmanager.googleapis.com",
     "iamcredentials.googleapis.com",

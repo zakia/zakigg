@@ -4,34 +4,9 @@ variable "project_id" {
 }
 
 variable "region" {
-  description = "Legacy Toronto region retained during and after the data-safe migration"
-  type        = string
-  default     = "northamerica-northeast2"
-}
-
-variable "target_region" {
-  description = "Tier 1 region for the replacement Cloud Run, Firestore, Artifact Registry and assets bucket"
+  description = "GCP region for Cloud Run, Artifact Registry and the assets bucket"
   type        = string
   default     = "us-east1"
-}
-
-variable "active_region" {
-  description = "Cloud Run region receiving Firebase Hosting traffic"
-  type        = string
-  default     = "northamerica-northeast2"
-
-  validation {
-    condition     = contains([var.region, var.target_region], var.active_region)
-    error_message = "active_region must be either region or target_region."
-  }
-}
-
-# Retained only until the one-time Markdown export has been verified. The app
-# has no Firestore runtime access.
-variable "target_firestore_database_id" {
-  description = "Legacy Firestore backup database pending verified export"
-  type        = string
-  default     = "zakigg"
 }
 
 variable "service_name" {

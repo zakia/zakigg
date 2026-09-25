@@ -19,6 +19,7 @@ INFRA_DIR=infra
 TFVARS="$INFRA_DIR/terraform.tfvars"
 SECRET_NAME=notes-session-secret
 GITHUB_SECRET_NAME=github-app-private-key
+ADMIN_SECRET_NAME=admin-password
 GITHUB_KEY_FILE=${GITHUB_APP_PRIVATE_KEY_FILE:-}
 
 if [[ ! -f "$TFVARS" ]]; then
@@ -83,6 +84,18 @@ if [[ -z "$(gcloud secrets versions list "$GITHUB_SECRET_NAME" --limit=1 --forma
   fi
   gcloud secrets versions add "$GITHUB_SECRET_NAME" --data-file="$GITHUB_KEY_FILE"
   echo "    private-key version added"
+else
+  echo "    a version already exists, skipping"
+fi
+
+echo "==> 4.5/6 Admin password ($ADMIN_SECRET_NAME)"
+if [[ -z "$(gcloud secrets versions list "$ADMIN_SECRET_NAME" --limit=1 --format='value(name)' 2>/dev/null)" ]]; then
+  if [[ -z "$ADMIN_PASSWORD" ]]; then
+    echo "error: set ADMIN_PASSWORD to add the admin password secret." >&2
+    exit 1
+  fi
+  printf '%s' "$ADMIN_PASSWORD" | gcloud secrets versions add "$ADMIN_SECRET_NAME" --data-file=-
+  echo "    admin password version added"
 else
   echo "    a version already exists, skipping"
 fi

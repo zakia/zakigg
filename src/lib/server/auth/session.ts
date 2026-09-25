@@ -8,11 +8,6 @@ export const SESSION_COOKIE_NAME = '__session';
 export const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
 
 type SessionPayload = Session & { issuedAt: number };
-type LegacySessionPayload = {
-	sub: string;
-	email: string;
-	expiresAt: number;
-};
 
 function getSessionSecret(): string {
 	const secret = env.AUTH_SESSION_SECRET;
@@ -56,9 +51,9 @@ export function verifySessionCookieValue(value: string): Session | null {
 	try {
 		const payload = JSON.parse(
 			Buffer.from(encodedPayload, 'base64url').toString('utf8')
-		) as Partial<SessionPayload & LegacySessionPayload>;
+		) as Partial<SessionPayload>;
 
-		const session = parseCurrentSession(payload) ?? parseLegacySession(payload);
+		const session = parseCurrentSession(payload);
 		if (!session || session.expires * 1000 < Date.now()) return null;
 
 		return session;
@@ -80,25 +75,6 @@ function parseCurrentSession(payload: Partial<SessionPayload>): Session | null {
 		return null;
 
 	return { user, expires: payload.expires };
-}
-
-function parseLegacySession(payload: Partial<LegacySessionPayload>): Session | null {
-	if (
-		typeof payload.sub !== 'string' ||
-		typeof payload.email !== 'string' ||
-		typeof payload.expiresAt !== 'number'
-	)
-		return null;
-
-	return {
-		user: {
-			id: payload.sub,
-			email: payload.email,
-			name: null,
-			image: null
-		},
-		expires: payload.expiresAt
-	};
 }
 
 function signSession(encodedPayload: string): string {

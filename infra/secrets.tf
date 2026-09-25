@@ -33,3 +33,22 @@ resource "google_secret_manager_secret_iam_member" "app_runtime_github_app_priva
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.app_runtime.email}"
 }
+
+# Admin password for the private editor. Value is added out-of-band so it never
+# enters TF state:
+#   printf '%s' 'your-password' | gcloud secrets versions add admin-password --data-file=-
+resource "google_secret_manager_secret" "admin_password" {
+  secret_id = "admin-password"
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.services]
+}
+
+resource "google_secret_manager_secret_iam_member" "app_runtime_admin_password" {
+  secret_id = google_secret_manager_secret.admin_password.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.app_runtime.email}"
+}

@@ -4,12 +4,6 @@ resource "google_service_account" "app_runtime" {
   display_name = "Cloud Run runtime for ${var.service_name}"
 }
 
-resource "google_storage_bucket_iam_member" "app_runtime_assets" {
-  bucket = google_storage_bucket.note_assets.name
-  role   = "roles/storage.objectAdmin"
-  member = "serviceAccount:${google_service_account.app_runtime.email}"
-}
-
 resource "google_storage_bucket_iam_member" "app_runtime_assets_us_east1" {
   bucket = google_storage_bucket.note_assets_us_east1.name
   role   = "roles/storage.objectAdmin"

@@ -1,4 +1,4 @@
-import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
+import { stringify as stringifyYaml } from 'yaml';
 import type { ComponentEmbedRegistry } from '../components/registry';
 import { normalizeMetadataProperties, type MetadataProperties } from './metadata';
 import {
@@ -7,13 +7,13 @@ import {
 	type NotePage
 } from './model';
 import { parseMarkdownAst } from './markdown-ast';
+import { readFrontmatter } from './frontmatter-source';
 
 const MARKDOWN_FILE_RE = /\.(md|markdown|mdown|mkdn)$/i;
 const MARKDOWN_MIME_TYPES = new Set(['text/markdown', 'text/x-markdown']);
 const MARKDOWN_BLOCK_RE =
 	/^[ \t]{0,3}(?:#{1,6}\s+\S|[-+*]\s+\S|\d+[.)]\s+\S|>\s+\S|`{3,}|~{3,}|-{3,}\s*$|\*{3,}\s*$|_{3,}\s*$|\|.+\||<[A-Z][A-Za-z0-9]*)/m;
 const MARKDOWN_INLINE_RE = /(?:!\[[^\]]*]\([^)]+\)|\[[^\]]+]\([^)]+\)|`[^`]+`|\*\*[^*]+\*\*)/;
-const FRONTMATTER_RE = /^\uFEFF?---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n(?:\r?\n)?|$)/;
 
 export type NoteMarkdownFrontmatter = NotePageFrontmatter;
 
@@ -22,12 +22,6 @@ export type ParsedMarkdown = {
 	frontmatter?: NoteMarkdownFrontmatter;
 	properties?: MetadataProperties;
 	hasFrontmatter: boolean;
-};
-
-export type ParsedFrontmatterSource = {
-	frontmatter?: NoteMarkdownFrontmatter;
-	properties?: MetadataProperties;
-	error?: string;
 };
 
 export function parseEditorMarkdown(markdown: string, embeds?: ComponentEmbedRegistry) {
@@ -107,40 +101,16 @@ export function getNotePageFrontmatter(page: NotePage): NoteMarkdownFrontmatter 
 // Only top-of-file frontmatter counts. Later `---` fences remain horizontal
 // rules in the body.
 export function parseMarkdownFrontmatter(markdown: string): ParsedMarkdown {
-	const topMatch = markdown.match(FRONTMATTER_RE);
-
-	if (!topMatch) return { markdown, hasFrontmatter: false };
-
-	const parsed = parseNoteFrontmatterYaml(topMatch[1] ?? '');
+	const parsed = readFrontmatter(markdown);
+	if (!parsed.range) return { markdown, hasFrontmatter: false };
+	const properties = parsed.values ? normalizeMetadataProperties(parsed.values) : undefined;
 
 	return {
-		markdown: markdown.slice(topMatch[0].length),
-		frontmatter: parsed.frontmatter,
-		properties: parsed.properties,
+		markdown: markdown.slice(parsed.range.to),
+		frontmatter: properties ? metadataPropertiesToNotePageFrontmatter(properties) : undefined,
+		properties,
 		hasFrontmatter: true
 	};
-}
-
-export function parseNoteFrontmatterYaml(source: string): ParsedFrontmatterSource {
-	try {
-		const parsed = parseYaml(source);
-		if (!parsed) return {};
-		if (typeof parsed !== 'object' || Array.isArray(parsed)) {
-			return { error: 'Frontmatter must be a YAML object.' };
-		}
-
-		const properties = normalizeMetadataProperties(parsed);
-		const frontmatter = metadataPropertiesToNotePageFrontmatter(properties);
-
-		return {
-			frontmatter,
-			properties: Object.keys(properties).length ? properties : undefined
-		};
-	} catch (error) {
-		return {
-			error: error instanceof Error ? error.message : 'Invalid YAML frontmatter.'
-		};
-	}
 }
 
 export function serializeMetadataPropertiesYaml(properties: unknown) {
@@ -199,7 +169,7 @@ function readComponentProps(name: string, attributes: NonNullable<MarkdownNode['
 
 function rewriteAssetSources(markdown: string, paths: Map<string, string>) {
 	if (!paths.size) return markdown;
-	return markdown.replace(/local-asset:\/\/([^\s"')}>]+)/g, (source, encodedId) => {
+	let next = markdown.replace(/local-asset:\/\/([^\s"')}>]+)/g, (source, encodedId) => {
 		let id = encodedId;
 		try {
 			id = decodeURIComponent(encodedId);
@@ -208,6 +178,10 @@ function rewriteAssetSources(markdown: string, paths: Map<string, string>) {
 		}
 		return paths.get(id) ?? source;
 	});
+	next = next.replace(/\/media\/(asset_[A-Za-z0-9_-]+)(?:\.[a-z0-9]{1,8})?/gi, (source, id) => {
+		return paths.get(id) ?? source;
+	});
+	return next;
 }
 
 function getFileKey(file: File) {

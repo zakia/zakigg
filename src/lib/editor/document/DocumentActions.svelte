@@ -1,28 +1,18 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import ActionTooltip from './ActionTooltip.svelte';
-	import SaveStatus from './SaveStatus.svelte';
 	import type { CommitStatus, SaveState } from './save-state';
-
-	type DocumentAction = {
-		title: string;
-		icon: string;
-		active?: boolean;
-		action: () => void | Promise<void>;
-	};
 
 	type Props = {
 		saveState: SaveState;
 		saveLabel: string;
 		commitStatus?: CommitStatus;
-		historyOpen: boolean;
-		propertiesOpen: boolean;
 		publicationState?: 'loading' | 'unpublished' | 'published' | 'working' | 'error';
 		publicHref?: string;
+		mode: 'live' | 'source';
+		onToggleMode: () => void;
 		onDownloadMarkdown: () => void;
 		onCommit?: () => void | Promise<void>;
-		onToggleHistory?: () => void;
-		onToggleProperties: () => void;
 		onTogglePublication?: () => void | Promise<void>;
 	};
 
@@ -30,69 +20,45 @@
 		saveState,
 		saveLabel,
 		commitStatus = 'disabled',
-		historyOpen,
-		propertiesOpen,
 		publicationState = 'loading',
 		publicHref,
+		mode,
+		onToggleMode,
 		onDownloadMarkdown,
 		onCommit,
-		onToggleHistory,
-		onToggleProperties,
 		onTogglePublication
 	}: Props = $props();
+	let menu = $state<HTMLDetailsElement>();
 
-	function actions(): DocumentAction[] {
-		const items: DocumentAction[] = [
-			{
-				title: propertiesOpen ? 'Hide Properties' : 'Show Properties',
-				icon: 'mdi:tune-variant',
-				active: propertiesOpen,
-				action: onToggleProperties
-			},
-			{
-				title: 'Download Markdown',
-				icon: 'mdi:download-outline',
-				action: onDownloadMarkdown
-			}
-		];
-		if (onToggleHistory) {
-			items.splice(1, 0, {
-				title: historyOpen ? 'Hide History' : 'Show History',
-				icon: 'mdi:history',
-				active: historyOpen,
-				action: onToggleHistory
-			});
+	function closeMenu() {
+		menu?.removeAttribute('open');
+	}
+
+	onMount(() => {
+		function closeOutside(event: PointerEvent) {
+			if (menu && event.target instanceof Node && !menu.contains(event.target)) closeMenu();
 		}
-
-		return items;
-	}
-
-	function publicationActionTitle(state: Props['publicationState']) {
-		if (state === 'published') return 'View published document';
-		if (state === 'working') return 'Updating published document…';
-		if (state === 'error') return 'Public update failed · Click to retry';
-		if (state === 'loading') return 'Checking Publication…';
-		return 'Publish';
-	}
-
-	function publicationActionLabel(state: Props['publicationState']) {
-		if (state === 'published') return 'Published';
-		if (state === 'working') return 'Updating…';
-		if (state === 'error') return 'Retry update';
-		if (state === 'loading') return 'Checking…';
-		return 'Publish';
-	}
-
-	function publicationActionIcon(state: Props['publicationState']) {
-		if (state === 'published') return 'mdi:earth';
-		if (state === 'working' || state === 'loading') return 'mdi:loading';
-		if (state === 'error') return 'mdi:alert-circle-outline';
-		return 'mdi:publish';
-	}
+		function closeOnEscape(event: KeyboardEvent) {
+			if (event.key === 'Escape') closeMenu();
+		}
+		document.addEventListener('pointerdown', closeOutside);
+		document.addEventListener('keydown', closeOnEscape);
+		return () => {
+			document.removeEventListener('pointerdown', closeOutside);
+			document.removeEventListener('keydown', closeOnEscape);
+		};
+	});
 </script>
 
 <div class="document-actions" aria-label="Document actions">
-	<SaveStatus state={saveState} label={saveLabel} commit={commitStatus} />
+	<span
+		class="save-indicator"
+		class:error={saveState === 'error' || commitStatus === 'error'}
+		class:working={saveState === 'saving' || commitStatus === 'committing'}
+		role="status"
+		aria-label={saveLabel}
+		title={saveLabel}
+	></span>
 	{#if onCommit}
 		<button
 			type="button"
@@ -105,225 +71,150 @@
 			<span>{commitStatus === 'committing' ? 'Saving…' : 'Save'}</span>
 		</button>
 	{/if}
-	{#if onTogglePublication}
-		{#if publicationState === 'published' && publicHref}
-			<div class="publication-controls">
-				<!-- `publicHref` is resolved by the application adapter. This reusable
-				     document component intentionally has no route knowledge. -->
+	<details class="more-actions" bind:this={menu}>
+		<summary aria-label="More document actions" title="More document actions">
+			<Icon icon="mdi:dots-horizontal" />
+		</summary>
+		<div class="more-menu" role="group" aria-label="More document actions">
+			<button
+				type="button"
+				onclick={() => {
+					onToggleMode();
+					closeMenu();
+				}}
+			>
+				<Icon icon="mdi:language-markdown-outline" />
+				<span>{mode === 'live' ? 'Show Markdown source' : 'Show Live Preview'}</span>
+			</button>
+			{#if publicationState === 'published' && publicHref}
 				<!-- eslint-disable svelte/no-navigation-without-resolve -->
-				<a
-					class="publication-status active"
-					href={publicHref}
-					title={publicationActionTitle(publicationState)}
-				>
-					<Icon icon={publicationActionIcon(publicationState)} />
-					<span>{publicationActionLabel(publicationState)}</span>
+				<a href={publicHref} onclick={closeMenu}>
+					<Icon icon="mdi:open-in-new" />
+					<span>View published page</span>
 				</a>
 				<!-- eslint-enable svelte/no-navigation-without-resolve -->
+			{/if}
+			{#if onTogglePublication}
 				<button
 					type="button"
-					class="unpublish-action"
-					title="Unpublish document"
-					aria-label="Unpublish document"
-					onclick={() => void onTogglePublication()}
+					disabled={publicationState === 'working' || publicationState === 'loading'}
+					onclick={() => {
+						void onTogglePublication();
+						closeMenu();
+					}}
 				>
-					<Icon icon="mdi:publish-off" />
+					<Icon icon={publicationState === 'published' ? 'mdi:publish-off' : 'mdi:publish'} />
+					<span>{publicationState === 'published' ? 'Unpublish' : 'Publish'}</span>
 				</button>
-			</div>
-		{:else}
+			{/if}
 			<button
 				type="button"
-				class="publication-status"
-				class:error={publicationState === 'error'}
-				title={publicationActionTitle(publicationState)}
-				aria-label={publicationActionTitle(publicationState)}
-				disabled={publicationState === 'working' || publicationState === 'loading'}
-				onclick={() => void onTogglePublication()}
+				onclick={() => {
+					onDownloadMarkdown();
+					closeMenu();
+				}}
 			>
-				<Icon icon={publicationActionIcon(publicationState)} />
-				<span>{publicationActionLabel(publicationState)}</span>
+				<Icon icon="mdi:download-outline" />
+				<span>Download Markdown</span>
 			</button>
-		{/if}
-	{/if}
-
-	<div class="action-buttons" role="toolbar" aria-label="Markdown and publishing actions">
-		{#each actions() as item (item.title)}
-			<button
-				type="button"
-				class:active={item.active}
-				title={item.title}
-				aria-label={item.title}
-				aria-pressed={item.active}
-				onclick={() => void item.action()}
-			>
-				<Icon icon={item.icon} />
-				<ActionTooltip title={item.title} />
-			</button>
-		{/each}
-	</div>
+		</div>
+	</details>
 </div>
 
 <style>
-	.document-actions,
-	.action-buttons,
-	button {
+	.document-actions {
 		align-items: center;
 		display: flex;
-	}
-
-	.document-actions {
-		gap: var(--s-3);
-		position: absolute;
-		right: calc(var(--s0) + env(safe-area-inset-right));
-		top: calc(var(--s0) + env(safe-area-inset-top));
+		gap: var(--s-2);
 		z-index: 4;
 	}
-
-	.action-buttons {
-		backdrop-filter: blur(16px);
-		background: color-mix(in oklch, var(--base-1) 76%, transparent);
-		border: 1px solid color-mix(in oklch, var(--edge) 72%, transparent);
-		border-radius: 999px;
-		box-shadow: 0 12px 30px rgb(0 0 0 / 0.08);
-		gap: var(--s-4);
-		padding: var(--s-4);
+	.save-indicator {
+		background: var(--success, #7ca96e);
+		border-radius: 50%;
+		height: 0.45rem;
+		width: 0.45rem;
 	}
-
-	.publication-status {
+	.save-indicator.working {
+		background: var(--warning, #d8a344);
+	}
+	.save-indicator.error {
+		background: var(--error);
+	}
+	.commit-action,
+	.more-actions summary {
 		align-items: center;
-		backdrop-filter: blur(10px);
-		background: color-mix(in oklch, var(--base-1) 72%, transparent);
-		border: 1px solid color-mix(in oklch, var(--edge) 70%, transparent);
+		backdrop-filter: blur(14px);
+		border: 1px solid var(--edge);
 		border-radius: 999px;
-		font-size: var(--s-1);
-		gap: var(--s-3);
-		height: auto;
+		cursor: pointer;
 		display: inline-flex;
-		min-height: 2rem;
-		padding: var(--s-4) var(--s-2);
+		gap: var(--s-3);
+		justify-content: center;
+		min-height: 2.1rem;
 	}
-
 	.commit-action {
-		backdrop-filter: blur(10px);
 		background: var(--brand);
-		border: 1px solid color-mix(in oklch, var(--brand) 80%, var(--edge));
-		border-radius: 999px;
 		color: var(--brand-content);
+		font: inherit;
 		font-size: var(--s-1);
 		font-weight: 700;
-		gap: var(--s-4);
-		height: auto;
-		min-height: 2rem;
-		padding: var(--s-4) var(--s-2);
+		padding: 0 var(--s-2);
 	}
-
 	.commit-action:disabled {
-		cursor: wait;
-		opacity: 0.72;
+		opacity: 0.7;
 	}
-
-	.commit-action :global(svg) {
+	.more-actions {
+		position: relative;
+	}
+	.more-actions summary {
+		background: var(--base-1);
+		color: var(--content);
+		list-style: none;
+		width: 2.1rem;
+	}
+	.more-actions summary::-webkit-details-marker {
+		display: none;
+	}
+	.more-menu {
+		background: var(--base-1);
+		border: 1px solid var(--edge);
+		border-radius: var(--radius);
+		box-shadow: 0 16px 38px rgb(0 0 0 / 0.14);
+		display: grid;
+		min-width: 13rem;
+		padding: var(--s-3);
+		position: absolute;
+		right: 0;
+		top: calc(100% + var(--s-3));
+	}
+	.more-menu button,
+	.more-menu a {
+		align-items: center;
+		background: transparent;
+		border: 0;
+		border-radius: calc(var(--radius) * 0.5);
+		color: var(--content);
+		cursor: pointer;
+		display: flex;
+		font: inherit;
+		font-size: var(--s-1);
+		gap: var(--s-2);
+		padding: var(--s-2);
+		text-align: left;
+		text-decoration: none;
+	}
+	.more-menu button:hover,
+	.more-menu a:hover {
+		background: var(--base-2);
+	}
+	.more-menu button:disabled {
+		cursor: wait;
+		opacity: 0.5;
+	}
+	.more-menu :global(svg),
+	.commit-action :global(svg),
+	.more-actions summary :global(svg) {
 		height: 1rem;
 		width: 1rem;
-	}
-
-	.publication-controls {
-		align-items: center;
-		display: flex;
-		gap: var(--s-5);
-	}
-
-	.unpublish-action {
-		backdrop-filter: blur(10px);
-		background: color-mix(in oklch, var(--base-1) 72%, transparent);
-		border: 1px solid color-mix(in oklch, var(--edge) 70%, transparent);
-	}
-
-	.unpublish-action:hover,
-	.unpublish-action:focus-visible {
-		background: color-mix(in oklch, var(--error) 12%, var(--base-1));
-		color: var(--error);
-	}
-
-	.publication-status.active {
-		background: color-mix(in oklch, var(--brand) 15%, var(--base-1));
-		color: var(--content);
-	}
-
-	.publication-status.error {
-		color: var(--error);
-	}
-
-	.publication-status:disabled {
-		cursor: wait;
-		opacity: 0.78;
-	}
-
-	button {
-		background: transparent;
-		border-radius: 999px;
-		color: var(--content-1);
-		height: 2rem;
-		justify-content: center;
-		min-width: 2rem;
-		padding: 0;
-		position: relative;
-		transition:
-			background-color 0.2s,
-			color 0.2s,
-			transform 0.2s;
-	}
-
-	button:hover,
-	button:focus-visible,
-	button.active {
-		background: color-mix(in oklch, var(--brand) 15%, transparent);
-		color: var(--content);
-	}
-
-	button:hover {
-		transform: translateY(-1px);
-	}
-
-	button :global(svg) {
-		height: 1.1rem;
-		width: 1.1rem;
-	}
-
-	/* Keep the final tooltip inside the viewport so an invisible tooltip does
-	   not create horizontal page overflow. */
-	.action-buttons button:last-child :global(.action-tooltip) {
-		left: auto;
-		right: 0;
-		transform: translate(0, -0.18rem);
-	}
-
-	.action-buttons button:last-child:hover :global(.action-tooltip),
-	.action-buttons button:last-child:focus-visible :global(.action-tooltip) {
-		transform: translate(0, 0);
-	}
-
-	button[aria-label='Updating published document…'] :global(svg),
-	button[aria-label='Checking Publication…'] :global(svg) {
-		animation: spin 0.8s linear infinite;
-	}
-
-	@keyframes spin {
-		to {
-			transform: rotate(1turn);
-		}
-	}
-
-	@media (max-width: 42rem) {
-		.document-actions {
-			align-items: flex-end;
-			flex-direction: column-reverse;
-			right: var(--s-1);
-			top: var(--s-1);
-		}
-
-		.publication-status span {
-			display: none;
-		}
 	}
 </style>

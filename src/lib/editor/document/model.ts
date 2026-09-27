@@ -1,4 +1,4 @@
-import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
+import { stringify as stringifyYaml } from 'yaml';
 import { getFirstMarkdownHeading, getMarkdownText } from './markdown-ast';
 import {
 	metadataEntriesToRecord,
@@ -8,6 +8,7 @@ import {
 	type MetadataProperties
 } from './metadata';
 import { DEFAULT_DOCUMENT_SLUG, normalizeDocumentSlug } from './slug';
+import { hasFrontmatterStart, readFrontmatter } from './frontmatter-source';
 
 export { titleFromSlug } from './slug';
 
@@ -53,21 +54,33 @@ export function createNotePage(input: Partial<NotePage> = {}): NotePage {
 	const parsed = parseCanonicalMarkdownSource(input.markdown ?? '');
 	const parsedProperties = metadataEntriesToRecord(parsed.properties);
 	const properties = normalizeMetadataEntries(
-		input.properties ??
-			(parsed.hasFrontmatter
-				? parsed.properties
-				: { ...(input.frontmatter ?? {}), ...(input.tags?.length ? { tags: input.tags } : {}) })
+		parsed.hasFrontmatter && !parsed.error
+			? parsed.properties
+			: (input.properties ?? {
+					...(input.frontmatter ?? {}),
+					...(input.tags?.length ? { tags: input.tags } : {})
+				})
 	);
 	const seed = {
 		id: normalizePageId(input.id || parsedProperties.id) || createPageId(),
-		slug: normalizePageSlug(input.slug || DEFAULT_NOTE_SLUG),
-		title: normalizePageTitle(input.title || getFirstMarkdownHeading(parsed.body)),
+		slug: normalizePageSlug(
+			input.slug ||
+				parsedProperties.slug ||
+				parsedProperties.title ||
+				input.title ||
+				DEFAULT_NOTE_SLUG
+		),
+		title: normalizePageTitle(
+			parsed.hasFrontmatter && !parsed.error && hasOwn(parsedProperties, 'title')
+				? parsedProperties.title
+				: input.title || getFirstMarkdownHeading(parsed.body)
+		),
 		tags: normalizePageTags(input.tags),
 		properties,
 		createdAt: normalizeDate(input.createdAt) || now,
 		updatedAt: normalizeDate(input.updatedAt) || now
 	};
-	const metadata = resolveNotePageMetadata(seed, input.frontmatter);
+	const metadata = resolveNotePageMetadata(seed, parsed.hasFrontmatter ? {} : input.frontmatter);
 	const canonicalProperties = createCanonicalProperties({ ...seed, ...metadata });
 	const canonicalFrontmatter = metadataPropertiesToNotePageFrontmatter(
 		metadataEntriesToRecord(canonicalProperties)
@@ -80,7 +93,10 @@ export function createNotePage(input: Partial<NotePage> = {}): NotePage {
 		...metadata,
 		properties: canonicalProperties,
 		...(canonicalFrontmatter ? { frontmatter: canonicalFrontmatter } : {}),
-		markdown: createCanonicalMarkdownSource(canonicalProperties, parsed.body)
+		markdown:
+			parsed.hasFrontmatter || (input.version === NOTES_PAGE_VERSION && input.format === 'markdown')
+				? (input.markdown ?? '')
+				: createCanonicalMarkdownSource(canonicalProperties, parsed.body)
 	};
 }
 
@@ -138,17 +154,22 @@ export function toStoredNotePage(page: NotePage): StoredNotePage {
 }
 
 export function getReferencedAssetIds(markdown: string) {
-	return [
-		...new Set(
-			[...markdown.matchAll(/local-asset:\/\/([^\s"')}>]+)/g)].map((match) => {
-				try {
-					return decodeURIComponent(match[1] ?? '');
-				} catch {
-					return match[1] ?? '';
-				}
-			})
-		)
-	].filter(Boolean);
+	const ids = new Set<string>();
+
+	for (const match of markdown.matchAll(/local-asset:\/\/([^\s"')}>]+)/g)) {
+		const id = match[1] ?? '';
+		try {
+			ids.add(decodeURIComponent(id));
+		} catch {
+			ids.add(id);
+		}
+	}
+
+	for (const match of markdown.matchAll(/\/media\/(asset_[A-Za-z0-9_-]+)(?:\.[a-z0-9]{1,8})?/gi)) {
+		ids.add(match[1] ?? '');
+	}
+
+	return [...ids].filter(Boolean);
 }
 
 export function resolveNotePageMetadata(
@@ -160,7 +181,7 @@ export function resolveNotePageMetadata(
 	);
 	const frontmatter = normalizeNotePageFrontmatter({ ...fromProperties, ...patch });
 	const title = normalizePageTitle(frontmatter?.title || page.title);
-	const slug = normalizePageSlug(frontmatter?.slug || title || page.slug);
+	const slug = normalizePageSlug(frontmatter?.slug || page.slug || title);
 	const createdAt = frontmatter?.date ? normalizeDate(frontmatter.date) : page.createdAt;
 	const tags = normalizePageTags(frontmatter?.tags ?? page.tags);
 	return {
@@ -238,17 +259,12 @@ export function createCanonicalMarkdownSource(properties: MetadataEntry[], body:
 }
 
 function parseCanonicalMarkdownSource(markdown: string) {
-	const match = markdown.match(
-		/^\uFEFF?---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n(?:\r?\n)?|$)/
-	);
-	if (!match) return { properties: [] as MetadataEntry[], body: markdown, hasFrontmatter: false };
-	const parsed = parseYaml(match[1] ?? '');
-	if (parsed && (typeof parsed !== 'object' || Array.isArray(parsed)))
-		throw new Error('Frontmatter must be a YAML object.');
+	const parsed = readFrontmatter(markdown);
 	return {
-		properties: normalizeMetadataEntries(parsed ?? {}),
-		body: markdown.slice(match[0].length),
-		hasFrontmatter: true
+		properties: parsed.values ? normalizeMetadataEntries(parsed.values) : ([] as MetadataEntry[]),
+		body: parsed.range ? markdown.slice(parsed.range.to) : markdown,
+		hasFrontmatter: Boolean(parsed.range || hasFrontmatterStart(markdown)),
+		error: Boolean(parsed.error)
 	};
 }
 

@@ -5,11 +5,9 @@
 		title: string;
 		date?: string;
 		wordCount?: number;
-		editable?: boolean;
-		onTitleChange?: (value: string) => void;
 	};
 
-	let { title, date = '', wordCount, editable = false, onTitleChange }: Props = $props();
+	let { title, date = '', wordCount }: Props = $props();
 
 	const formattedDate = $derived(formatDate(date));
 	const readingTime = $derived(
@@ -31,19 +29,8 @@
 	}
 </script>
 
-<header class="article-header" class:editable>
-	{#if editable}
-		<textarea
-			class="title"
-			value={title}
-			oninput={(event) => onTitleChange?.(event.currentTarget.value)}
-			placeholder="Untitled"
-			aria-label="Document title"
-			rows="1"
-		></textarea>
-	{:else}
-		<h1 class="title">{title}</h1>
-	{/if}
+<header class="article-header">
+	<h1 class="title">{title}</h1>
 
 	{#if formattedDate || readingTime}
 		<p class="meta">
@@ -62,28 +49,13 @@
 	}
 
 	.title {
-		background: transparent;
-		border: 0;
 		color: var(--content);
-		font: inherit;
-		margin: 0;
-		padding: 0;
-		width: 100%;
-	}
-
-	.title {
 		font-size: var(--s3);
 		font-weight: 760;
 		letter-spacing: -0.035em;
 		line-height: 1.08;
+		margin: 0;
 		text-wrap: balance;
-	}
-
-	textarea.title {
-		field-sizing: content;
-		overflow: hidden;
-		resize: none;
-		min-height: 1.08em;
 	}
 
 	.meta {
@@ -93,13 +65,5 @@
 		font-size: var(--s-1);
 		gap: var(--s-2);
 		margin: 0;
-	}
-
-	.editable .title:focus {
-		outline: none;
-	}
-
-	.editable .title::placeholder {
-		color: color-mix(in oklch, var(--content-1) 55%, transparent);
 	}
 </style>

@@ -1,14 +1,20 @@
 # Editor architecture
 
-Canonical Markdown is the only persisted document format. Milkdown/ProseMirror provides the
-visual editing projection, CodeMirror provides source editing, and both round-trip through the
-same Markdown string.
+Canonical Markdown is the only persisted document format. CodeMirror owns both editing modes:
+Source mode shows the Markdown directly; Live Preview decorates the same text and reveals syntax
+when the caret enters it. The public renderer reads that Markdown for published pages.
+
+The CodeMirror document contains the entire file, including YAML frontmatter. `title:` supplies
+the single visible document heading. Page title, date, tags, slug, and draft status are projections
+of that source; they are not parallel editable state. Moving above the body or clicking the heading
+reveals the YAML in CodeMirror for direct editing. Invalid frontmatter remains editable and autosaves
+locally, with a visible error; explicit Git Save waits for valid frontmatter.
 
 ```text
 public build                     private editor
 content/crafts/*.md              /admin/crafts/*
         ↓                               ↓
-Markdown parser                  Milkdown + CodeMirror
+Markdown parser                     CodeMirror
         ↓                               ↓
 static craft pages               IndexedDB draft
                                         ↓ explicit Save
@@ -17,9 +23,9 @@ static craft pages               IndexedDB draft
 
 ## Ownership
 
-- `src/lib/editor/milkdown` owns visual editing behavior and Markdown serialization.
-- `src/lib/editor/document` owns the canonical document model, frontmatter, local drafts,
-  import/export, and the editing session.
+- `src/lib/editor/codemirror` owns source editing, Live Preview, and file insertion.
+- `src/lib/editor/document` owns the canonical document model, Markdown rendering,
+  frontmatter parsing and source edits, local drafts, import/export, and the editing session.
 - `src/lib/crafts` owns craft routes, Git commit commands, publication controls, and the custom
   component registry.
 - `src/lib/server/content` owns bundled content reads and explicit Git repository operations.
@@ -28,6 +34,15 @@ static craft pages               IndexedDB draft
 
 The editor layer does not import application routes or GitHub. The application injects a
 `DocumentRepositoryAdapter` that commits a complete Markdown document.
+
+The keyboard contract for nested, ordered, and task lists is in
+[`editor-list-behavior.md`](./editor-list-behavior.md).
+
+CodeMirror features are composed as extensions. Frontmatter uses a state-owned block replacement
+for its collapsed heading and reveals its original YAML when selected. Code blocks keep their code
+text in the main editor. Decorations render a compact header, language selector, and copy button
+when the cursor is outside the block; moving into the block reveals the original fence lines.
+List commands edit Markdown directly and compose structural changes into one transaction for undo.
 
 ## Document contract
 
@@ -75,6 +90,7 @@ are cached only after they are requested.
 
 ## Custom components
 
-Custom components use the MDX-like syntax supported by the shared Markdown parser. Component
-definitions own validation, editor NodeViews, and public rendering. Unknown or invalid components
-must fail visibly while source mode remains available for recovery.
+Custom components use the MDX-like syntax supported by the public Markdown parser. Component
+definitions own validation and public rendering. Live Preview shows compact placeholders for
+single-line components and keeps multiline components editable as source. Source mode remains
+available for precise editing and recovery.

@@ -29,3 +29,6 @@ infra/.terraform/
 infra/terraform.tfvars
 *.tfstate
 *.tfstate.*
+
+# Playwright browser session snapshots
+.playwright-cli/

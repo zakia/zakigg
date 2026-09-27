@@ -3,7 +3,6 @@
 	import { resolve } from '$app/paths';
 	import Icon from '$lib/components/Icon.svelte';
 	import BackLink from '$lib/components/BackLink.svelte';
-	import { componentEmbeds } from '$lib/embeds';
 	import {
 		DocumentEditor,
 		createNotePageRecord,
@@ -169,7 +168,6 @@
 		{#key craft.id}
 			<DocumentEditor
 				page={craft}
-				embeds={componentEmbeds}
 				publicHref={craftHref(craft.slug)}
 				onSaved={handleSaved}
 				{repository}
@@ -283,13 +281,5 @@
 		min-height: 2.5rem;
 		padding: 0 var(--s0);
 		width: fit-content;
-	}
-
-	@media (max-width: 52rem) {
-		.craft-edit-page :global(.document-actions) {
-			right: var(--s0);
-			top: var(--s0);
-			z-index: 6;
-		}
 	}
 </style>

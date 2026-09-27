@@ -2,7 +2,7 @@
 	import CodeBlockRenderer from '$lib/editor/presentation/code-block/CodeBlockRenderer.svelte';
 	import type { CraftDocument } from './types';
 	import ComponentEmbedRenderer from './ComponentEmbedRenderer.svelte';
-	import { renderCraftMarkdown } from './markdown-renderer';
+	import { renderCraftMarkdown } from '$lib/editor/document/markdown-renderer';
 
 	let { document }: { document: CraftDocument } = $props();
 	const blocks = $derived(renderCraftMarkdown(document.markdown));

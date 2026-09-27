@@ -17,3 +17,6 @@ content/crafts/
 .claude/worktrees/
 .claude/settings.local.json
 scripts/puzzle-design/*.json
+
+# Playwright browser session snapshots
+.playwright-cli/

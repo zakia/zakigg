@@ -1,6 +1,6 @@
 export { slugifyText } from '../slug';
 
-export type MetadataPrimitiveValue = string | boolean;
+export type MetadataPrimitiveValue = string | number | boolean;
 export type MetadataPropertyValue = MetadataPrimitiveValue | string[];
 export type MetadataProperties = Record<string, MetadataPropertyValue>;
 
@@ -112,6 +112,14 @@ export function normalizeMetadataEntries(value: unknown): MetadataEntry[] {
 	for (const [rawKey, rawValue] of rawEntries) {
 		const key = normalizeMetadataPropertyKey(rawKey);
 		if (!key || seen.has(key)) continue;
+		if (
+			(Array.isArray(rawValue) && !rawValue.every((item) => typeof item === 'string')) ||
+			(rawValue !== null &&
+				typeof rawValue === 'object' &&
+				!Array.isArray(rawValue) &&
+				!(rawValue instanceof Date))
+		)
+			continue;
 
 		seen.add(key);
 		entries.push({
@@ -145,10 +153,11 @@ export function normalizeMetadataPropertyValue(
 ): MetadataPropertyValue {
 	if (type === 'boolean') return value === true || value === 'true';
 	if (type === 'list') return normalizeMetadataList(value);
+	if (Array.isArray(value)) return normalizeMetadataList(value);
 
 	if (value instanceof Date) return value.toISOString().slice(0, 10);
 	if (value === null || value === undefined) return '';
-	if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+	if (typeof value === 'number' && Number.isFinite(value)) return value;
 	if (typeof value === 'boolean') return value;
 
 	return String(value).trim();

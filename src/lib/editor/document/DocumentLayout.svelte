@@ -4,15 +4,17 @@
 	let {
 		navigation,
 		main,
-		actions
+		actions,
+		editor = false
 	}: {
 		navigation?: Snippet;
 		main: Snippet;
 		actions?: Snippet;
+		editor?: boolean;
 	} = $props();
 </script>
 
-<div class="document-layout">
+<div class="document-layout" class:editor>
 	{#if navigation}
 		<nav class="navigation" aria-label="Document navigation">{@render navigation()}</nav>
 	{/if}
@@ -35,6 +37,13 @@
 		width: 100%;
 	}
 
+	.document-layout.editor {
+		--vertical-spacing: var(--s0);
+		column-gap: var(--s0);
+		grid-template-columns: minmax(0, 1fr) minmax(0, 680px) minmax(0, 1fr);
+		max-width: none;
+	}
+
 	.navigation {
 		align-self: start;
 		grid-area: back;
@@ -52,8 +61,11 @@
 	}
 
 	.actions {
+		align-self: start;
 		grid-area: actions;
 		justify-self: end;
+		position: sticky;
+		top: var(--vertical-spacing);
 	}
 
 	@media (max-width: 768px) {
@@ -65,7 +77,13 @@
 			padding-top: calc(var(--vertical-spacing) / 2);
 		}
 
-		.navigation {
+		.document-layout.editor {
+			grid-template-columns: minmax(0, 1fr) auto;
+			row-gap: var(--s1);
+		}
+
+		.navigation,
+		.actions {
 			position: static;
 		}
 	}

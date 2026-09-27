@@ -1,7 +1,8 @@
 import type { ComponentEmbedRegistry } from '$lib/editor/components/registry';
 import { importNotesFromZip, isNotesArchiveFile } from './import';
 import { parseEditorMarkdown, isMarkdownFile } from '../markdown';
-import { createLocalAssetSrc, getAltTextForFile, getMediaKindForFile, isMediaFile } from './assets';
+import { isMediaFile } from './assets';
+import { altTextFromFile, escapeAlt, mediaUrlForAsset } from '$lib/editor/codemirror/media-types';
 import { normalizeMetadataEntries } from '../metadata';
 import { createNotePageRecord, saveNoteAsset, saveNotePage } from './storage';
 import { getFirstMarkdownHeading } from '../markdown-ast';
@@ -71,8 +72,7 @@ async function importMediaDocument(file: File) {
 	const title = titleFromFile(file);
 	const page = await createNotePageRecord({ title });
 	const asset = await saveNoteAsset(file, page.id);
-	const component = getMediaKindForFile(file) === 'video' ? 'Video' : 'Image';
-	const markdown = `<${component} src="${createLocalAssetSrc(asset.id)}" assetId="${asset.id}" alt="${escapeAttribute(getAltTextForFile(file))}" title="${escapeAttribute(title)}" />`;
+	const markdown = `![${escapeAlt(altTextFromFile(file))}](${mediaUrlForAsset(asset.id, file.name, file.type)})`;
 	return saveNotePage({ ...page, markdown });
 }
 
@@ -80,13 +80,10 @@ async function importAttachmentDocument(file: File) {
 	const title = titleFromFile(file);
 	const page = await createNotePageRecord({ title });
 	const asset = await saveNoteAsset(file, page.id);
-	const markdown = `<Attachment src="${createLocalAssetSrc(asset.id)}" name="${escapeAttribute(file.name)}" mediaType="${escapeAttribute(file.type || 'application/octet-stream')}" size={${file.size}} />`;
+	const markdown = `![${escapeAlt(altTextFromFile(file))}](${mediaUrlForAsset(asset.id, file.name, file.type)})`;
 	return saveNotePage({ ...page, markdown });
 }
 
-function escapeAttribute(value: string) {
-	return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
-}
 function titleFromFile(file: File) {
 	return titleFromSlug(file.name.replace(/\.[^.]+$/, ''));
 }

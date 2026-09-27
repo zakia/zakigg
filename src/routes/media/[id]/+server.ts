@@ -2,7 +2,7 @@ import { error, type RequestHandler } from '@sveltejs/kit';
 import { readAssetBlob } from '$lib/server/assets/gcs';
 
 export const GET: RequestHandler = async ({ params, url, request }) => {
-	const id = params.id ?? '';
+	const id = stripAssetExtension(params.id ?? '');
 	if (!/^asset_[A-Za-z0-9_-]{1,180}$/.test(id)) throw error(404, 'Asset not found');
 
 	// Hotlink protection: only serve assets to requests originating from this
@@ -27,6 +27,10 @@ export const GET: RequestHandler = async ({ params, url, request }) => {
 		}
 	});
 };
+
+function stripAssetExtension(value: string) {
+	return value.replace(/\.[a-z0-9]{1,8}$/i, '');
+}
 
 function safeFileName(value: string) {
 	return value.replace(/["\\\r\n]/g, '_').slice(0, 180);

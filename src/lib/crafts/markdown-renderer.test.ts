@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { renderCraftMarkdown } from './markdown-renderer';
+import { renderCraftMarkdown } from '$lib/editor/document/markdown-renderer';
 
 describe('public Markdown renderer', () => {
 	it('renders the canonical Markdown body without exposing YAML frontmatter', () => {
@@ -94,5 +94,27 @@ Side
 		if (block?.kind !== 'html') throw new Error('Expected an HTML block');
 		expect(block.html).not.toContain('<div>');
 		expect(block.html).toMatch(/&(lt|#x3C);div/);
+	});
+
+	it('renders media by the URL file type', () => {
+		const [image] = renderCraftMarkdown('![alt](/media/asset_a.png)');
+		expect(image).toMatchObject({ kind: 'html' });
+		if (image?.kind !== 'html') throw new Error('Expected an HTML block');
+		expect(image.html).toMatch(/<img src="\/media\/asset_a\.png"[^>]*alt="alt"/);
+
+		const [video] = renderCraftMarkdown('![alt](/media/asset_b.mp4)');
+		expect(video).toMatchObject({ kind: 'html' });
+		if (video?.kind !== 'html') throw new Error('Expected an HTML block');
+		expect(video.html).toMatch(/<video src="\/media\/asset_b\.mp4"[^>]*controls/);
+
+		const [audio] = renderCraftMarkdown('![alt](/media/asset_c.mp3)');
+		expect(audio).toMatchObject({ kind: 'html' });
+		if (audio?.kind !== 'html') throw new Error('Expected an HTML block');
+		expect(audio.html).toMatch(/<audio src="\/media\/asset_c\.mp3"[^>]*controls/);
+
+		const [file] = renderCraftMarkdown('![Report](/media/asset_d.pdf)');
+		expect(file).toMatchObject({ kind: 'html' });
+		if (file?.kind !== 'html') throw new Error('Expected an HTML block');
+		expect(file.html).toMatch(/<a href="\/media\/asset_d\.pdf"[^>]*download/);
 	});
 });

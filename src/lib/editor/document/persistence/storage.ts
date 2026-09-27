@@ -14,6 +14,7 @@ import {
 	type StoredNotePage
 } from '../model';
 import { normalizeMetadataEntries } from '../metadata';
+import { updateFrontmatterValue } from '../frontmatter-source';
 
 const DB_NAME = 'zaki.gg-notes';
 const NOTES_INITIALIZED_FLAG_KEY = 'zaki.gg:notes:markdown-v3:initialized';
@@ -391,6 +392,10 @@ async function getAvailablePageSlugInStore(store: PageStore, value: unknown, cur
 
 function withCanonicalSlug(page: NotePage, slug: string) {
 	if (page.slug === slug) return page;
+	const change = updateFrontmatterValue(page.markdown, 'slug', slug);
+	const markdown = change
+		? `${page.markdown.slice(0, change.from)}${change.insert}${page.markdown.slice(change.to)}`
+		: page.markdown;
 	const properties = normalizeMetadataEntries([
 		...page.properties.filter((property) => property.key !== 'slug'),
 		{ key: 'slug', value: slug }
@@ -398,6 +403,7 @@ function withCanonicalSlug(page: NotePage, slug: string) {
 	return createNotePage({
 		...page,
 		slug,
+		markdown,
 		properties,
 		frontmatter: { ...page.frontmatter, slug }
 	});

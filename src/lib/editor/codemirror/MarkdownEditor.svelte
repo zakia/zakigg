@@ -24,12 +24,19 @@
 		openFrontmatterFromBody
 	} from './frontmatter';
 	import { frontmatterRange } from '$lib/editor/document/frontmatter-source';
-	import { codeBlockExtension, codeBlockTheme } from './code-blocks';
+	import {
+		codeBlockExtension,
+		codeBlockTheme,
+		enterCodeFenceDown,
+		enterCodeFenceUp
+	} from './code-blocks';
 	import {
 		exitEmptyListItem,
 		indentListItem,
 		insertListHardBreak,
 		insertListSiblingAfterContinuation,
+		moveLeftAcrossListIndent,
+		moveRightAcrossListIndent,
 		outdentListItem
 	} from './list-commands';
 	import { linkHrefFromMarkdown } from './link-target';
@@ -105,6 +112,17 @@
 		}),
 		...languages
 	];
+	const liveExtensions = [
+		...livePreview,
+		...frontmatterExtension,
+		...codeBlockExtension,
+		Prec.highest(
+			keymap.of([
+				{ key: 'ArrowLeft', run: moveLeftAcrossListIndent },
+				{ key: 'ArrowRight', run: moveRightAcrossListIndent }
+			])
+		)
+	];
 
 	function extensions() {
 		return [
@@ -118,6 +136,8 @@
 					{ key: 'Mod-Enter', run: openLinkAtCursor },
 					{ key: 'Mod-;', run: openFrontmatter },
 					{ key: 'ArrowUp', run: openFrontmatterFromBody },
+					{ key: 'ArrowUp', run: enterCodeFenceUp },
+					{ key: 'ArrowDown', run: enterCodeFenceDown },
 					{ key: 'Enter', run: exitEmptyListItem },
 					{ key: 'Enter', run: insertListSiblingAfterContinuation },
 					{ key: 'Shift-Enter', run: insertListHardBreak },
@@ -130,9 +150,7 @@
 			EditorState.tabSize.of(4),
 			indentUnit.of('    '),
 			pendingInserts,
-			livePreviewCompartment.of(
-				mode === 'live' ? [...livePreview, ...frontmatterExtension, ...codeBlockExtension] : []
-			),
+			livePreviewCompartment.of(mode === 'live' ? liveExtensions : []),
 			EditorView.contentAttributes.of({
 				'aria-label': ariaLabel,
 				'aria-multiline': 'true',
@@ -161,6 +179,8 @@
 				'.cm-line': { padding: '0' },
 				'.cm-gutters': { display: 'none' },
 				'.cm-activeLine': { backgroundColor: 'transparent' },
+				// Code lines have an opaque background, so the selection layer must paint over them.
+				'.cm-selectionLayer': { zIndex: '1 !important' },
 				'&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection': {
 					backgroundColor: 'color-mix(in oklch, var(--brand) 22%, transparent) !important'
 				},
@@ -346,9 +366,7 @@
 		if (configuredMode === next || !editor) return;
 		configuredMode = next;
 		editor.dispatch({
-			effects: livePreviewCompartment.reconfigure(
-				next === 'live' ? [...livePreview, ...frontmatterExtension, ...codeBlockExtension] : []
-			)
+			effects: livePreviewCompartment.reconfigure(next === 'live' ? liveExtensions : [])
 		});
 	}
 
@@ -398,6 +416,14 @@
 		position: relative;
 		vertical-align: middle;
 	}
+	.codemirror-editor :global(.cm-live-media-preview) {
+		display: block;
+		width: fit-content;
+	}
+	.codemirror-editor :global(.cm-live-image:focus-within) {
+		outline: 2px solid var(--content);
+		outline-offset: 3px;
+	}
 
 	.codemirror-editor :global(.cm-live-media-edit) {
 		background: var(--base-1);
@@ -413,10 +439,20 @@
 		right: var(--s-3);
 		top: var(--s-3);
 	}
+	.codemirror-editor :global(.cm-live-image .cm-live-media-edit) {
+		background: var(--content);
+		border: 0;
+		color: var(--base-1);
+		font-family: var(--font-mono);
+		font-weight: 700;
+		padding: var(--s-3) var(--s-2);
+		pointer-events: none;
+	}
 
-	.codemirror-editor :global(.cm-live-media:hover .cm-live-media-edit),
+	.codemirror-editor :global(.cm-live-media:not(.cm-live-image):hover .cm-live-media-edit),
 	.codemirror-editor :global(.cm-live-media:focus-within .cm-live-media-edit) {
 		opacity: 1;
+		pointer-events: auto;
 	}
 
 	.codemirror-editor :global(.cm-live-media img),

@@ -8,6 +8,8 @@ import {
 	indentListItem,
 	insertListHardBreak,
 	insertListSiblingAfterContinuation,
+	moveLeftAcrossListIndent,
+	moveRightAcrossListIndent,
 	outdentListItem
 } from './list-commands';
 
@@ -36,6 +38,18 @@ function editor(
 		get tree() {
 			return syntaxTree(state).toString();
 		},
+		get cursor() {
+			return state.selection.main.head;
+		},
+		setCursor(position: number) {
+			state = state.update({ selection: { anchor: position } }).state;
+		},
+		left() {
+			return run(moveLeftAcrossListIndent);
+		},
+		right() {
+			return run(moveRightAcrossListIndent);
+		},
 		type(text: string) {
 			state = state.update(state.replaceSelection(text)).state;
 		},
@@ -58,6 +72,38 @@ function editor(
 		}
 	};
 }
+
+describe('list indentation navigation', () => {
+	it('crosses structural spaces in one step in both directions', () => {
+		const source = '- parent\n    - child';
+		const start = source.indexOf('    - child');
+		const e = editor(source, start + 4);
+		expect(e.left()).toBe(true);
+		expect(e.cursor).toBe(start);
+		expect(e.right()).toBe(true);
+		expect(e.cursor).toBe(start + 4);
+		expect(e.text).toBe(source);
+	});
+
+	it('does the same on a continuation line', () => {
+		const source = '- parent  \n      detail';
+		const start = source.indexOf('      detail');
+		const e = editor(source, start + 2);
+		expect(e.right()).toBe(true);
+		expect(e.cursor).toBe(start + 6);
+		e.setCursor(start + 5);
+		expect(e.left()).toBe(true);
+		expect(e.cursor).toBe(start);
+	});
+
+	it('leaves ordinary indentation and list marker text to normal arrow navigation', () => {
+		const plain = editor('    code', 4);
+		expect(plain.left()).toBe(false);
+		const list = editor('- parent\n    - child');
+		expect(list.left()).toBe(false);
+		expect(list.right()).toBe(false);
+	});
+});
 
 describe('Markdown list keyboard contract', () => {
 	it('Enter continues a bullet list at the same level', () => {

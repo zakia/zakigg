@@ -64,6 +64,14 @@ function finish(out: Item[]): DecorationSet {
 function active(state: EditorState, from: number, to: number) {
 	return state.selection.ranges.some((range) => range.from < to && range.to > from);
 }
+function activeLine(state: EditorState, from: number) {
+	const line = state.doc.lineAt(from);
+	return state.selection.ranges.some((range) =>
+		range.empty
+			? range.head >= line.from && range.head <= line.to
+			: range.from < line.to && range.to > line.from
+	);
+}
 export function activeAtListMarker(
 	state: EditorState,
 	marker: SyntaxNode,
@@ -169,27 +177,81 @@ class TaskWidget extends WidgetType {
 }
 
 class MediaWidget extends WidgetType {
-	private objectUrl = '';
+	private objectUrl = { value: '' };
 	constructor(
 		readonly src: string,
 		readonly alt: string,
-		readonly from: number
+		readonly sourceLength: number,
+		readonly preview = false
 	) {
 		super();
 	}
-	eq(other: MediaWidget) {
-		return this.src === other.src && this.alt === other.alt && this.from === other.from;
+	eq() {
+		// updateDOM transfers ownership of the loaded URL when the widget is rebuilt.
+		return false;
+	}
+	updateDOM(dom: HTMLElement, _view: EditorView, from: MediaWidget) {
+		if (
+			this.src !== from.src ||
+			this.preview !== from.preview ||
+			(!this.preview && this.sourceLength !== from.sourceLength)
+		)
+			return false;
+		const image = dom.querySelector('img');
+		if (image) image.alt = this.alt;
+		if (!this.preview && mediaKindForUrl(this.src) === 'image')
+			dom.setAttribute('aria-label', this.alt ? `Image: ${this.alt}` : 'Image');
+		this.objectUrl = from.objectUrl;
+		return true;
 	}
 	toDOM(view: EditorView) {
-		const wrapper = document.createElement('span');
-		wrapper.className = 'cm-live-media';
+		const wrapper: HTMLElement = document.createElement(this.preview ? 'div' : 'span');
+		wrapper.className = this.preview ? 'cm-live-media cm-live-media-preview' : 'cm-live-media';
 		wrapper.contentEditable = 'false';
 		wrapper.draggable = false;
 		wrapper.addEventListener('dragstart', (event) => event.preventDefault());
+		const sourceRange = () => {
+			const from = view.posAtDOM(wrapper);
+			return { from, to: from + this.sourceLength };
+		};
+		const sourcePosition = () => sourceRange().from + 1;
 		const kind = mediaKindForUrl(this.src);
-		if (kind === 'image') {
-			wrapper.title = 'Click to edit Markdown';
-			wrapper.addEventListener('mousedown', (event) => revealSource(event, view, this.from + 1));
+		if (this.preview) {
+			wrapper.addEventListener('mousedown', (event) => event.preventDefault());
+		} else if (kind === 'image') {
+			wrapper.classList.add('cm-live-image');
+			wrapper.tabIndex = 0;
+			wrapper.setAttribute('role', 'group');
+			wrapper.setAttribute('aria-label', this.alt ? `Image: ${this.alt}` : 'Image');
+			wrapper.addEventListener('mousedown', (event) => {
+				if (event.button !== 0 || (event.target !== wrapper && event.target !== element)) return;
+				event.preventDefault();
+				event.stopPropagation();
+				wrapper.focus();
+			});
+			wrapper.addEventListener('keydown', (event) => {
+				if (event.target !== wrapper) return;
+				const { from, to } = sourceRange();
+				if (event.key === 'Escape') {
+					event.preventDefault();
+					view.focus();
+					return;
+				}
+				if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+					event.preventDefault();
+					focusSource(view, from);
+					return;
+				}
+				if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+					event.preventDefault();
+					focusSource(view, to);
+					return;
+				}
+				if ((event.key !== 'Backspace' && event.key !== 'Delete') || view.state.readOnly) return;
+				event.preventDefault();
+				view.dispatch({ changes: { from, to }, selection: { anchor: from } });
+				view.focus();
+			});
 		}
 		const element =
 			kind === 'video'
@@ -214,15 +276,26 @@ class MediaWidget extends WidgetType {
 		element.addEventListener('load', () => view.requestMeasure());
 		element.addEventListener('loadedmetadata', () => view.requestMeasure());
 		wrapper.append(element);
-		const edit = document.createElement('button');
-		edit.type = 'button';
-		edit.className = 'cm-live-media-edit';
-		edit.textContent = 'Edit';
-		edit.setAttribute('aria-label', 'Edit media Markdown');
-		edit.contentEditable = 'false';
-		edit.addEventListener('mousedown', (event) => revealSource(event, view, this.from + 1));
-		edit.addEventListener('click', () => focusSource(view, this.from + 1));
-		wrapper.append(edit);
+		if (!this.preview) {
+			const edit = document.createElement('button');
+			edit.type = 'button';
+			edit.className = 'cm-live-media-edit';
+			edit.textContent = kind === 'image' ? '</>' : 'Edit';
+			edit.setAttribute(
+				'aria-label',
+				kind === 'image' ? 'Show image Markdown' : 'Edit media Markdown'
+			);
+			edit.contentEditable = 'false';
+			edit.addEventListener('mousedown', (event) => {
+				event.preventDefault();
+				event.stopPropagation();
+			});
+			edit.addEventListener('click', (event) => {
+				event.stopPropagation();
+				focusSource(view, sourcePosition());
+			});
+			wrapper.append(edit);
+		}
 		void this.resolve(element, wrapper, view);
 		return wrapper;
 	}
@@ -240,7 +313,7 @@ class MediaWidget extends WidgetType {
 		}
 		try {
 			src = await resolveNoteAssetObjectUrl(id);
-			if (src.startsWith('blob:')) this.objectUrl = src;
+			if (src.startsWith('blob:')) this.objectUrl.value = src;
 		} catch {
 			src = this.src;
 		}
@@ -253,8 +326,8 @@ class MediaWidget extends WidgetType {
 		view.requestMeasure();
 	}
 	private revoke() {
-		if (this.objectUrl) URL.revokeObjectURL(this.objectUrl);
-		this.objectUrl = '';
+		if (this.objectUrl.value) URL.revokeObjectURL(this.objectUrl.value);
+		this.objectUrl.value = '';
 	}
 	destroy() {
 		this.revoke();
@@ -325,15 +398,30 @@ function buildBlocks(state: EditorState) {
 	const out: Item[] = [];
 	syntaxTree(state).iterate({
 		enter(node) {
-			if (node.name === 'Image' && !active(state, node.from, node.to)) {
+			if (node.name === 'Image') {
 				const data = imageData(state.doc.sliceString(node.from, node.to));
-				if (data)
+				if (!data) return;
+				const editing = activeLine(state, node.from);
+				if (editing && mediaKindForUrl(data.src) === 'image') {
+					const line = state.doc.lineAt(node.to);
+					add(
+						out,
+						line.to,
+						line.to,
+						Decoration.widget({
+							block: true,
+							side: 1,
+							widget: new MediaWidget(data.src, data.alt, node.to - node.from, true)
+						})
+					);
+				} else if (!editing) {
 					add(
 						out,
 						node.from,
 						node.to,
-						Decoration.replace({ widget: new MediaWidget(data.src, data.alt, node.from) })
+						Decoration.replace({ widget: new MediaWidget(data.src, data.alt, node.to - node.from) })
 					);
+				}
 			} else if (node.name === 'Table' && !active(state, node.from, node.to)) {
 				add(
 					out,

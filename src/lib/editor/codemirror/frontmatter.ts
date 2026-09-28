@@ -52,8 +52,18 @@ export const openFrontmatterFromBody: Command = (view) => {
 	const position = view.state.selection.main.head;
 	if (position < range.to) return false;
 	const line = view.state.doc.lineAt(position);
-	if (view.state.doc.sliceString(range.to, line.from).trim()) return false;
-	view.dispatch({ selection: { anchor: range.yamlTo }, scrollIntoView: true });
+	if (line.number !== view.state.doc.lineAt(range.to).number) return false;
+	if (
+		view.state.doc.lineAt(view.moveVertically(view.state.selection.main, false).head).number ===
+		line.number
+	)
+		return false;
+	// Enter on the last hidden line, which may be a blank line after the closing ---.
+	// This keeps Up and Down symmetric when the summary expands.
+	view.dispatch({
+		selection: { anchor: view.state.doc.lineAt(range.to - 1).from },
+		scrollIntoView: true
+	});
 	view.focus();
 	return true;
 };

@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
-import { EditorState } from '@codemirror/state';
-import { changeCodeBlockLanguage, codeBlockExtension } from './code-blocks';
+import { EditorSelection, EditorState } from '@codemirror/state';
+import type { EditorView } from '@codemirror/view';
+import {
+	changeCodeBlockLanguage,
+	codeBlockExtension,
+	enterCodeFenceDown,
+	enterCodeFenceUp
+} from './code-blocks';
 
 function selectLanguage(source: string, language: string) {
 	const state = EditorState.create({
@@ -54,5 +60,44 @@ describe('code fence preview', () => {
 		expect(decorations().widgetCount).toBe(0);
 		state = state.update({ selection: { anchor: source.indexOf('After') } }).state;
 		expect(decorations().widgetCount).toBe(2);
+	});
+});
+
+describe('code fence arrow navigation', () => {
+	const source = 'Before\n```js\ncode\n```\nAfter';
+	function entry(from: string, direction: 'up' | 'down', staysOnLine = false) {
+		const position = source.indexOf(from);
+		const state = EditorState.create({
+			doc: source,
+			selection: EditorSelection.cursor(position),
+			extensions: [markdown({ base: markdownLanguage })]
+		});
+		let target = -1;
+		const view = {
+			state,
+			moveVertically: () =>
+				EditorSelection.cursor(
+					staysOnLine
+						? position
+						: state.doc.line(state.doc.lineAt(position).number + (direction === 'down' ? 1 : -1))
+								.from
+				),
+			dispatch: ({ selection }: { selection: { anchor: number } }) => {
+				target = selection.anchor;
+			}
+		} as unknown as EditorView;
+		return {
+			handled: (direction === 'down' ? enterCodeFenceDown : enterCodeFenceUp)(view),
+			target
+		};
+	}
+
+	it('visits the opening and closing fences before code content', () => {
+		expect(entry('Before', 'down')).toEqual({ handled: true, target: source.indexOf('```js') });
+		expect(entry('After', 'up')).toEqual({ handled: true, target: source.lastIndexOf('```') });
+	});
+
+	it('leaves vertical movement within a wrapped line alone', () => {
+		expect(entry('Before', 'down', true)).toEqual({ handled: false, target: -1 });
 	});
 });

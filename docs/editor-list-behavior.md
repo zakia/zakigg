@@ -21,6 +21,10 @@ Indentation uses four spaces per level, or enough spaces to clear a wider ordere
 `100. `. Numbered lists keep their top-level starting number, restart nested lists at `1.`, and
 renumber siblings after structural edits.
 
+In Live Preview, Left and Right cross the leading indentation of a list item or continuation line
+in one step. The marker and its following space stay reachable for direct editing. Source mode keeps
+character-by-character navigation.
+
 The sequence `Shift+Enter → Tab → Tab → type → Enter` moves the complete item once, leaves the
 second Tab as a no-op when there is no deeper parent, and creates a sibling at the nested depth.
 The same rules apply when the item contains a task checkbox or nested children. Tests for these

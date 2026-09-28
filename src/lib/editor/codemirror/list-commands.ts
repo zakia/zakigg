@@ -110,6 +110,30 @@ function moveItem(target: Parameters<StateCommand>[0], direction: 1 | -1) {
 export const indentListItem: StateCommand = (target) => moveItem(target, 1);
 export const outdentListItem: StateCommand = (target) => moveItem(target, -1);
 
+function moveAcrossListIndent(
+	{ state, dispatch }: Parameters<StateCommand>[0],
+	direction: 'left' | 'right'
+) {
+	if (state.selection.ranges.length !== 1 || !state.selection.main.empty) return false;
+	const position = state.selection.main.head;
+	const line = state.doc.lineAt(position);
+	const indentEnd = line.from + leadingWhitespace(line.text).length;
+	if (indentEnd === line.from || (!markerAt(state, line.number) && !ownerAt(state, position)))
+		return false;
+	if (direction === 'left' && (position <= line.from || position > indentEnd)) return false;
+	if (direction === 'right' && (position < line.from || position >= indentEnd)) return false;
+	const target = direction === 'left' ? line.from : indentEnd;
+	dispatch(
+		state.update({ selection: { anchor: target }, scrollIntoView: true, userEvent: 'select' })
+	);
+	return true;
+}
+
+export const moveLeftAcrossListIndent: StateCommand = (target) =>
+	moveAcrossListIndent(target, 'left');
+export const moveRightAcrossListIndent: StateCommand = (target) =>
+	moveAcrossListIndent(target, 'right');
+
 export const exitEmptyListItem: StateCommand = (target) => {
 	const { state } = target;
 	if (state.readOnly || state.selection.ranges.length !== 1 || !state.selection.main.empty)

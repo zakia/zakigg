@@ -1,7 +1,13 @@
 import { syntaxTree } from '@codemirror/language';
 import { redo, undo } from '@codemirror/commands';
 import { StateField, type ChangeSpec, type EditorState } from '@codemirror/state';
-import { Decoration, EditorView, WidgetType, type DecorationSet } from '@codemirror/view';
+import {
+	Decoration,
+	EditorView,
+	WidgetType,
+	type Command,
+	type DecorationSet
+} from '@codemirror/view';
 import {
 	CODE_BLOCK_LANGUAGES,
 	normalizeLanguage
@@ -65,6 +71,29 @@ export function changeCodeBlockLanguage(
 		insert: language === 'plaintext' && !block.meta ? '' : language
 	};
 }
+
+function enterCodeFence(direction: 'up' | 'down'): Command {
+	return (view) => {
+		const selection = view.state.selection.main;
+		if (!selection.empty) return false;
+		const current = view.state.doc.lineAt(selection.head);
+		const nextNumber = current.number + (direction === 'down' ? 1 : -1);
+		if (nextNumber < 1 || nextNumber > view.state.doc.lines) return false;
+		if (
+			view.state.doc.lineAt(view.moveVertically(selection, direction === 'down').head).number ===
+			current.number
+		)
+			return false;
+		const next = view.state.doc.line(nextNumber);
+		const block = codeBlockAt(view.state, next.from);
+		if (!block || (nextNumber !== block.firstLine && nextNumber !== block.lastLine)) return false;
+		view.dispatch({ selection: { anchor: next.from }, scrollIntoView: true });
+		return true;
+	};
+}
+
+export const enterCodeFenceUp = enterCodeFence('up');
+export const enterCodeFenceDown = enterCodeFence('down');
 
 class CodeHeaderWidget extends WidgetType {
 	constructor(readonly block: CodeBlock) {
@@ -226,15 +255,16 @@ export const codeBlockExtension = [codeBlockField];
 
 export const codeBlockTheme = EditorView.baseTheme({
 	'.cm-code-header': {
-		alignItems: 'center',
+		alignItems: 'flex-end',
 		background: 'var(--base-2)',
 		border: '1px solid var(--edge)',
 		borderBottom: '0',
 		borderRadius: 'var(--radius) var(--radius) 0 0',
+		boxSizing: 'border-box',
 		display: 'flex',
+		height: '2.25rem',
 		justifyContent: 'space-between',
-		minHeight: '2.25rem',
-		padding: 'var(--s-2) var(--s0) 0'
+		padding: '0 var(--s0)'
 	},
 	'.cm-code-header select, .cm-code-header button': {
 		background: 'transparent',
@@ -243,7 +273,7 @@ export const codeBlockTheme = EditorView.baseTheme({
 		cursor: 'pointer',
 		font: 'inherit',
 		fontSize: 'var(--s-1)',
-		minHeight: '1.5rem'
+		minHeight: '1.25rem'
 	},
 	'.cm-code-details': { minWidth: '0' },
 	'.cm-code-controls': {
@@ -266,24 +296,27 @@ export const codeBlockTheme = EditorView.baseTheme({
 		borderRight: '1px solid var(--edge)',
 		fontFamily: 'var(--font-mono)',
 		fontSize: 'var(--s-1)',
+		lineHeight: '1.5rem',
 		paddingLeft: 'var(--s0)',
 		paddingRight: 'var(--s0)'
 	},
 	'.cm-line.cm-code-source-first': {
-		borderTop: '1px solid var(--edge)',
 		borderRadius: 'var(--radius) var(--radius) 0 0',
-		paddingTop: 'var(--s-2)'
+		boxShadow: 'inset 0 1px var(--edge)',
+		boxSizing: 'border-box',
+		height: '2.25rem',
+		paddingTop: '0.75rem'
 	},
 	'.cm-line.cm-code-source-last': {
-		borderBottom: '1px solid var(--edge)',
 		borderRadius: '0 0 var(--radius) var(--radius)',
-		paddingBottom: 'var(--s-2)'
+		boxShadow: 'inset 0 -1px var(--edge)'
 	},
 	'.cm-code-footer': {
 		background: 'var(--base-2)',
 		border: '1px solid var(--edge)',
 		borderTop: '0',
 		borderRadius: '0 0 var(--radius) var(--radius)',
-		height: 'var(--s0)'
+		boxSizing: 'border-box',
+		height: '1.5rem'
 	}
 });

@@ -1,40 +1,51 @@
-import {
-	getReferencedAssetIds,
-	parseStoredPage,
-	toStoredNotePage,
-	type NotePage
-} from '$lib/editor/document/model';
-import { loadNoteAsset } from '$lib/editor/document/persistence/storage';
+import { applyTagColors } from '$lib/components/tag';
+import { getReferencedAssetIds, parseStoredPage, toStoredPage, type Page } from '$lib/editor/Page';
+import { loadNoteAsset, markRepositorySaved } from '$lib/editor/document/persistence/storage';
 import {
 	deleteRepositoryCraft,
 	getRepositoryCraft,
-	listLiveRepositoryCrafts,
 	listRepositoryCrafts,
 	saveRepositoryCraft
 } from './repository.remote';
 
 export async function loadRepositoryCraft(slug: string) {
-	return parseStoredPage(await getRepositoryCraft(slug));
+	const request = getRepositoryCraft(slug);
+	await request.refresh();
+	const document = await request;
+	if (document) applyTagColors(document.tags);
+	const page = document && parseStoredPage(document.page);
+	return document && page ? { page, sha: document.sha } : null;
 }
 
 export async function loadRepositoryCrafts() {
-	return (await listRepositoryCrafts()).map(parseStoredPage).filter(isNotePage);
+	const request = listRepositoryCrafts();
+	await request.refresh();
+	const { documents, tags } = await request;
+	applyTagColors(tags);
+	return documents.map(({ page }) => parseStoredPage(page)).filter(isPage);
 }
 
-export async function loadLiveRepositoryCrafts() {
-	return (await listLiveRepositoryCrafts()).map(parseStoredPage).filter(isNotePage);
-}
-
-export async function commitRepositoryCraft(page: NotePage) {
+export async function commitRepositoryCraft(page: Page, expectedSha: string | null) {
 	await uploadReferencedAssets(page);
-	return saveRepositoryCraft({ pageJson: JSON.stringify(toStoredNotePage(page)) });
+	const result = await saveRepositoryCraft({
+		pageJson: JSON.stringify(toStoredPage(page)),
+		expectedSha
+	});
+	applyTagColors(result.tags);
+	// The Git commit has succeeded even if the browser can no longer store its baseline.
+	try {
+		await markRepositorySaved(page);
+	} catch (cause) {
+		console.warn('Could not cache the Git baseline', cause);
+	}
+	return result;
 }
 
 export async function removeRepositoryCraft(id: string) {
 	await deleteRepositoryCraft(id);
 }
 
-async function uploadReferencedAssets(page: NotePage) {
+async function uploadReferencedAssets(page: Page) {
 	for (const id of getReferencedAssetIds(page.markdown)) {
 		const asset = await loadNoteAsset(id);
 		if (!asset) continue;
@@ -50,6 +61,6 @@ async function uploadReferencedAssets(page: NotePage) {
 	}
 }
 
-function isNotePage(page: NotePage | null): page is NotePage {
+function isPage(page: Page | null): page is Page {
 	return Boolean(page);
 }

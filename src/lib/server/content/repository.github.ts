@@ -1,7 +1,15 @@
-import { createSign } from 'node:crypto';
-import { env } from '$env/dynamic/private';
-import type { NotePage } from '$lib/editor/document/model';
 import {
+	assignTagColors,
+	readTagRegistry,
+	writeTagRegistry,
+	tagRegistryPath,
+	type TagRegistry
+} from '$lib/crafts/tags';
+import { createHash, createSign } from 'node:crypto';
+import { env } from '$env/dynamic/private';
+import type { Page } from '$lib/editor/Page';
+import {
+	RepositoryConflict,
 	parseRepositoryMarkdown,
 	repositoryPath,
 	type ContentRepository,
@@ -31,6 +39,9 @@ let installationToken: { value: string; expiresAt: number } | null = null;
 export function createGithubContentRepository(): ContentRepository {
 	const config = readConfig();
 	return {
+		async tags() {
+			return readTags(config);
+		},
 		async list() {
 			const entries = await listDirectory(config);
 			return Promise.all(
@@ -43,8 +54,8 @@ export function createGithubContentRepository(): ContentRepository {
 			const documents = await this.list();
 			return documents.find((document) => document.page.slug === slug) ?? null;
 		},
-		async save(page) {
-			return savePage(config, page);
+		async save(page, expectedSha) {
+			return savePage(config, page, expectedSha);
 		},
 		async delete(id) {
 			await deletePage(config, id);
@@ -97,31 +108,77 @@ async function readPath(
 	return { page: parseRepositoryMarkdown(markdown), path, sha };
 }
 
-async function savePage(config: GithubConfig, page: NotePage): Promise<RepositoryDocument> {
+async function readTags(config: GithubConfig, ref = config.branch): Promise<TagRegistry> {
+	const metadata = await getPathMetadata(config, tagRegistryPath, ref);
+	if (!metadata) return {};
+	const blob = await githubFetch<GithubBlob>(
+		config,
+		`/repos/${encodeURIComponent(config.owner)}/${encodeURIComponent(config.repo)}/git/blobs/${metadata.sha}`
+	);
+	if (!blob || blob.encoding !== 'base64') throw new Error('GitHub did not return tag colors');
+	return readTagRegistry(Buffer.from(blob.content.replace(/\n/g, ''), 'base64').toString('utf8'));
+}
+
+async function savePage(
+	config: GithubConfig,
+	page: Page,
+	expectedSha: string | null
+): Promise<RepositoryDocument & { tags: TagRegistry }> {
 	const path = repositoryPath(page.id);
-	for (let attempt = 0; attempt < 2; attempt += 1) {
-		const current = await getPathMetadata(config, path);
-		try {
-			const result = await githubFetch<{ content: GithubContent }>(
-				config,
-				`/repos/${encodeURIComponent(config.owner)}/${encodeURIComponent(config.repo)}/contents/${path}`,
-				{
-					method: 'PUT',
-					body: {
-						message: `${current ? 'Update' : 'Create'} ${page.title}`,
-						content: Buffer.from(page.markdown, 'utf8').toString('base64'),
-						branch: config.branch,
-						...(current ? { sha: current.sha } : {})
-					}
-				}
-			);
-			if (!result) throw new Error('GitHub returned an empty save response');
-			return { page, path, sha: result.content.sha };
-		} catch (cause) {
-			if (!(cause instanceof GithubApiError) || cause.status !== 409 || attempt > 0) throw cause;
-		}
+	const base = `/repos/${encodeURIComponent(config.owner)}/${encodeURIComponent(config.repo)}`;
+	const branch = encodeURIComponent(config.branch);
+	const head = await githubFetch<{ object: { sha: string } }>(
+		config,
+		`${base}/git/ref/heads/${branch}`
+	);
+	if (!head) throw new Error('GitHub did not return the branch head');
+	const parent = head.object.sha;
+	// Pin both files to one revision so the commit cannot combine inconsistent reads.
+	const [current, registry, commit] = await Promise.all([
+		getPathMetadata(config, path, parent),
+		readTags(config, parent),
+		githubFetch<{ tree: { sha: string } }>(config, `${base}/git/commits/${parent}`)
+	]);
+	if ((current?.sha ?? null) !== expectedSha) throw new RepositoryConflict();
+	if (!commit) throw new Error('GitHub did not return the parent commit');
+	const tags = assignTagColors(registry, page.tags);
+	const entries = [{ path, mode: '100644', type: 'blob', content: page.markdown }];
+	if (writeTagRegistry(tags) !== writeTagRegistry(registry)) {
+		entries.push({
+			path: tagRegistryPath,
+			mode: '100644',
+			type: 'blob',
+			content: writeTagRegistry(tags)
+		});
 	}
-	throw new Error('GitHub save failed');
+	const tree = await githubFetch<{ sha: string }>(config, `${base}/git/trees`, {
+		method: 'POST',
+		body: { base_tree: commit.tree.sha, tree: entries }
+	});
+	if (!tree) throw new Error('GitHub did not return the saved tree');
+	const saved = await githubFetch<{ sha: string }>(config, `${base}/git/commits`, {
+		method: 'POST',
+		body: {
+			message: `${current ? 'Update' : 'Create'} ${page.title}`,
+			tree: tree.sha,
+			parents: [parent]
+		}
+	});
+	if (!saved) throw new Error('GitHub did not return the saved commit');
+	try {
+		await githubFetch(config, `${base}/git/refs/heads/${branch}`, {
+			method: 'PATCH',
+			body: { sha: saved.sha, force: false }
+		});
+	} catch (cause) {
+		// A moved branch rejects this commit, including its registry update. Never force or retry.
+		if (cause instanceof GithubApiError && [409, 422].includes(cause.status))
+			throw new RepositoryConflict();
+		throw cause;
+	}
+	const content = Buffer.from(page.markdown, 'utf8');
+	const sha = createHash('sha1').update(`blob ${content.length}\0`).update(content).digest('hex');
+	return { page, path, sha, tags };
 }
 
 async function deletePage(config: GithubConfig, id: string) {
@@ -138,10 +195,10 @@ async function deletePage(config: GithubConfig, id: string) {
 	);
 }
 
-async function getPathMetadata(config: GithubConfig, path: string) {
+async function getPathMetadata(config: GithubConfig, path: string, ref = config.branch) {
 	return githubFetch<GithubContent>(
 		config,
-		`/repos/${encodeURIComponent(config.owner)}/${encodeURIComponent(config.repo)}/contents/${path}?ref=${encodeURIComponent(config.branch)}`,
+		`/repos/${encodeURIComponent(config.owner)}/${encodeURIComponent(config.repo)}/contents/${path}?ref=${encodeURIComponent(ref)}`,
 		{ allowNotFound: true }
 	);
 }
@@ -160,7 +217,7 @@ async function githubFetch<T>(
 	config: GithubConfig,
 	path: string,
 	options: {
-		method?: 'GET' | 'PUT' | 'POST' | 'DELETE';
+		method?: 'GET' | 'PUT' | 'POST' | 'PATCH' | 'DELETE';
 		body?: unknown;
 		allowNotFound?: boolean;
 	} = {}

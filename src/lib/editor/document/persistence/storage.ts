@@ -1,25 +1,24 @@
 import { browser } from '$app/environment';
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import {
-	DEFAULT_NOTE_SLUG,
-	createDefaultNotePage,
-	createNotePage,
+	DEFAULT_SLUG,
+	createPage,
+	readPage,
+	createPageId,
 	getReferencedAssetIds,
 	normalizePageSlug,
 	parseStoredPage,
-	summarizeNotePage,
-	toStoredNotePage,
-	type NotePage,
-	type NotePageSummary,
-	type StoredNotePage
-} from '../model';
-import { normalizeMetadataEntries } from '../metadata';
-import { updateFrontmatterValue } from '../frontmatter-source';
+	summarizePage,
+	toStoredPage,
+	type Page,
+	type PageSummary,
+	type StoredPage
+} from '../../Page';
+import { type MetadataProperties } from '../metadata';
+import { updateFrontmatterValue } from '../../features/frontmatter/source';
 
 const DB_NAME = 'zaki.gg-notes';
-const NOTES_INITIALIZED_FLAG_KEY = 'zaki.gg:notes:markdown-v3:initialized';
-const REPOSITORY_SNAPSHOT_SEEDED_FLAG_KEY = 'zaki.gg:notes:repository-snapshot-v1:seeded';
-const DB_VERSION = 7;
+const DB_VERSION = 8;
 const PAGES_STORE_NAME = 'pages';
 const ASSETS_STORE_NAME = 'assets';
 
@@ -35,9 +34,10 @@ export type NotesAssetV1 = {
 };
 
 interface NotesDB extends DBSchema {
+	recovery: { key: string; value: StoredPage };
 	pages: {
 		key: string;
-		value: StoredNotePage;
+		value: StoredPage & { gitMarkdown?: string };
 		indexes: {
 			'by-slug': string;
 			'by-title': string;
@@ -68,18 +68,13 @@ export class NotesDatabaseBlockedError extends Error {
 export async function initializeNotesDb(): Promise<void> {
 	if (!browser) return;
 	if (!initializedPromise) {
-		const pending = initializeStoredPages();
+		const pending = migrateStoredPagesToMarkdownV3();
 		initializedPromise = pending;
 		void pending.catch(() => {
 			if (initializedPromise === pending) initializedPromise = null;
 		});
 	}
 	return initializedPromise;
-}
-
-async function initializeStoredPages() {
-	await migrateStoredPagesToMarkdownV3();
-	await ensureDefaultPage();
 }
 
 // JSON-only legacy records are removed. Markdown is the only document model.
@@ -93,119 +88,128 @@ async function migrateStoredPagesToMarkdownV3() {
 	const pages = tx.objectStore(PAGES_STORE_NAME);
 	for (const storedPage of pending) {
 		if (!storedPage || typeof storedPage !== 'object') continue;
-		const raw = storedPage as Partial<NotePage> & { id?: unknown; markdown?: unknown };
+		const raw = storedPage as Partial<Page> & { id?: unknown; markdown?: unknown };
 		if (typeof raw.id !== 'string') continue;
 		if (typeof raw.markdown !== 'string') {
 			await pages.delete(raw.id);
 			continue;
 		}
 
-		const page = createNotePage(raw);
+		const page = readPage(raw.markdown, {
+			...createPage({ id: raw.id, title: raw.title || 'Untitled' }),
+			...raw
+		} as Page);
 		const slug = await getAvailablePageSlugInStore(pages, page.slug, page.id);
-		await pages.put(toStoredNotePage({ ...page, slug }), page.id);
+		await pages.put(toStoredPage({ ...page, slug }), page.id);
 	}
 	await tx.done;
 }
 
-export async function listNotePages(): Promise<NotePageSummary[]> {
+export async function listPages(): Promise<PageSummary[]> {
 	if (!browser) return [];
-	const pages = await listFullNotePages();
-	return pages
-		.map(summarizeNotePage)
-		.sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
+	const pages = await listFullPages();
+	return pages.map(summarizePage).sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
 }
 
-export async function listFullNotePages(): Promise<NotePage[]> {
+export async function listFullPages(): Promise<Page[]> {
 	if (!browser) return [];
 	await initializeNotesDb();
 	const db = await getDb();
 	return (await db.getAll(PAGES_STORE_NAME))
 		.map(parseStoredPage)
-		.filter(isNotePage)
+		.filter(isPage)
 		.sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
 }
 
-export async function loadNotePageBySlug(slug: string): Promise<NotePage | null> {
+export async function loadPageBySlug(slug: string): Promise<Page | null> {
 	if (!browser) return null;
 	await initializeNotesDb();
 	const db = await getDb();
-	return parseStoredPage(
-		await db.getFromIndex(PAGES_STORE_NAME, 'by-slug', normalizePageSlug(slug))
-	);
+	const stored = await db.getFromIndex(PAGES_STORE_NAME, 'by-slug', normalizePageSlug(slug));
+	const page = parseStoredPage(stored);
+	if (page && page.markdown !== stored?.gitMarkdown) return page;
+	const recovery = page
+		? parseStoredPage(await db.get('recovery', page.id))
+		: (await db.getAll('recovery'))
+				.map(parseStoredPage)
+				.find((entry) => entry?.slug === normalizePageSlug(slug));
+	return recovery ?? page;
 }
 
-export async function loadNotePageById(id: string): Promise<NotePage | null> {
+export async function loadPageById(id: string): Promise<Page | null> {
 	if (!browser || !id) return null;
 	await initializeNotesDb();
 	const db = await getDb();
 	return parseStoredPage(await db.get(PAGES_STORE_NAME, id));
 }
 
-export async function createNotePageRecord(input: Partial<NotePage> = {}): Promise<NotePage> {
+export async function createPageRecord(
+	properties: MetadataProperties = {},
+	body = ''
+): Promise<Page> {
 	if (!browser) throw new Error('Notes are only available in the browser');
 	await initializeNotesDb();
-	const base = createNotePage(input);
+	const base = createPage(properties, body);
 	const page = withCanonicalSlug(base, await getAvailablePageSlug(base.slug, base.id));
-	await putNotePage(page);
+	await putPage(page);
 	return page;
 }
 
-export async function cacheRepositoryNotePage(page: NotePage): Promise<NotePage> {
-	if (!browser) return page;
-	await initializeNotesDb();
-	const next = createNotePage(page);
-	await putNotePage(next);
-	return next;
-}
-
-export async function seedRepositoryNotePages(pages: NotePage[]): Promise<void> {
-	if (!browser || !pages.length || !needsRepositorySnapshotSeed()) return;
+/** Keep a differing browser copy available before caching the repository baseline. */
+export async function openRepositoryPage(page: Page): Promise<Page | null> {
 	await initializeNotesDb();
 	const db = await getDb();
-	const tx = db.transaction(PAGES_STORE_NAME, 'readwrite');
-	const store = tx.objectStore(PAGES_STORE_NAME);
-	const existingIds = new Set(await store.getAllKeys());
-	for (const page of pages) {
-		if (existingIds.has(page.id)) continue;
-		await store.put(toStoredNotePage(createNotePage(page)), page.id);
+	const tx = db.transaction(['pages', 'recovery'], 'readwrite');
+	const stored = await tx.objectStore('pages').get(page.id);
+	const current = parseStoredPage(stored);
+	if (current && current.markdown !== page.markdown && current.markdown !== stored?.gitMarkdown) {
+		await tx.objectStore('recovery').put(toStoredPage(current), page.id);
 	}
+	// Slugs are navigation metadata, not document identity. Repository IDs are authoritative.
+	await tx.objectStore('pages').put({ ...toStoredPage(page), gitMarkdown: page.markdown }, page.id);
+	const recovery = parseStoredPage(await tx.objectStore('recovery').get(page.id));
 	await tx.done;
-	setInitializedNotesFlag();
-	setRepositorySnapshotSeededFlag();
+	return recovery && recovery.markdown !== page.markdown ? recovery : null;
 }
 
-export function needsRepositorySnapshotSeed() {
-	if (!browser) return false;
-	try {
-		return window.localStorage.getItem(REPOSITORY_SNAPSHOT_SEEDED_FLAG_KEY) !== 'true';
-	} catch {
-		return true;
-	}
-}
-
-export async function replaceLocalNotePages(pages: NotePage[]): Promise<void> {
-	if (!browser) return;
+/** New and changed browser documents, excluding unchanged repository caches. */
+export async function listLocalPages(): Promise<PageSummary[]> {
 	await initializeNotesDb();
 	const db = await getDb();
-	const tx = db.transaction([PAGES_STORE_NAME, ASSETS_STORE_NAME], 'readwrite');
-	await Promise.all([
-		tx.objectStore(PAGES_STORE_NAME).clear(),
-		tx.objectStore(ASSETS_STORE_NAME).clear()
-	]);
-	for (const page of pages) {
-		await tx.objectStore(PAGES_STORE_NAME).put(toStoredNotePage(createNotePage(page)), page.id);
-	}
-	await tx.done;
-	setInitializedNotesFlag();
-	setRepositorySnapshotSeededFlag();
+	const pages = (await db.getAll('pages'))
+		.filter((page) => page.markdown !== page.gitMarkdown)
+		.map(parseStoredPage)
+		.filter(isPage);
+	const recovery = (await db.getAll('recovery')).map(parseStoredPage).filter(isPage);
+	const local = new Map(recovery.map((page) => [page.id, page]));
+	for (const page of pages) local.set(page.id, page);
+	return [...local.values()].map(summarizePage);
 }
 
-export async function importNotePage(input: Partial<NotePage>): Promise<NotePage> {
+export async function markRepositorySaved(page: Page) {
+	const db = await getDb();
+	const tx = db.transaction('pages', 'readwrite');
+	const current = await tx.store.get(page.id);
+	await tx.store.put({ ...(current ?? toStoredPage(page)), gitMarkdown: page.markdown }, page.id);
+	await tx.done;
+}
+
+export async function clearRecovery(id: string) {
+	const db = await getDb();
+	await db.delete('recovery', id);
+}
+
+export async function importPage(input: Page): Promise<Page> {
 	if (!browser) throw new Error('Notes are only available in the browser');
 	await initializeNotesDb();
-	const base = createNotePage({ ...input, id: undefined });
+	const id = createPageId();
+	const change = updateFrontmatterValue(input.markdown, 'id', id);
+	if (!change) throw new Error('Imported Markdown must have valid frontmatter.');
+	const markdown =
+		input.markdown.slice(0, change.from) + change.insert + input.markdown.slice(change.to);
+	const base = readPage(markdown, { ...input, id });
 	const page = withCanonicalSlug(base, await getAvailablePageSlug(base.slug));
-	await putNotePage(page);
+	await putPage(page);
 	await attachAssetsToPage(page.id, getReferencedAssetIds(page.markdown));
 	return page;
 }
@@ -242,28 +246,21 @@ export async function importNoteAsset(asset: NotesAssetImport): Promise<void> {
 	);
 }
 
-export async function saveNotePage(page: NotePage): Promise<NotePage> {
+export async function savePage(page: Page): Promise<Page> {
 	if (!browser) throw new Error('Notes are only available in the browser');
 	await initializeNotesDb();
-	const current = await loadNotePageById(page.id);
-	const base = createNotePage({
-		...current,
-		...page,
-		id: current?.id ?? page.id,
-		createdAt: page.createdAt ?? current?.createdAt,
-		updatedAt: new Date().toISOString()
-	});
-	const next = withCanonicalSlug(base, await getAvailablePageSlug(base.slug, base.id));
-	await putNotePage(next);
+	const next = { ...readPage(page.markdown, page), updatedAt: new Date().toISOString() };
+	await putPage(next);
 	await attachAssetsToPage(next.id, getReferencedAssetIds(next.markdown));
 	return next;
 }
 
-export async function deleteNotePage(pageId: string): Promise<void> {
+export async function deletePage(pageId: string): Promise<void> {
 	if (!browser || !pageId) return;
 	await initializeNotesDb();
 	const db = await getDb();
 	await db.delete(PAGES_STORE_NAME, pageId);
+	await db.delete('recovery', pageId);
 }
 
 export async function saveNoteAsset(file: File, pageId?: string): Promise<NotesAssetV1> {
@@ -300,8 +297,12 @@ export async function listNoteAssets(): Promise<NotesAssetV1[]> {
 }
 
 export async function listOrphanNoteAssets() {
-	const [pages, assets] = await Promise.all([listFullNotePages(), listNoteAssets()]);
-	const referencedIds = new Set(pages.flatMap((page) => getReferencedAssetIds(page.markdown)));
+	const [pages, assets] = await Promise.all([listFullPages(), listNoteAssets()]);
+	const db = await getDb();
+	const recovery = (await db.getAll('recovery')).map(parseStoredPage).filter(isPage);
+	const referencedIds = new Set(
+		[...pages, ...recovery].flatMap((page) => getReferencedAssetIds(page.markdown))
+	);
 	return assets.filter((asset) => !referencedIds.has(asset.id));
 }
 
@@ -323,7 +324,7 @@ export async function resolveNoteAssetObjectUrl(assetId: string) {
 }
 
 export async function getAvailablePageSlug(value: unknown, currentPageId = '') {
-	const baseSlug = normalizePageSlug(value || DEFAULT_NOTE_SLUG);
+	const baseSlug = normalizePageSlug(value || DEFAULT_SLUG);
 	let slug = baseSlug;
 	let suffix = 2;
 	while (await pageSlugExists(slug, currentPageId)) {
@@ -333,41 +334,6 @@ export async function getAvailablePageSlug(value: unknown, currentPageId = '') {
 	return slug;
 }
 
-async function ensureDefaultPage() {
-	const db = await getDb();
-	const pages = await db.getAllKeys(PAGES_STORE_NAME);
-	if (pages.length || hasInitializedNotesFlag()) {
-		setInitializedNotesFlag();
-		return;
-	}
-	await putNotePage(createDefaultNotePage());
-	setInitializedNotesFlag();
-}
-
-function hasInitializedNotesFlag() {
-	try {
-		return window.localStorage.getItem(NOTES_INITIALIZED_FLAG_KEY) === 'true';
-	} catch {
-		return false;
-	}
-}
-
-function setInitializedNotesFlag() {
-	try {
-		window.localStorage.setItem(NOTES_INITIALIZED_FLAG_KEY, 'true');
-	} catch {
-		// Best effort only.
-	}
-}
-
-function setRepositorySnapshotSeededFlag() {
-	try {
-		window.localStorage.setItem(REPOSITORY_SNAPSHOT_SEEDED_FLAG_KEY, 'true');
-	} catch {
-		// Best effort only.
-	}
-}
-
 async function pageSlugExists(slug: string, currentPageId = '') {
 	const db = await getDb();
 	const page = await db.getFromIndex(PAGES_STORE_NAME, 'by-slug', slug);
@@ -375,11 +341,11 @@ async function pageSlugExists(slug: string, currentPageId = '') {
 }
 
 type PageStore = {
-	index(name: 'by-slug'): { get(key: string): Promise<StoredNotePage | undefined> };
+	index(name: 'by-slug'): { get(key: string): Promise<StoredPage | undefined> };
 };
 
 async function getAvailablePageSlugInStore(store: PageStore, value: unknown, currentPageId = '') {
-	const baseSlug = normalizePageSlug(value || DEFAULT_NOTE_SLUG);
+	const baseSlug = normalizePageSlug(value || DEFAULT_SLUG);
 	let slug = baseSlug;
 	let suffix = 2;
 	while (true) {
@@ -390,28 +356,27 @@ async function getAvailablePageSlugInStore(store: PageStore, value: unknown, cur
 	}
 }
 
-function withCanonicalSlug(page: NotePage, slug: string) {
+function withCanonicalSlug(page: Page, slug: string) {
 	if (page.slug === slug) return page;
 	const change = updateFrontmatterValue(page.markdown, 'slug', slug);
 	const markdown = change
 		? `${page.markdown.slice(0, change.from)}${change.insert}${page.markdown.slice(change.to)}`
 		: page.markdown;
-	const properties = normalizeMetadataEntries([
-		...page.properties.filter((property) => property.key !== 'slug'),
-		{ key: 'slug', value: slug }
-	]);
-	return createNotePage({
-		...page,
-		slug,
-		markdown,
-		properties,
-		frontmatter: { ...page.frontmatter, slug }
-	});
+	return readPage(markdown, { ...page, slug });
 }
 
-async function putNotePage(page: NotePage) {
+async function putPage(page: Page) {
 	const db = await getDb();
-	await db.put(PAGES_STORE_NAME, toStoredNotePage(page), page.id);
+	const tx = db.transaction('pages', 'readwrite');
+	const current = await tx.store.get(page.id);
+	await tx.store.put(
+		{
+			...toStoredPage(page),
+			...(current?.gitMarkdown !== undefined ? { gitMarkdown: current.gitMarkdown } : {})
+		},
+		page.id
+	);
+	await tx.done;
 }
 
 async function attachAssetsToPage(pageId: string, assetIds: string[]) {
@@ -444,17 +409,22 @@ function openNotesDb() {
 		rejectBlocked = reject;
 	});
 	const connectionPromise = openDB<NotesDB>(DB_NAME, DB_VERSION, {
-		upgrade(db) {
+		upgrade(db, _oldVersion, _newVersion, transaction) {
+			if (!db.objectStoreNames.contains('recovery')) db.createObjectStore('recovery');
 			const rawDb = db as unknown as IDBDatabase;
 			for (const legacyStore of ['documents', 'syncState', 'tombstones', 'syncMeta']) {
 				if (rawDb.objectStoreNames.contains(legacyStore)) rawDb.deleteObjectStore(legacyStore);
 			}
 			if (!db.objectStoreNames.contains(PAGES_STORE_NAME)) {
 				const store = db.createObjectStore(PAGES_STORE_NAME);
-				store.createIndex('by-slug', 'slug', { unique: true });
+				store.createIndex('by-slug', 'slug');
 				store.createIndex('by-title', 'title');
 				store.createIndex('by-updated-at', 'updatedAt');
 				store.createIndex('by-tag', 'tags', { multiEntry: true });
+			} else {
+				const store = transaction.objectStore('pages');
+				store.deleteIndex('by-slug');
+				store.createIndex('by-slug', 'slug');
 			}
 			if (!db.objectStoreNames.contains(ASSETS_STORE_NAME)) {
 				const store = db.createObjectStore(ASSETS_STORE_NAME);
@@ -516,7 +486,7 @@ function normalizeStoredAsset(value: unknown): NotesAssetV1 | null {
 	};
 }
 
-function isNotePage(page: NotePage | null): page is NotePage {
+function isPage(page: Page | null): page is Page {
 	return Boolean(page);
 }
 

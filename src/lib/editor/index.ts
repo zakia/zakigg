@@ -1,1 +1,11 @@
-export * from './document';
+export { default as Editor } from './Editor.svelte';
+export { default as Workspace } from './Workspace.svelte';
+export { default as Header } from './document/Header.svelte';
+export { default as Layout } from './document/Layout.svelte';
+export { default as Frame } from './document/Frame.svelte';
+export * from './Page';
+export * from './document/metadata';
+export * from './Session.svelte';
+export * from './document/persistence/export';
+export * from './document/persistence/file-import';
+export * from './document/persistence/storage';

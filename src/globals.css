@@ -303,3 +303,20 @@
 		cursor: pointer;
 	}
 }
+
+/* Shared by Svelte post/list badges and the CodeMirror frontmatter preview. */
+.tag-badge {
+	align-items: center;
+	background: color-mix(in oklab, var(--tag-color) 10%, var(--base));
+	border: 1px solid color-mix(in oklab, var(--tag-color) 22%, var(--base));
+	border-radius: 999px;
+	color: color-mix(in oklab, var(--tag-color) 65%, var(--content));
+	display: inline-flex;
+	font-size: 0.72rem;
+	font-weight: 500;
+	line-height: 1.4;
+	max-width: 100%;
+	padding: 0.12rem 0.5rem;
+	overflow-wrap: anywhere;
+	white-space: normal;
+}

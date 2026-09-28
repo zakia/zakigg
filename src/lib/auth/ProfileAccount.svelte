@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { resolve } from '$app/paths';
 	import { auth } from '$lib/auth';
 
 	let password = $state('');
@@ -42,7 +43,10 @@
 				<span class="eyebrow">Signed in as</span>
 				<strong>Admin</strong>
 			</div>
-			<button type="button" onclick={() => void signOut()}> Sign out </button>
+			<div class="account-actions">
+				<a href={resolve('/crafts')}>Crafts</a>
+				<button type="button" onclick={() => void signOut()}>Sign out</button>
+			</div>
 		</div>
 	{:else}
 		<form
@@ -103,20 +107,30 @@
 		justify-content: space-between;
 	}
 
-	.account-row > div {
+	.account-actions {
+		align-items: center;
+		display: flex;
+		gap: var(--s0);
+	}
+
+	.account-row > div:first-child {
 		display: grid;
 		gap: 0.2rem;
 	}
 
-	button {
+	button,
+	.account-actions a {
 		background: transparent;
 		border: 0;
 		color: var(--content-1);
 		font-size: 0.8rem;
 		padding: var(--s-2) 0;
+		text-decoration: none;
 	}
 
-	button:hover:not(:disabled) {
+	button:hover:not(:disabled),
+	.account-actions a:hover,
+	.account-actions a:focus-visible {
 		color: var(--brand);
 	}
 

@@ -5,10 +5,10 @@ import { gfmToMarkdown } from 'mdast-util-gfm';
 import { mdxJsxToMarkdown } from 'mdast-util-mdx-jsx';
 import { toMarkdown } from 'mdast-util-to-markdown';
 import type { ComponentEmbedAttrs } from '$lib/editor/components/registry';
-import { mediaKindForUrl } from '$lib/editor/codemirror/media-types';
+import { mediaKindForUrl } from '$lib/editor/features/media/source';
 import { parseMarkdownAst } from '$lib/editor/document/markdown-ast';
 import { parseMarkdownFrontmatter } from '$lib/editor/document/markdown';
-import { normalizePageSlug } from '$lib/editor/document/model';
+import { normalizePageSlug } from '$lib/editor/Page';
 
 type AstAttribute =
 	| { type: 'mdxJsxAttribute'; name: string; value?: string | null | { value?: string } }

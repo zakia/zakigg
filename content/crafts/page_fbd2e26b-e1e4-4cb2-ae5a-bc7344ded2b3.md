@@ -2,8 +2,7 @@
 title: Wallyy
 slug: wallyy
 date: 2026-08-13
-tags:
-  - test
+tags: []
 id: page_fbd2e26b-e1e4-4cb2-ae5a-bc7344ded2b3
 draft: false
 ---

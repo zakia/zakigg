@@ -1,13 +1,9 @@
 import { stringify as stringifyYaml } from 'yaml';
 import type { ComponentEmbedRegistry } from '../components/registry';
 import { normalizeMetadataProperties, type MetadataProperties } from './metadata';
-import {
-	metadataPropertiesToNotePageFrontmatter,
-	type NotePageFrontmatter,
-	type NotePage
-} from './model';
+import { metadataPropertiesToPageFrontmatter, type PageFrontmatter, type Page } from '../Page';
 import { parseMarkdownAst } from './markdown-ast';
-import { readFrontmatter } from './frontmatter-source';
+import { readFrontmatter } from '../features/frontmatter/source';
 
 const MARKDOWN_FILE_RE = /\.(md|markdown|mdown|mkdn)$/i;
 const MARKDOWN_MIME_TYPES = new Set(['text/markdown', 'text/x-markdown']);
@@ -15,7 +11,7 @@ const MARKDOWN_BLOCK_RE =
 	/^[ \t]{0,3}(?:#{1,6}\s+\S|[-+*]\s+\S|\d+[.)]\s+\S|>\s+\S|`{3,}|~{3,}|-{3,}\s*$|\*{3,}\s*$|_{3,}\s*$|\|.+\||<[A-Z][A-Za-z0-9]*)/m;
 const MARKDOWN_INLINE_RE = /(?:!\[[^\]]*]\([^)]+\)|\[[^\]]+]\([^)]+\)|`[^`]+`|\*\*[^*]+\*\*)/;
 
-export type NoteMarkdownFrontmatter = NotePageFrontmatter;
+export type NoteMarkdownFrontmatter = PageFrontmatter;
 
 export type ParsedMarkdown = {
 	markdown: string;
@@ -79,14 +75,14 @@ export function downloadMarkdownFile(markdown: string) {
 	}, 1000);
 }
 
-export function serializeNotePageMarkdown(
-	page: NotePage,
+export function serializePageMarkdown(
+	page: Page,
 	options: { assetPaths?: Map<string, string> } = {}
 ) {
 	return rewriteAssetSources(page.markdown, options.assetPaths ?? new Map());
 }
 
-export function getNotePageFrontmatter(page: NotePage): NoteMarkdownFrontmatter {
+export function getPageFrontmatter(page: Page): NoteMarkdownFrontmatter {
 	return {
 		id: page.id,
 		title: page.title,
@@ -94,7 +90,9 @@ export function getNotePageFrontmatter(page: NotePage): NoteMarkdownFrontmatter 
 		...(page.frontmatter?.description ? { description: page.frontmatter.description } : {}),
 		tags: page.tags,
 		date: dateOnly(page.createdAt),
-		...(typeof page.frontmatter?.draft === 'boolean' ? { draft: page.frontmatter.draft } : {})
+		...(typeof page.frontmatter?.published === 'boolean'
+			? { published: page.frontmatter.published }
+			: {})
 	};
 }
 
@@ -106,8 +104,8 @@ export function parseMarkdownFrontmatter(markdown: string): ParsedMarkdown {
 	const properties = parsed.values ? normalizeMetadataProperties(parsed.values) : undefined;
 
 	return {
-		markdown: markdown.slice(parsed.range.to),
-		frontmatter: properties ? metadataPropertiesToNotePageFrontmatter(properties) : undefined,
+		markdown: markdown.slice(parsed.range.bodyFrom),
+		frontmatter: properties ? metadataPropertiesToPageFrontmatter(properties) : undefined,
 		properties,
 		hasFrontmatter: true
 	};

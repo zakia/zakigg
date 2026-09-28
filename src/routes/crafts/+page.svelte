@@ -1,7 +1,12 @@
 <script lang="ts">
-	import CraftCollection from '$lib/crafts/CraftCollection.svelte';
+	import { onMount } from 'svelte';
+	import { auth } from '$lib/auth';
+	import Collection from '$lib/crafts/Collection.svelte';
 
 	let { data } = $props();
+	onMount(() => {
+		void auth.refresh();
+	});
 </script>
 
 <svelte:head>
@@ -9,4 +14,4 @@
 	<meta name="description" content="A collection of essays, experiments, and interactive crafts." />
 </svelte:head>
 
-<CraftCollection initialCrafts={data.crafts} />
+<Collection initialCrafts={data.crafts} editable={Boolean(auth.user)} />

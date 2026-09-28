@@ -1,5 +1,5 @@
 <script lang="ts">
-	import CraftDocumentRenderer from '$lib/crafts/CraftDocumentRenderer.svelte';
+	import Content from '$lib/crafts/Content.svelte';
 	import type { CalloutProps } from './embed';
 
 	let {
@@ -16,7 +16,7 @@
 <aside class={`callout callout-${kind}`} aria-label={kind}>
 	<strong>{kind}</strong>
 	<div class="callout-content">
-		<CraftDocumentRenderer document={{ version: 2, format: 'markdown', markdown }} />
+		<Content document={{ version: 2, format: 'markdown', markdown }} />
 	</div>
 	{#if editing && updateProps}
 		<div class="callout-editor">

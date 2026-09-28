@@ -4,10 +4,7 @@ export type MetadataPrimitiveValue = string | number | boolean;
 export type MetadataPropertyValue = MetadataPrimitiveValue | string[];
 export type MetadataProperties = Record<string, MetadataPropertyValue>;
 
-// Property order is user data (drag/keyboard reordering), so the attr stores an
-// ordered entries array. A plain record can't carry order through ProseMirror:
-// its attr comparison (compareDeep) ignores object key order, so a reorder-only
-// change would be invisible to the view, the update event, and undo history.
+// Ordered metadata view for summaries and archive compatibility. Markdown owns the source.
 export type MetadataEntry = { key: string; value: MetadataPropertyValue };
 export type MetadataPropertiesInput = MetadataProperties | MetadataEntry[];
 
@@ -52,8 +49,8 @@ export const METADATA_PROPERTY_DEFINITIONS: MetadataPropertyDefinition[] = [
 		icon: 'mdi:calendar-blank-outline'
 	},
 	{
-		key: 'draft',
-		label: 'draft',
+		key: 'published',
+		label: 'published',
 		type: 'boolean',
 		icon: 'mdi:checkbox-marked-outline'
 	}

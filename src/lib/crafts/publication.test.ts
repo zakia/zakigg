@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createNotePage } from '$lib/editor/document/model';
+import { createPage } from '$lib/editor/Page';
 import {
 	createPublishedCraftDocument,
 	createPublishedCraftSummary,
@@ -10,18 +10,17 @@ import {
 
 describe('published craft snapshots', () => {
 	it('derives metadata and publishes body Markdown without editor frontmatter', () => {
-		const page = createNotePage({
-			id: 'page_test',
-			title: 'A Useful Note',
-			slug: 'a-useful-note',
-			createdAt: '2025-04-03T12:00:00.000Z',
-			updatedAt: '2025-04-04T12:00:00.000Z',
-			properties: [
-				{ key: 'description', value: 'A deliberate description.' },
-				{ key: 'date', value: '2025-03-16' }
-			],
-			markdown: 'The body.'
-		});
+		const page = createPage(
+			{
+				id: 'page_test',
+				title: 'A Useful Note',
+				slug: 'a-useful-note',
+
+				description: 'A deliberate description.',
+				date: '2025-03-16'
+			},
+			'The body.'
+		);
 
 		expect(createPublishedCraftSummary(page)).toMatchObject({
 			slug: 'a-useful-note',

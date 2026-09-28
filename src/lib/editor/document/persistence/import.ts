@@ -1,5 +1,5 @@
-import { getReferencedAssetIds, parseStoredPage, type NotePage } from '../model';
-import { importNoteAsset, importNotePage } from './storage';
+import { getReferencedAssetIds, parseStoredPage, type Page } from '../../Page';
+import { importNoteAsset, importPage } from './storage';
 import { readZipEntries } from './zip';
 
 const decoder = new TextDecoder();
@@ -21,7 +21,7 @@ type ImportManifest = {
 };
 
 export type NotesImportResult = {
-	pages: NotePage[];
+	pages: Page[];
 	assetCount: number;
 };
 
@@ -40,17 +40,17 @@ export async function importNotesFromZip(source: Blob): Promise<NotesImportResul
 
 	const parsedPages = resolvePageJsonPaths(files, manifest)
 		.map((path) => parseStoredPage(readJson(files.get(path))))
-		.filter((page): page is NotePage => Boolean(page));
+		.filter((page): page is Page => Boolean(page));
 
 	if (!parsedPages.length) {
 		throw new Error('No importable note pages were found in this archive.');
 	}
 
 	const assetCount = await importAssets(files, manifest, parsedPages);
-	const pages: NotePage[] = [];
+	const pages: Page[] = [];
 
 	for (const page of parsedPages) {
-		pages.push(await importNotePage(page));
+		pages.push(await importPage(page));
 	}
 
 	return { pages, assetCount };
@@ -76,7 +76,7 @@ function resolvePageJsonPaths(files: Map<string, Uint8Array>, manifest: ImportMa
 async function importAssets(
 	files: Map<string, Uint8Array>,
 	manifest: ImportManifest | null,
-	pages: NotePage[]
+	pages: Page[]
 ) {
 	const assets = Array.isArray(manifest?.assets)
 		? manifest.assets
@@ -108,7 +108,7 @@ async function importAssets(
 	return count;
 }
 
-function inferAssetsFromPages(files: Map<string, Uint8Array>, pages: NotePage[]): ManifestAsset[] {
+function inferAssetsFromPages(files: Map<string, Uint8Array>, pages: Page[]): ManifestAsset[] {
 	const referencedIds = unique(pages.flatMap((page) => getReferencedAssetIds(page.markdown)));
 	const assetPaths = [...files.keys()].filter((path) => path.startsWith('assets/'));
 

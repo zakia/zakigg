@@ -1,12 +1,19 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
+	import { auth } from '$lib/auth';
 	import BackLink from '$lib/components/BackLink.svelte';
-	import CraftDocumentRenderer from '$lib/crafts/CraftDocumentRenderer.svelte';
-	import DocumentHeader from '$lib/editor/document/DocumentHeader.svelte';
-	import DocumentLayout from '$lib/editor/document/DocumentLayout.svelte';
-	import DocumentPage from '$lib/editor/document/DocumentPage.svelte';
+	import Icon from '$lib/components/Icon.svelte';
+	import Content from '$lib/crafts/Content.svelte';
+	import Header from '$lib/editor/document/Header.svelte';
+	import Layout from '$lib/editor/document/Layout.svelte';
+	import Frame from '$lib/editor/document/Frame.svelte';
 
 	let { data } = $props();
+
+	onMount(() => {
+		void auth.refresh();
+	});
 </script>
 
 {#snippet navigation()}
@@ -15,9 +22,23 @@
 
 {#snippet article()}
 	<article>
-		<DocumentHeader title={data.meta.title} date={data.meta.date} wordCount={data.meta.wordCount} />
-		<CraftDocumentRenderer document={data.document} />
+		<Header
+			title={data.meta.title}
+			date={data.meta.date}
+			wordCount={data.meta.wordCount}
+			tags={data.meta.tags}
+		/>
+		<Content document={data.document} />
 	</article>
+{/snippet}
+
+{#snippet actions()}
+	{#if auth.user}
+		<a class="edit-link" href={resolve('/admin/crafts/[slug]', { slug: data.meta.slug })}>
+			<Icon icon="mdi:pencil-outline" />
+			Edit
+		</a>
+	{/if}
 {/snippet}
 
 <svelte:head>
@@ -27,6 +48,27 @@
 	<meta property="og:description" content={data.meta.description} />
 </svelte:head>
 
-<DocumentPage>
-	<DocumentLayout {navigation} main={article} />
-</DocumentPage>
+<Frame>
+	<Layout {navigation} main={article} {actions} />
+</Frame>
+
+<style>
+	.edit-link {
+		align-items: center;
+		color: var(--content-1);
+		display: inline-flex;
+		font-size: var(--s-1);
+		gap: var(--s-4);
+		text-decoration: none;
+	}
+
+	.edit-link:hover,
+	.edit-link:focus-visible {
+		color: var(--content);
+	}
+
+	.edit-link :global(svg) {
+		height: 1rem;
+		width: 1rem;
+	}
+</style>

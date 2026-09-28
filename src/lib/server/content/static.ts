@@ -18,7 +18,7 @@ const repositoryPages = Object.values(markdownModules).map((markdown) =>
 );
 
 const published = repositoryPages
-	.filter((page) => page.frontmatter?.draft !== true)
+	.filter((page) => page.frontmatter?.published === true)
 	.map((page) => ({
 		page,
 		summary: createPublishedCraftSummary(page),
@@ -27,14 +27,6 @@ const published = repositoryPages
 
 export function listStaticCrafts(): CraftListItem[] {
 	return createPublicCraftList(published.map(({ summary }) => summary));
-}
-
-export function listStaticRepositoryPages() {
-	return repositoryPages;
-}
-
-export function getStaticRepositoryPage(slug: string) {
-	return repositoryPages.find((page) => page.slug === slug);
 }
 
 export function listStaticCraftSlugs() {

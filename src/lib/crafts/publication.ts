@@ -1,6 +1,6 @@
 import { getMarkdownText } from '$lib/editor/document/markdown-ast';
 import { parseMarkdownFrontmatter } from '$lib/editor/document/markdown';
-import type { NotePage } from '$lib/editor/document/model';
+import type { Page } from '$lib/editor/Page';
 import type { CraftDocument, CraftListItem, CraftMeta } from './types';
 
 export type PublishedCraftSummary = CraftMeta & {
@@ -14,6 +14,7 @@ export function createPublicCraftList(crafts: PublishedCraftSummary[]): CraftLis
 		.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
 		.map((craft) => ({
 			id: craft.pageId,
+			published: craft.published === true,
 			slug: craft.slug,
 			title: craft.title,
 			tags: craft.tags,
@@ -28,7 +29,7 @@ export function countCraftWords(markdown: string, title = '') {
 	return text ? text.split(/\s+/).length : 0;
 }
 
-export function createPublishedCraftSummary(page: NotePage): PublishedCraftSummary {
+export function createPublishedCraftSummary(page: Page): PublishedCraftSummary {
 	const body = parseMarkdownFrontmatter(page.markdown).markdown;
 	const text = getMarkdownText(body);
 	return {
@@ -40,12 +41,12 @@ export function createPublishedCraftSummary(page: NotePage): PublishedCraftSumma
 		date: page.frontmatter?.date?.trim() || page.createdAt.slice(0, 10),
 		wordCount: countCraftWords(page.markdown, page.title),
 		updatedAt: page.updatedAt,
-		draft: page.frontmatter?.draft === true,
+		published: page.frontmatter?.published === true,
 		fullBleed: false
 	};
 }
 
-export function createPublishedCraftDocument(page: NotePage): CraftDocument {
+export function createPublishedCraftDocument(page: Page): CraftDocument {
 	return {
 		version: 2,
 		format: 'markdown',

@@ -4,11 +4,12 @@ export type CraftMeta = {
 	tags: string[];
 	date: string;
 	wordCount?: number;
-	draft?: boolean;
+	published?: boolean;
 	fullBleed?: boolean;
 };
 
 export type CraftListItem = {
+	published?: boolean;
 	id: string;
 	slug: string;
 	title: string;

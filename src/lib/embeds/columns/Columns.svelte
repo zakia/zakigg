@@ -1,5 +1,5 @@
 <script lang="ts">
-	import CraftDocumentRenderer from '$lib/crafts/CraftDocumentRenderer.svelte';
+	import Content from '$lib/crafts/Content.svelte';
 	import type { ColumnsProps } from './embed';
 
 	let {
@@ -46,9 +46,7 @@
 >
 	{#each columns as column, index (index)}
 		<section class="column" aria-label={`Column ${index + 1}`}>
-			<CraftDocumentRenderer
-				document={{ version: 2, format: 'markdown', markdown: column.markdown }}
-			/>
+			<Content document={{ version: 2, format: 'markdown', markdown: column.markdown }} />
 			{#if editing && updateProps}
 				<label class="column-source">
 					<span>Column {index + 1} Markdown</span>

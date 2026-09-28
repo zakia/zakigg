@@ -7,7 +7,6 @@
 	import Content from '$lib/crafts/Content.svelte';
 	import Header from '$lib/editor/document/Header.svelte';
 	import Layout from '$lib/editor/document/Layout.svelte';
-	import Frame from '$lib/editor/document/Frame.svelte';
 
 	let { data } = $props();
 
@@ -18,18 +17,6 @@
 
 {#snippet navigation()}
 	<BackLink href={resolve('/crafts')} />
-{/snippet}
-
-{#snippet article()}
-	<article>
-		<Header
-			title={data.meta.title}
-			date={data.meta.date}
-			wordCount={data.meta.wordCount}
-			tags={data.meta.tags}
-		/>
-		<Content document={data.document} />
-	</article>
 {/snippet}
 
 {#snippet actions()}
@@ -48,9 +35,17 @@
 	<meta property="og:description" content={data.meta.description} />
 </svelte:head>
 
-<Frame>
-	<Layout {navigation} main={article} {actions} />
-</Frame>
+<Layout {navigation} {actions}>
+	<article>
+		<Header
+			title={data.meta.title}
+			date={data.meta.date}
+			wordCount={data.meta.wordCount}
+			tags={data.meta.tags}
+		/>
+		<Content document={data.document} />
+	</article>
+</Layout>
 
 <style>
 	.edit-link {

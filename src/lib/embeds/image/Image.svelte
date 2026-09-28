@@ -1,5 +1,5 @@
 <script lang="ts">
-	import MediaEmbed from '$lib/editor/presentation/MediaEmbed.svelte';
+	import MediaEmbed from '$lib/embeds/media/MediaEmbed.svelte';
 	import type { InferOutput } from 'valibot';
 	import type { propsSchema } from './embed';
 

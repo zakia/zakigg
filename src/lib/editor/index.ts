@@ -2,7 +2,6 @@ export { default as Editor } from './Editor.svelte';
 export { default as Workspace } from './Workspace.svelte';
 export { default as Header } from './document/Header.svelte';
 export { default as Layout } from './document/Layout.svelte';
-export { default as Frame } from './document/Frame.svelte';
 export * from './Page';
 export * from './document/metadata';
 export * from './Session.svelte';

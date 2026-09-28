@@ -5,7 +5,7 @@ Source mode shows the Markdown directly; Live Preview decorates the same text an
 when the caret enters it. The public renderer reads that Markdown for published pages.
 
 The CodeMirror document contains the entire file, including YAML frontmatter. `title:` supplies
-the single visible document heading. Page title, date, tags, slug, and draft status are projections
+the single visible document heading. Page title, date, tags, slug, and publication status are projections
 of that source; they are not parallel editable state. Moving above the body or clicking the heading
 reveals the YAML in CodeMirror for direct editing. Invalid frontmatter remains editable and autosaves
 locally, with a visible error; explicit Git Save waits for valid frontmatter.
@@ -23,17 +23,17 @@ static craft pages               IndexedDB draft
 
 ## Ownership
 
-- `src/lib/editor/codemirror` owns source editing, Live Preview, and file insertion.
-- `src/lib/editor/document` owns the canonical document model, Markdown rendering,
-  frontmatter parsing and source edits, local drafts, import/export, and the editing session.
-- `src/lib/crafts` owns craft routes, Git commit commands, publication controls, and the custom
-  component registry.
+- `src/lib/editor/Editor.svelte` and `src/lib/editor/features` own source editing, Live Preview,
+  and file insertion. `Page.ts`, `Session.svelte.ts`, and `document` own the canonical document
+  model, Markdown rendering, frontmatter, browser backups, and import/export.
+- `src/lib/crafts` owns craft collection and detail UI, publication behavior, and repository calls.
+- `src/lib/embeds` owns the custom components used by published Markdown and their shared media UI.
 - `src/lib/server/content` owns bundled content reads and explicit Git repository operations.
 - `content/crafts` is the public build input and remote source of truth.
 - GCS stores binary assets only.
 
-The editor layer does not import application routes or GitHub. The application injects a
-`DocumentRepositoryAdapter` that commits a complete Markdown document.
+The editor layer does not import application routes or GitHub. The craft edit page supplies the
+editing session with a save callback that commits a complete Markdown document.
 
 The keyboard contract for nested, ordered, and task lists is in
 [`editor-list-behavior.md`](./editor-list-behavior.md).
@@ -57,14 +57,14 @@ description: Optional summary
 date: 2026-09-16
 tags:
   - notes
-draft: true
+published: false
 ---
 
 Markdown and allowed custom components.
 ```
 
 `id` is stable and determines the repository filename. `slug` may change without renaming the
-file. `draft: true` excludes the document from public builds. Publishing changes that field and
+file. `published: false` excludes the document from public builds. Publishing changes that field and
 commits the same file.
 
 ## Saving
@@ -74,15 +74,15 @@ Cmd/Ctrl+S uploads referenced local assets to GCS and commits the complete Markd
 Delete creates a normal Git deletion commit. Git history supplies revisions and recovery; there
 are no mutation records, checkpoints, publication snapshots, or tombstones.
 
-The admin manager opens from IndexedDB immediately. On a browser's first editor visit, the bundled
-Markdown snapshot seeds documents that are not already local; it never overwrites a local draft.
-Normal list and document reads do not contact GitHub. “Reload from Git” is the explicit destructive
-recovery path for discarding local drafts and fetching the current branch.
+The shared `/crafts` collection uses the build snapshot for visitors. Signed-in users also see
+repository and local-only pages. Opening a repository page reads its latest Git version and offers
+any differing browser copy as recoverable local changes. Refreshing the collection does not clear
+local drafts or assets.
 
 ## Public rendering and offline behavior
 
-Public routes never query authentication, GitHub, or a database. Vite imports all Markdown under
-`content/crafts` during the build, and SvelteKit prerenders the collection and known craft routes.
+Public craft detail pages read the build snapshot without querying authentication or GitHub. Vite
+imports Markdown under `content/crafts` during the build, and SvelteKit prerenders known craft routes.
 The service worker precaches the craft collection and caches visited craft pages and media.
 
 Document text, UI, and previously visited media therefore remain available offline. Large videos

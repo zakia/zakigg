@@ -1,9 +1,6 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
-	import {
-		normalizeMediaBlockAttrs,
-		type MediaBlockKind
-	} from '$lib/editor/presentation/media-block/config';
+	import { normalizeMediaBlockAttrs, type MediaBlockKind } from './config';
 
 	type Props = {
 		kind: MediaBlockKind;

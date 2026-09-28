@@ -1,8 +1,6 @@
 export type MediaBlockKind = 'image' | 'video';
 export type MediaBlockAlign = 'left' | 'center' | 'right';
 
-export type MediaBlockAssetResolver = (assetId: string) => Promise<string | null | undefined>;
-
 export type MediaBlockAttrs = {
 	kind: MediaBlockKind;
 	src: string;
@@ -17,19 +15,6 @@ export type MediaBlockAttrs = {
 	loop: boolean;
 	muted: boolean;
 };
-
-export const MEDIA_BLOCK_CLASS_NAMES = {
-	root: 'media-block media-block-node',
-	shell: 'media-block-resize-shell',
-	frame: 'media-block-frame',
-	media: 'media-block-media',
-	toolbar: 'media-block-toolbar',
-	toolbarGroup: 'media-block-toolbar-group',
-	handles: 'media-block-resize-handles',
-	handle: 'media-block-resize-handle',
-	caption: 'media-block-caption',
-	missing: 'media-block-missing'
-} as const;
 
 const VIDEO_SOURCE_RE = /\.(mp4|m4v|mov|webm)(?:[?#].*)?$/i;
 const MIN_MEDIA_WIDTH_PERCENT = 24;
@@ -55,7 +40,7 @@ export function normalizeMediaBlockAttrs(attrs: Partial<MediaBlockAttrs> = {}): 
 	};
 }
 
-export function normalizeMediaWidthPercent(value: unknown) {
+function normalizeMediaWidthPercent(value: unknown) {
 	const parsed = typeof value === 'string' ? Number.parseFloat(value) : Number(value);
 
 	if (!Number.isFinite(parsed)) return MAX_MEDIA_WIDTH_PERCENT;
@@ -63,17 +48,17 @@ export function normalizeMediaWidthPercent(value: unknown) {
 	return clamp(Math.round(parsed * 10) / 10, MIN_MEDIA_WIDTH_PERCENT, MAX_MEDIA_WIDTH_PERCENT);
 }
 
-export function normalizeMediaKind(value: unknown): MediaBlockKind {
+function normalizeMediaKind(value: unknown): MediaBlockKind {
 	return value === 'video' ? 'video' : 'image';
 }
 
-export function normalizeMediaAlign(value: unknown): MediaBlockAlign {
+function normalizeMediaAlign(value: unknown): MediaBlockAlign {
 	if (value === 'left' || value === 'right') return value;
 
 	return 'center';
 }
 
-export function inferMediaKindFromSource(src: string): MediaBlockKind {
+function inferMediaKindFromSource(src: string): MediaBlockKind {
 	return VIDEO_SOURCE_RE.test(src) ? 'video' : 'image';
 }
 

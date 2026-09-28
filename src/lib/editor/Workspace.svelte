@@ -7,7 +7,7 @@
 	import { Session } from './Session.svelte';
 	import { savePage } from './document/persistence/storage';
 	import Actions from './Actions.svelte';
-	import Canvas from './document/Canvas.svelte';
+	import Layout from './document/Layout.svelte';
 
 	let {
 		page,
@@ -71,50 +71,46 @@
 	}
 </script>
 
-<div class="rich-editor document-shell">
-	<Canvas {navigation}>
-		{#snippet actions()}
-			<Actions
-				status={session.status}
-				saving={session.saving}
-				dirty={session.dirty}
-				published={session.page.frontmatter?.published === true}
-				{publicHref}
-				mode={editorMode}
-				onToggleMode={() => (editorMode = editorMode === 'live' ? 'source' : 'live')}
-				onDownloadMarkdown={downloadMarkdown}
-				onSave={save ? () => void session.save() : undefined}
-				onSetPublished={(value) => updateSourceProperty('published', value)}
-			/>
-		{/snippet}
-		{#snippet editor()}
-			{#if recovery}
-				<div class="recovery" role="status">
-					<span>Showing Git’s version. A browser backup is available.</span>
-					<button
-						type="button"
-						onclick={async () => {
-							if (!editorView || !recovery) return;
-							editorView.dispatch({
-								changes: { from: 0, to: editorView.state.doc.length, insert: recovery.markdown },
-								userEvent: 'input'
-							});
-							if (await session.backup()) onRestore?.();
-						}}>Restore local changes</button
-					>
-				</div>
-			{/if}
-			<Editor
-				initialMarkdown={session.markdown}
-				mode={editorMode}
-				ariaLabel={`${page.title} editor`}
-				autofocus
-				onMarkdownChange={(markdown) => session.update(markdown)}
-				onReady={(view) => (editorView = view)}
-			/>
-		{/snippet}
-	</Canvas>
-</div>
+<Layout {navigation} editing>
+	{#snippet actions()}
+		<Actions
+			status={session.status}
+			saving={session.saving}
+			dirty={session.dirty}
+			published={session.page.frontmatter?.published === true}
+			{publicHref}
+			mode={editorMode}
+			onToggleMode={() => (editorMode = editorMode === 'live' ? 'source' : 'live')}
+			onDownloadMarkdown={downloadMarkdown}
+			onSave={save ? () => void session.save() : undefined}
+			onSetPublished={(value) => updateSourceProperty('published', value)}
+		/>
+	{/snippet}
+	{#if recovery}
+		<div class="recovery" role="status">
+			<span>Showing Git’s version. A browser backup is available.</span>
+			<button
+				type="button"
+				onclick={async () => {
+					if (!editorView || !recovery) return;
+					editorView.dispatch({
+						changes: { from: 0, to: editorView.state.doc.length, insert: recovery.markdown },
+						userEvent: 'input'
+					});
+					if (await session.backup()) onRestore?.();
+				}}>Restore local changes</button
+			>
+		</div>
+	{/if}
+	<Editor
+		initialMarkdown={session.markdown}
+		mode={editorMode}
+		ariaLabel={`${page.title} editor`}
+		autofocus
+		onMarkdownChange={(markdown) => session.update(markdown)}
+		onReady={(view) => (editorView = view)}
+	/>
+</Layout>
 
 <style>
 	.recovery {
@@ -133,22 +129,5 @@
 		border-radius: var(--radius);
 		padding: var(--s-2);
 		cursor: pointer;
-	}
-
-	.document-shell {
-		background: color-mix(in oklch, var(--base) 92%, var(--base-1));
-		display: flex;
-		flex: 1;
-		flex-direction: column;
-		min-height: 100vh;
-		position: relative;
-	}
-
-	/* Keep the browser page as the scroll surface so the scrollbar stays at the
-	   viewport edge. */
-	.document-shell :global(.document-page--scrollable) {
-		flex: none;
-		min-height: 100vh;
-		overflow: visible;
 	}
 </style>

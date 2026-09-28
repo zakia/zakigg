@@ -13,9 +13,16 @@ appearance; they do not maintain another document model.
 | `Workspace.svelte`                | Composition: editor, actions, layout, and save callbacks.      |
 | `Session.svelte.ts`               | Current source, browser backups, and the Git save baseline.    |
 | `features/index.ts`               | The features installed in live and source modes.               |
+| `document/Layout.svelte`          | Shared document grid, responsive regions, and end spacing.     |
 | `document/persistence/storage.ts` | IndexedDB pages, assets, and migrations.                       |
 | `../crafts/Edit.svelte`           | Loading a craft, its URL, and the repository adapter.          |
 | `../crafts/Content.svelte`        | Rendering published content.                                   |
+
+`editor` is the reusable Markdown and document layer. `crafts` applies it to
+craft pages: collection, published view, edit route, tags, and repository calls.
+The workflow is consolidated through `Workspace` and `Session`, while those
+product responsibilities remain separate. Custom embeds live in `../embeds`;
+image and video share `../embeds/media/MediaEmbed.svelte`.
 
 `Workspace` creates one `Session` for one page ID. CodeMirror changes flow to
 `session.update(markdown)`. `session.page` derives metadata from the current text.

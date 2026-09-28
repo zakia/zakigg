@@ -28,4 +28,4 @@ character-by-character navigation.
 The sequence `Shift+Enter → Tab → Tab → type → Enter` moves the complete item once, leaves the
 second Tab as a no-op when there is no deeper parent, and creates a sibling at the nested depth.
 The same rules apply when the item contains a task checkbox or nested children. Tests for these
-transitions live in `src/lib/editor/codemirror/list-commands.test.ts`.
+transitions live in `src/lib/editor/features/list/commands.test.ts`.

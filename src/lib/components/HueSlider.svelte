@@ -31,9 +31,9 @@
 
 <style>
 	.hue-control {
-		--track-size: 1.5rem;
-		--thumb-size: calc(var(--track-size) * 1.5);
-		--output-gap: var(--s-4);
+		--track-size: var(--hue-track-size, 1.5rem);
+		--thumb-size: var(--hue-thumb-size, calc(var(--track-size) * 1.5));
+		--output-gap: var(--hue-output-gap, var(--s-4));
 		display: block;
 		padding-block: 0.5rem;
 		position: relative;
@@ -81,6 +81,7 @@
 
 	.hue-output-position output {
 		border-radius: 0.35rem;
+		box-sizing: content-box;
 		color: var(--content);
 		flex: none;
 		font-family: var(--font-mono);
@@ -88,7 +89,9 @@
 		font-variant-numeric: tabular-nums;
 		opacity: 0;
 		padding: 0.25rem 0.4rem;
+		text-align: center;
 		transition: opacity 120ms ease;
+		width: 4ch;
 	}
 
 	.hue-control:hover .hue-output-position output,

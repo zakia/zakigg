@@ -320,3 +320,22 @@
 	overflow-wrap: anywhere;
 	white-space: normal;
 }
+
+.app-tooltip {
+	background: var(--content);
+	border-radius: var(--radius);
+	box-shadow: 0 5px 16px rgb(0 0 0 / 0.18);
+	color: var(--base-1);
+	font-family: 'Inter Variable', sans-serif;
+	font-size: 0.75rem;
+	line-height: 1.4;
+	max-width: min(15rem, calc(100vw - 1rem));
+	padding: 0.45rem 0.6rem;
+	position: fixed;
+	width: max-content;
+	z-index: 100;
+}
+
+.app-tooltip[hidden] {
+	display: none;
+}

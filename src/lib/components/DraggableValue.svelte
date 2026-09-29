@@ -7,6 +7,7 @@
 		max?: number;
 		step?: number;
 		pixelsPerStep?: number;
+		layout?: 'inline' | 'row';
 		format?: (value: number) => string;
 		onChange: (value: number) => void;
 	};
@@ -19,6 +20,7 @@
 		max = Infinity,
 		step = 1,
 		pixelsPerStep = 8,
+		layout = 'inline',
 		format = String,
 		onChange
 	}: Props = $props();
@@ -76,7 +78,7 @@
 	}
 </script>
 
-<div class="draggable-value">
+<div class="draggable-value" class:row={layout === 'row'}>
 	<button
 		type="button"
 		class:dragging
@@ -101,17 +103,34 @@
 		position: relative;
 	}
 
+	.draggable-value.row {
+		width: 100%;
+	}
+
+	.row button {
+		padding-block: 0.15rem;
+		width: 100%;
+	}
+
+	.row output {
+		margin-left: auto;
+	}
+
+	.row .hint {
+		display: none;
+	}
+
 	button {
 		align-items: baseline;
 		background: transparent;
 		border: 0;
-		color: var(--content);
+		color: var(--content-1);
 		cursor: ew-resize;
 		display: flex;
 		font: inherit;
-		font-size: 0.78rem;
+		font-size: 0.72rem;
 		gap: 0.35rem;
-		padding: 0.2rem 0.4rem;
+		padding: 0.25rem 0.15rem;
 		touch-action: none;
 		user-select: none;
 		-webkit-user-select: none;
@@ -123,6 +142,7 @@
 	}
 
 	output {
+		color: var(--content);
 		font-variant-numeric: tabular-nums;
 		font-weight: 600;
 		transition: color 120ms ease;

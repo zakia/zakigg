@@ -1,50 +1,63 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
+	import InfoTip from '$lib/components/InfoTip.svelte';
+	import CanvasSettings from '$lib/components/CanvasSettings.svelte';
 	import ThemeControls from '$lib/components/ThemeControls.svelte';
 	import ParticleSettings from '$lib/components/ParticleSettings.svelte';
+	import { createParticleSystem, type ParticleSystemCallbacks } from '$lib/particles';
 	import {
-		createParticleSystem,
-		trackMouse,
-		distance,
-		type MouseState,
-		type ParticleSystemCallbacks
-	} from '$lib/particles';
+		createPointerFieldFollower,
+		defaultPointerSettings,
+		resolvePointerEffect,
+		trackPlaygroundPointer
+	} from '$lib/home/pointer-interaction';
+	import { drawPointerFeedback } from '$lib/home/pointer-feedback';
+	import { defaultParticleAppearance } from '$lib/home/particle-appearance';
+	import { applyRadialField, DEFAULT_MIN_ACCELERATION, PHYSICS_STEP } from '$lib/home/physics';
 
-	const SPEED = 0.4;
+	const SPEED = 24;
 	const RADIUS = 4;
 	const RADIUS_DELTA = 3;
-	const LINK_RADIUS = 130;
-	const WALL_BOUNCE_FACTOR = 0.01;
-	const DRAG = 0;
+	const WALL_BOUNCE_FACTOR = 0.6;
 
 	let system: { destroy(): void; triggerResize(): void } | undefined;
 	let fps = $state(0);
+	let frameInterval = $state(0);
 	let dpr = $state(0);
 	let canvas = $state<HTMLCanvasElement>();
 	let homepage = $state<HTMLElement>();
+	let heading = $state<HTMLHeadingElement>();
 	let particleCount = $state(0);
 	let defaultCount = $state(0);
 	let restitution = $state(0.3);
-	let showCollisionMap = $state(false);
-	let collisionOverlay: HTMLCanvasElement | undefined;
+	let pointerSettings = $state({
+		hover: { ...defaultPointerSettings.hover },
+		press: { ...defaultPointerSettings.press }
+	});
+	let appearance = $state({ ...defaultParticleAppearance });
+	let minAcceleration = $state(DEFAULT_MIN_ACCELERATION);
+	let canvasSize = $state({ width: 0, height: 0 });
+	let gameMode = $state(false);
+	let pointerPressed = $state(false);
+	let titleTransitioning = $state(false);
+	let refreshTextCollisionMap: (() => void) | undefined;
 	let frameCount = 0;
 	let lastFpsUpdate = 0;
+	const formattedDpr = $derived(Number(dpr.toFixed(2)));
 
 	function measureFps(time: number) {
 		frameCount++;
-		if (time - lastFpsUpdate >= 1000) {
-			fps = frameCount;
+		const elapsed = time - lastFpsUpdate;
+		if (elapsed >= 1000) {
+			frameInterval = elapsed / frameCount;
+			fps = Math.round(1000 / frameInterval);
 			frameCount = 0;
 			lastFpsUpdate = time;
 			dpr = window.devicePixelRatio;
 		}
 	}
 
-	function getTextCollisionMap(
-		ctx: CanvasRenderingContext2D,
-		width: number,
-		height: number
-	): ImageData {
+	function getTextCollisionMap(width: number, height: number): ImageData {
 		const offscreen = document.createElement('canvas');
 		offscreen.width = width;
 		offscreen.height = height;
@@ -54,23 +67,18 @@
 		offCtx.textAlign = 'center';
 		offCtx.textBaseline = 'alphabetic';
 
-		const fontSize = Math.min(width * 0.09, height * 0.15);
-		offCtx.font = `900 ${fontSize}px 'Inter Variable', sans-serif`;
+		if (!heading || !homepage || gameMode || titleTransitioning)
+			return offCtx.getImageData(0, 0, width, height);
+		const headingStyle = getComputedStyle(heading);
+		const headingRect = heading.getBoundingClientRect();
+		const homeRect = homepage.getBoundingClientRect();
+		offCtx.font = `${headingStyle.fontWeight} ${headingStyle.fontSize} ${headingStyle.fontFamily}`;
 		const metrics = offCtx.measureText('ZAKI.GG');
 		const ascent = metrics.actualBoundingBoxAscent;
 		const descent = metrics.actualBoundingBoxDescent;
-		const y = height / 2 + (ascent - descent) / 2;
-		offCtx.fillText('ZAKI.GG', width / 2, y);
-
-		const overlay = document.createElement('canvas');
-		overlay.width = width;
-		overlay.height = height;
-		const overlayCtx = overlay.getContext('2d')!;
-		overlayCtx.drawImage(offscreen, 0, 0);
-		overlayCtx.globalCompositeOperation = 'source-in';
-		overlayCtx.fillStyle = '#ff2db2';
-		overlayCtx.fillRect(0, 0, width, height);
-		collisionOverlay = overlay;
+		const x = headingRect.left - homeRect.left + headingRect.width / 2;
+		const y = headingRect.top - homeRect.top + (headingRect.height + ascent - descent) / 2;
+		offCtx.fillText('ZAKI.GG', x, y);
 
 		return offCtx.getImageData(0, 0, width, height);
 	}
@@ -90,7 +98,7 @@
 		y: number;
 		radius: number;
 		opacity = 0;
-		vector: { x: number; y: number };
+		velocity: { x: number; y: number };
 
 		constructor(width: number, height: number, collisionMap: ImageData) {
 			this.width = width;
@@ -98,7 +106,7 @@
 			this.radius = RADIUS + Math.random() * RADIUS_DELTA;
 			const speed = SPEED + Math.random() * SPEED;
 			const angle = Math.random() * Math.PI * 2;
-			this.vector = { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed };
+			this.velocity = { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed };
 
 			do {
 				this.x = Math.random() * width;
@@ -106,49 +114,34 @@
 			} while (isInText(collisionMap, this.x, this.y));
 		}
 
-		update(mouse: MouseState, collisionMap: ImageData) {
-			if (DRAG > 0) {
-				const speed = Math.sqrt(this.vector.x ** 2 + this.vector.y ** 2);
-				if (speed > SPEED * 2) {
-					this.vector.x *= 1 - DRAG;
-					this.vector.y *= 1 - DRAG;
-				}
-			}
-
-			if (this.x > this.width - this.radius || this.x < this.radius) this.vector.x *= -restitution;
-			if (this.y > this.height - this.radius || this.y < this.radius) this.vector.y *= -restitution;
+		update(collisionMap: ImageData, dt: number) {
+			if (this.x > this.width - this.radius || this.x < this.radius)
+				this.velocity.x *= -restitution;
+			if (this.y > this.height - this.radius || this.y < this.radius)
+				this.velocity.y *= -restitution;
 			this.x = Math.max(this.radius, Math.min(this.width - this.radius, this.x));
 			this.y = Math.max(this.radius, Math.min(this.height - this.radius, this.y));
 
-			if (mouse.x != null && mouse.y != null) {
-				const dist = distance(mouse.x, mouse.y, this.x, this.y);
-				if (dist < mouse.radius) {
-					const repelForce = (-0.01 * (mouse.radius - dist)) / mouse.radius;
-					this.vector.x += ((mouse.x - this.x) / dist) * repelForce;
-					this.vector.y += ((mouse.y - this.y) / dist) * repelForce;
-				}
-			}
+			const nextX = this.x + this.velocity.x * dt;
+			const nextY = this.y + this.velocity.y * dt;
 
-			const nextX = this.x + this.vector.x;
-			const nextY = this.y + this.vector.y;
-
-			const leadX = nextX + Math.sign(this.vector.x) * this.radius;
-			const leadY = nextY + Math.sign(this.vector.y) * this.radius;
+			const leadX = nextX + Math.sign(this.velocity.x) * this.radius;
+			const leadY = nextY + Math.sign(this.velocity.y) * this.radius;
 
 			if (isInText(collisionMap, leadX, leadY)) {
 				const inX = isInText(collisionMap, leadX, this.y);
 				const inY = isInText(collisionMap, this.x, leadY);
 
 				if (inX && inY) {
-					this.vector.x *= -restitution;
-					this.vector.y *= -restitution;
+					this.velocity.x *= -restitution;
+					this.velocity.y *= -restitution;
 				} else if (inX) {
-					this.vector.x *= -restitution;
+					this.velocity.x *= -restitution;
 				} else if (inY) {
-					this.vector.y *= -restitution;
+					this.velocity.y *= -restitution;
 				} else {
-					this.vector.x *= -restitution;
-					this.vector.y *= -restitution;
+					this.velocity.x *= -restitution;
+					this.velocity.y *= -restitution;
 				}
 			} else {
 				this.x = nextX;
@@ -163,6 +156,23 @@
 
 	let setParticleCount = $state<(count: number) => void>(() => {});
 
+	async function toggleGameMode() {
+		titleTransitioning = true;
+		gameMode = !gameMode;
+		refreshTextCollisionMap?.();
+		if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+			await tick();
+			titleTransitioning = false;
+			refreshTextCollisionMap?.();
+		}
+	}
+
+	function onTitleTransitionEnd(event: TransitionEvent) {
+		if (event.target !== event.currentTarget || event.propertyName !== 'top') return;
+		titleTransitioning = false;
+		refreshTextCollisionMap?.();
+	}
+
 	onMount(() => {
 		if (!canvas || !homepage) return;
 
@@ -172,7 +182,15 @@
 		let currentHeight = 0;
 		let prevFrameWidth = 0;
 		let prevFrameHeight = 0;
-		const mouse = trackMouse(canvas, 150, homepage);
+		const pointer = trackPlaygroundPointer(canvas, homepage);
+		const fieldFollower = createPointerFieldFollower();
+		let previousTime = 0;
+		let physicsAccumulator = 0;
+		refreshTextCollisionMap = () => {
+			if (currentWidth && currentHeight) {
+				collisionMap = getTextCollisionMap(currentWidth, currentHeight);
+			}
+		};
 
 		function updateParticleCount(count: number) {
 			const target = Math.max(0, Math.round(count));
@@ -189,12 +207,13 @@
 
 		document.fonts.ready.then(() => {
 			const callbacks: ParticleSystemCallbacks = {
-				setup(ctx, width, height) {
+				setup(_ctx, width, height) {
+					canvasSize = { width: canvas!.width, height: canvas!.height };
 					currentWidth = width;
 					currentHeight = height;
 					prevFrameWidth = width;
 					prevFrameHeight = height;
-					collisionMap = getTextCollisionMap(ctx, width, height);
+					collisionMap = getTextCollisionMap(width, height);
 					particles = [];
 					const count = Math.floor((width * height) / 12000);
 					for (let i = 0; i < count; i++) {
@@ -204,24 +223,26 @@
 					particleCount = particles.length;
 				},
 
-				resize(ctx, width, height) {
+				resize(_ctx, width, height, oldWidth, oldHeight) {
+					canvasSize = { width: canvas!.width, height: canvas!.height };
 					currentWidth = width;
 					currentHeight = height;
-					collisionMap = getTextCollisionMap(ctx, width, height);
+					collisionMap = getTextCollisionMap(width, height);
 
 					for (const p of particles) {
 						p.width = width;
 						p.height = height;
-						p.x = Math.min(p.x, width - p.radius);
-						p.y = Math.min(p.y, height - p.radius);
+						p.x = Math.max(p.radius, Math.min((p.x / oldWidth) * width, width - p.radius));
+						p.y = Math.max(p.radius, Math.min((p.y / oldHeight) * height, height - p.radius));
 					}
-
-					defaultCount = Math.floor((width * height) / 12000);
 				},
 
-				frame(ctx, width, height) {
-					measureFps(performance.now());
+				frame(ctx, width, height, time) {
+					measureFps(time);
 					const hue = getHue();
+					if (previousTime === 0) previousTime = time;
+					physicsAccumulator += Math.min((time - previousTime) / 1000, 0.1);
+					previousTime = time;
 
 					const dxWall = prevFrameWidth - width;
 					const dyWall = prevFrameHeight - height;
@@ -231,23 +252,45 @@
 					if (dxWall !== 0 || dyWall !== 0) {
 						for (const p of particles) {
 							if (dxWall > 0 && p.x >= width - p.radius - 1) {
-								p.vector.x -= dxWall * WALL_BOUNCE_FACTOR;
+								p.velocity.x -= dxWall * WALL_BOUNCE_FACTOR;
 							}
 							if (dyWall > 0 && p.y >= height - p.radius - 1) {
-								p.vector.y -= dyWall * WALL_BOUNCE_FACTOR;
+								p.velocity.y -= dyWall * WALL_BOUNCE_FACTOR;
 							}
 						}
 					}
 
-					for (const p of particles) {
-						p.opacity += (1 - p.opacity) * 0.02;
+					const pointerState = pointer.current;
+					const pressed = pointerState.phase === 'press';
+					if (pressed !== pointerPressed) pointerPressed = pressed;
+					const targetEffect = resolvePointerEffect(pointerState, pointerSettings, time);
+					let pointerEffect = fieldFollower.step(targetEffect, 0);
+					while (physicsAccumulator >= PHYSICS_STEP) {
+						pointerEffect = fieldFollower.step(targetEffect, PHYSICS_STEP);
+						for (const p of particles) {
+							if (pointerEffect) applyRadialField(p, pointerEffect, PHYSICS_STEP, minAcceleration);
+							p.update(collisionMap, PHYSICS_STEP);
+						}
+						physicsAccumulator -= PHYSICS_STEP;
+					}
 
-						for (const other of particles) {
-							if (p === other) continue;
-							const dist = distance(p.x, p.y, other.x, other.y);
-							if (dist < LINK_RADIUS) {
+					for (const p of particles) p.opacity += (1 - p.opacity) * 0.02;
+
+					const linkRadius = appearance.linkRadius;
+					if (linkRadius > 0 && appearance.linkOpacity > 0) {
+						const linkRadiusSquared = linkRadius * linkRadius;
+						for (let i = 0; i < particles.length; i++) {
+							const p = particles[i];
+							for (let j = i + 1; j < particles.length; j++) {
+								const other = particles[j];
+								const dx = p.x - other.x;
+								const dy = p.y - other.y;
+								const distanceSquared = dx * dx + dy * dy;
+								if (distanceSquared >= linkRadiusSquared) continue;
 								const linkAlpha =
-									0.6 * (1 - dist / LINK_RADIUS) * Math.min(p.opacity, other.opacity);
+									appearance.linkOpacity *
+									(1 - Math.sqrt(distanceSquared) / linkRadius) *
+									Math.min(p.opacity, other.opacity);
 								ctx.strokeStyle = `oklch(75% 0.18 ${hue} / ${linkAlpha})`;
 								ctx.lineWidth = 1.5;
 								ctx.beginPath();
@@ -259,30 +302,13 @@
 					}
 
 					for (const p of particles) {
-						p.update(mouse, collisionMap);
 						ctx.beginPath();
 						ctx.ellipse(p.x, p.y, p.radius, p.radius, 0, 0, Math.PI * 2);
-						ctx.fillStyle = `oklch(75% 0.18 ${hue} / ${p.opacity})`;
+						ctx.fillStyle = `oklch(75% 0.18 ${hue} / ${appearance.dotOpacity * p.opacity})`;
 						ctx.fill();
 					}
 
-					const fontSize = Math.min(width * 0.09, height * 0.15);
-					ctx.font = `900 ${fontSize}px 'Inter Variable', sans-serif`;
-					ctx.textAlign = 'center';
-					ctx.textBaseline = 'alphabetic';
-					ctx.fillStyle = `oklch(75% 0.18 ${hue})`;
-					const metrics = ctx.measureText('ZAKI.GG');
-					const ascent = metrics.actualBoundingBoxAscent;
-					const descent = metrics.actualBoundingBoxDescent;
-					const y = height / 2 + (ascent - descent) / 2;
-					ctx.fillText('ZAKI.GG', width / 2, y);
-
-					if (showCollisionMap && collisionOverlay) {
-						ctx.save();
-						ctx.globalAlpha = 0.65;
-						ctx.drawImage(collisionOverlay, 0, 0, width, height);
-						ctx.restore();
-					}
+					drawPointerFeedback(ctx, pointerEffect, hue);
 				}
 			};
 			system = createParticleSystem(canvas!, callbacks);
@@ -290,17 +316,25 @@
 
 		return () => {
 			system?.destroy();
-			mouse.destroy();
+			pointer.destroy();
+			refreshTextCollisionMap = undefined;
 		};
 	});
 </script>
 
-<div bind:this={homepage} class="homepage" class:collision-debug={showCollisionMap}>
+<div
+	bind:this={homepage}
+	class="homepage"
+	class:game-mode={gameMode}
+	class:is-pressing={pointerPressed}
+>
 	<canvas bind:this={canvas}></canvas>
-	<div class="hero-center">
-		<h1>ZAKI.GG</h1>
-		<div class="playground-controls">
-			<ThemeControls />
+	<div class="hero-title" ontransitionend={onTitleTransitionEnd}>
+		<h1 bind:this={heading}>ZAKI.GG</h1>
+	</div>
+	<div class="playground-controls">
+		<ThemeControls />
+		<div class="simulation-controls">
 			<ParticleSettings
 				count={particleCount}
 				{defaultCount}
@@ -308,19 +342,62 @@
 				onCountChange={setParticleCount}
 				onRestitutionChange={(value) => (restitution = value)}
 			/>
+			<CanvasSettings
+				settings={pointerSettings}
+				{appearance}
+				{minAcceleration}
+				onSettingsChange={(settings) => (pointerSettings = settings)}
+				onAppearanceChange={(next) => (appearance = next)}
+				onMinAccelerationChange={(value) => (minAcceleration = value)}
+			/>
 		</div>
-	</div>
-	<div class="debug-panel">
-		<span>{fps} FPS</span>
-		<span>{dpr}x DPR</span>
-		<button
-			class="toggle"
-			class:active={showCollisionMap}
-			onclick={() => (showCollisionMap = !showCollisionMap)}
-		>
-			Hitbox
+		<button type="button" class="game-mode-toggle" aria-pressed={gameMode} onclick={toggleGameMode}>
+			{gameMode ? 'Back to title' : 'Explore canvas'}
+			<span aria-hidden="true">{gameMode ? '↑' : '↓'}</span>
 		</button>
 	</div>
+	{#if fps > 0}
+		<details class="performance-readout">
+			<summary>
+				{fps} FPS
+				<span class="readout-chevron" aria-hidden="true"></span>
+			</summary>
+			<div class="diagnostics">
+				<dl>
+					<div>
+						<dt>
+							DPR
+							<InfoTip
+								label="What is DPR?"
+								text="Device pixel ratio: display pixels per CSS pixel. Higher values make the canvas sharper but increase the number of pixels to draw."
+							/>
+						</dt>
+						<dd>{formattedDpr}×</dd>
+					</div>
+					<div>
+						<dt>
+							Frame interval
+							<InfoTip
+								label="What is frame interval?"
+								text="Average time between animation frames over the past second. A smaller interval means more frequent updates."
+							/>
+						</dt>
+						<dd>~{frameInterval.toFixed(1)} ms</dd>
+					</div>
+					<div>
+						<dt>
+							Canvas size
+							<InfoTip
+								label="What is canvas size?"
+								text="The canvas bitmap size in device pixels. It can be larger than the visible CSS size when DPR is above 1."
+							/>
+						</dt>
+						<dd>{canvasSize.width} × {canvasSize.height} px</dd>
+					</div>
+				</dl>
+			</div>
+		</details>
+	{/if}
 </div>
 
 <style>
@@ -344,76 +421,180 @@
 		display: block;
 		width: 100%;
 		height: 100%;
+		touch-action: none;
 	}
 
-	.hero-center {
+	.homepage.is-pressing,
+	.homepage.is-pressing :global(*) {
+		cursor: none !important;
+	}
+
+	.hero-title {
 		left: 50%;
+		pointer-events: none;
 		position: absolute;
 		top: 50%;
 		transform: translate(-50%, -50%);
+		transition:
+			left 650ms cubic-bezier(0.22, 1, 0.36, 1),
+			top 650ms cubic-bezier(0.22, 1, 0.36, 1),
+			transform 650ms cubic-bezier(0.22, 1, 0.36, 1);
 	}
 
 	h1 {
-		color: oklch(75% 0.18 var(--hue));
+		color: var(--brand);
 		font-family: 'Inter Variable', sans-serif;
 		font-size: min(9vw, 15vh);
 		font-weight: 900;
+		line-height: 1.12;
 		margin: 0;
 		pointer-events: none;
+		transition: font-size 650ms cubic-bezier(0.22, 1, 0.36, 1);
+		user-select: none;
 		white-space: nowrap;
 	}
 
-	.collision-debug h1 {
-		opacity: 0.35;
-	}
-
 	.playground-controls {
-		align-items: center;
 		display: grid;
-		gap: var(--s0);
 		justify-items: center;
-		left: 50%;
+		gap: var(--s-2);
+		left: 0;
+		margin-inline: auto;
+		pointer-events: auto;
 		position: absolute;
-		top: calc(100% + var(--s-1));
-		transform: translateX(-50%);
+		right: 0;
+		top: calc(50% + min(9vw, 15vh) * 0.56 + var(--s0));
+		transition: top 650ms cubic-bezier(0.22, 1, 0.36, 1);
+		user-select: none;
+		width: max-content;
 	}
 
-	.debug-panel {
+	.game-mode .hero-title {
+		left: 1.25rem;
+		top: 1rem;
+		transform: translate(0, 0);
+	}
+
+	.game-mode h1 {
+		font-size: clamp(1.75rem, 3vw, 2.5rem);
+	}
+
+	.game-mode .playground-controls {
+		top: 1rem;
+	}
+
+	.game-mode-toggle {
+		align-items: center;
+		background: transparent;
+		border: 0;
+		border-radius: 999px;
+		color: var(--content-1);
+		cursor: pointer;
+		display: inline-flex;
+		font-family: var(--font-mono);
+		font-size: 0.7rem;
+		gap: 0.5rem;
+		padding: 0.35rem 0.55rem;
+	}
+
+	.game-mode-toggle:hover {
+		color: var(--brand);
+	}
+
+	.game-mode-toggle:focus-visible {
+		outline: 2px solid var(--brand);
+		outline-offset: 2px;
+	}
+
+	.simulation-controls {
+		align-items: center;
+		display: flex;
+		gap: var(--s-2);
+	}
+
+	.performance-readout {
+		color: var(--content-1);
+		font-family: var(--font-mono);
+		font-size: 0.68rem;
+		font-variant-numeric: tabular-nums;
 		position: absolute;
 		top: 1rem;
 		right: 1rem;
-		display: flex;
+		user-select: none;
+	}
+
+	.performance-readout summary {
 		align-items: center;
-		gap: 0.5rem;
-		font-size: 0.75rem;
-		font-family: var(--font-mono);
-		opacity: 0.5;
+		background: color-mix(in oklch, var(--base-1) 85%, transparent);
+		border: 1px solid var(--edge);
+		border-radius: 999px;
+		cursor: pointer;
+		display: flex;
+		gap: 0.55rem;
+		list-style: none;
+		padding: 0.3rem 0.65rem;
+	}
 
-		span {
-			padding: 0.3rem 0.6rem;
-			border-radius: 4px;
-			background: var(--base-1);
-			color: var(--content);
-			border: 1px solid var(--edge);
-		}
+	.performance-readout summary::-webkit-details-marker {
+		display: none;
+	}
 
-		.toggle {
-			padding: 0.3rem 0.6rem;
-			border-radius: 4px;
-			background: var(--base-1);
-			color: var(--content);
-			border: 1px solid var(--edge);
-			cursor: pointer;
-			opacity: 0.5;
+	.performance-readout summary:focus-visible {
+		outline: 2px solid var(--brand);
+		outline-offset: 2px;
+	}
 
-			&.active {
-				opacity: 1;
-			}
-		}
+	.readout-chevron {
+		border-bottom: 1.5px solid currentColor;
+		border-right: 1.5px solid currentColor;
+		height: 0.35rem;
+		transform: rotate(45deg) translateY(-2px);
+		width: 0.35rem;
+	}
+
+	.performance-readout[open] .readout-chevron {
+		transform: rotate(225deg) translateY(-2px);
+	}
+
+	.diagnostics {
+		background: color-mix(in oklch, var(--base-1) 96%, transparent);
+		border: 1px solid var(--edge);
+		border-radius: var(--radius-lg);
+		box-shadow: 0 12px 30px rgb(0 0 0 / 0.08);
+		padding: var(--s-1);
+		position: absolute;
+		right: 0;
+		top: calc(100% + var(--s-2));
+		width: 15rem;
+	}
+
+	.diagnostics dl {
+		display: grid;
+		gap: var(--s-2);
+		margin: 0;
+	}
+
+	.diagnostics dl > div {
+		align-items: center;
+		display: flex;
+		gap: var(--s-1);
+		justify-content: space-between;
+	}
+
+	.diagnostics dt {
+		align-items: center;
+		display: inline-flex;
+		gap: 0.15rem;
+	}
+
+	.diagnostics dd {
+		color: var(--content);
+		margin: 0;
+		white-space: nowrap;
 	}
 
 	@media (max-width: 64rem) {
-		.debug-panel {
+		.performance-readout {
 			display: none;
 		}
 	}
@@ -422,6 +603,23 @@
 		.homepage {
 			bottom: var(--mobile-nav-height);
 			height: auto;
+		}
+
+		.game-mode .hero-title {
+			left: 1rem;
+			top: 0.75rem;
+		}
+
+		.game-mode .playground-controls {
+			top: 4rem;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.hero-title,
+		h1,
+		.playground-controls {
+			transition: none;
 		}
 	}
 </style>

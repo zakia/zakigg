@@ -83,7 +83,7 @@
 			box-shadow: 0 -0.5rem 1.5rem rgb(0 0 0 / 0.04);
 			bottom: 0;
 			display: grid;
-			grid-template-columns: repeat(4, 1fr);
+			grid-template-columns: repeat(5, 1fr);
 			height: var(--mobile-nav-height);
 			left: 0;
 			padding: 0 max(var(--s-2), env(safe-area-inset-right)) env(safe-area-inset-bottom)

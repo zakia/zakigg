@@ -14,17 +14,16 @@
 
 <section class="particle-settings" aria-label="Particle settings">
 	<DraggableValue
-		label="Particles"
+		label="Dots"
 		value={count}
 		defaultValue={defaultCount}
 		min={0}
-		max={500}
 		step={1}
 		pixelsPerStep={6}
 		onChange={onCountChange}
 	/>
 	<DraggableValue
-		label="Restitution"
+		label="Bounce"
 		value={restitution}
 		defaultValue={0.3}
 		min={0}
@@ -38,9 +37,9 @@
 
 <style>
 	.particle-settings {
+		align-items: center;
 		display: flex;
 		gap: var(--s0);
 		justify-content: center;
-		width: min(22rem, calc(100vw - 2rem));
 	}
 </style>

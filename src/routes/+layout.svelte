@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
+	import { beforeNavigate } from '$app/navigation';
 	import { page } from '$app/state';
 	import { useGridSettings } from '$lib/grid-settings.svelte';
 	import { theme } from '$lib/theme.svelte';
@@ -27,6 +28,20 @@
 
 	const pageTitle = $derived(titleFromPathname(page.url.pathname));
 	const immersive = $derived(page.url.pathname === '/game');
+	const privateWorkspace = $derived(page.url.pathname === '/tools/ledgerclean');
+
+	// Start a fresh document so telemetry from another page cannot follow this workspace.
+	beforeNavigate(({ from, to, willUnload, cancel }) => {
+		if (
+			!willUnload &&
+			from &&
+			to?.url.pathname === '/tools/ledgerclean' &&
+			from.url.pathname !== to.url.pathname
+		) {
+			cancel();
+			window.location.assign(to.url.href);
+		}
+	});
 </script>
 
 <svelte:head>
@@ -38,17 +53,17 @@
 </svelte:head>
 
 <div class="app" class:immersive>
-	{#if !immersive}
+	{#if !immersive && !privateWorkspace}
 		<MobileStatusBar />
 		<Header />
 	{/if}
-	<main id="main" class:grid-bg={!immersive} class:immersive-main={immersive}>
+	<main id="main" class:grid-bg={!immersive && !privateWorkspace} class:immersive-main={immersive}>
 		{@render children()}
 	</main>
-	{#if !immersive}<div class="preview"></div>{/if}
+	{#if !immersive && !privateWorkspace}<div class="preview"></div>{/if}
 </div>
 
-{#if browser}
+{#if browser && !privateWorkspace}
 	<script
 		async
 		defer

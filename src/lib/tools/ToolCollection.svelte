@@ -40,7 +40,7 @@
 		<ul class="tool-grid list-reset">
 			{#each visibleTools as tool (tool.slug)}
 				<li>
-					<a href={toolHref(tool.slug)}>
+					<a href={toolHref(tool.slug)} data-sveltekit-reload={tool.slug === 'ledgerclean'}>
 						<div class="tool-heading">
 							<h2>{tool.title}</h2>
 							<Icon icon="mdi:arrow-top-right" />

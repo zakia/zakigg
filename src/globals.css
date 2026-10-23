@@ -1,4 +1,8 @@
 @import 'tailwindcss';
+/* Model artifacts and training data contain no utility classes. */
+@source not '../static/models';
+@source not '../scripts/ledgerclean-model';
+@source not './lib/tools/ledgerclean/setfit-head.json';
 
 @layer base {
 	/* Semantic lists should look like lists unless a UI component explicitly resets them. */

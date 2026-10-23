@@ -15,6 +15,8 @@
 		listboxId: string;
 		label: string;
 		inputEl?: HTMLInputElement;
+		escapeClipping?: boolean;
+		emptyText?: string;
 		onInput: (value: string) => void;
 		onFocus?: () => void;
 		onBlur?: () => void;
@@ -32,6 +34,8 @@
 		listboxId,
 		label,
 		inputEl = $bindable(),
+		escapeClipping = false,
+		emptyText,
 		onInput,
 		onFocus,
 		onBlur,
@@ -42,6 +46,48 @@
 	}: Props = $props();
 
 	const highlighted = $derived(options[highlightedIndex]);
+	function positionMenu(menu: HTMLDivElement) {
+		if (!escapeClipping) return;
+		document.body.appendChild(menu);
+		function position() {
+			if (!inputEl) return;
+			const rect = inputEl.getBoundingClientRect();
+			const width = Math.min(Math.max(rect.width, 256), window.innerWidth - 16);
+			const below = window.innerHeight - rect.bottom - 12;
+			const above = rect.top - 12;
+			const useAbove = below < 180 && above > below;
+			Object.assign(menu.style, {
+				position: 'fixed',
+				width: `${width}px`,
+				minWidth: '0',
+				left: `${Math.max(8, Math.min(rect.left, window.innerWidth - width - 8))}px`,
+				top: useAbove ? 'auto' : `${rect.bottom + 4}px`,
+				bottom: useAbove ? `${window.innerHeight - rect.top + 4}px` : 'auto',
+				maxHeight: `${Math.max(80, Math.min(352, useAbove ? above : below))}px`,
+				zIndex: '1000'
+			});
+		}
+		position();
+		window.addEventListener('resize', position);
+		window.addEventListener('scroll', position, true);
+		return {
+			destroy() {
+				window.removeEventListener('resize', position);
+				window.removeEventListener('scroll', position, true);
+				menu.remove();
+			}
+		};
+	}
+	$effect(() => {
+		if (!open || !highlighted) return;
+		const option = document.getElementById(`${listboxId}-${highlighted.id}`);
+		const menu = option?.parentElement;
+		if (!option || !menu) return;
+		const bounds = option.getBoundingClientRect();
+		const viewport = menu.getBoundingClientRect();
+		if (bounds.top < viewport.top) menu.scrollTop += bounds.top - viewport.top;
+		else if (bounds.bottom > viewport.bottom) menu.scrollTop += bounds.bottom - viewport.bottom;
+	});
 </script>
 
 <div class="combobox">
@@ -62,8 +108,8 @@
 		{...inputAttributes}
 	/>
 
-	{#if open && options.length}
-		<div class="combobox-menu" id={listboxId} role="listbox">
+	{#if open && (options.length || emptyText)}
+		<div class="combobox-menu" id={listboxId} role="listbox" aria-label={label} use:positionMenu>
 			{#each options as option, index (option.id)}
 				<button
 					type="button"
@@ -82,6 +128,7 @@
 					<span>{option.label}</span>
 				</button>
 			{/each}
+			{#if !options.length}<span class="empty">{emptyText}</span>{/if}
 		</div>
 	{/if}
 </div>
@@ -163,5 +210,10 @@
 		flex: 0 0 auto;
 		height: 1.05rem;
 		width: 1.05rem;
+	}
+	.empty {
+		padding: 0.5rem;
+		color: var(--content-1);
+		font-size: 0.8rem;
 	}
 </style>

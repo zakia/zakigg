@@ -3,17 +3,48 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import InfoTip from '$lib/components/InfoTip.svelte';
 	import HueSlider from '$lib/components/HueSlider.svelte';
+	import { copyToClipboard } from '$lib/attachments/copy-to-clipboard';
 	import { theme, themeHues } from '$lib/theme.svelte';
-
-	type ColorFormat = 'hex' | 'rgb' | 'hsl' | 'oklch';
 
 	let customOpen = $state(false);
 	let customPicker: HTMLDetailsElement;
-	let copyFeedback = $state<{ format: ColorFormat; value: string; success: boolean } | null>(null);
-	let copyMessage = $state('');
-	let copyFeedbackTimer: ReturnType<typeof setTimeout> | undefined;
+	let sliderCard: HTMLDivElement;
+	let pickerPosition = $state({ left: 48, top: 0 });
+	let pickerPositioned = $state(false);
 	const isCustomHue = $derived(!themeHues.some((color) => color.value === Number(theme.hue)));
 	const colorCodes = $derived(getColorCodes(Number(theme.hue)));
+
+	function positionPicker() {
+		if (!customPicker?.open || !sliderCard) return;
+		const swatch = customPicker.querySelector('summary')?.getBoundingClientRect();
+		if (!swatch) return;
+		const card = sliderCard.getBoundingClientRect();
+		const track = sliderCard.querySelector('.hue-input')?.getBoundingClientRect();
+		const gap = 12;
+		const margin = 12;
+		const rightEdge = document.documentElement.clientWidth - margin;
+		const bottomEdge =
+			Math.min(
+				window.innerHeight,
+				customPicker.closest('.homepage')?.getBoundingClientRect().bottom ?? window.innerHeight
+			) - margin;
+		const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+
+		let left = swatch.right + gap;
+		let top =
+			swatch.top +
+			swatch.height / 2 -
+			(track ? track.top + track.height / 2 - card.top : card.height / 2);
+		if (left + card.width > rightEdge) left = swatch.left - gap - card.width;
+		if (left < margin) {
+			left = clamp(swatch.left + swatch.width / 2 - card.width / 2, margin, rightEdge - card.width);
+			top = swatch.top - gap - card.height;
+			if (top < margin) top = swatch.bottom + gap;
+		}
+		top = clamp(top, margin, Math.max(margin, bottomEdge - card.height));
+		pickerPosition = { left: left - swatch.left, top: top - swatch.top };
+		pickerPositioned = true;
+	}
 
 	function getColorCodes(hue: number) {
 		const oklch = `oklch(65% 0.2 ${hue})`;
@@ -49,23 +80,6 @@
 		return { hex, rgb, hsl, oklch };
 	}
 
-	async function copyColor(format: ColorFormat) {
-		const value = colorCodes[format];
-		try {
-			await navigator.clipboard.writeText(value);
-			copyFeedback = { format, value, success: true };
-			copyMessage = `${format.toUpperCase()} color copied`;
-		} catch {
-			copyFeedback = { format, value, success: false };
-			copyMessage = 'Could not copy color';
-		}
-		clearTimeout(copyFeedbackTimer);
-		copyFeedbackTimer = setTimeout(() => {
-			copyFeedback = null;
-			copyMessage = '';
-		}, 1800);
-	}
-
 	onMount(() => {
 		function closeOnOutsideClick(event: PointerEvent) {
 			if (!customPicker.contains(event.target as Node)) customOpen = false;
@@ -80,11 +94,12 @@
 
 		document.addEventListener('pointerdown', closeOnOutsideClick);
 		document.addEventListener('keydown', closeOnEscape);
+		window.addEventListener('resize', positionPicker);
 
 		return () => {
 			document.removeEventListener('pointerdown', closeOnOutsideClick);
 			document.removeEventListener('keydown', closeOnEscape);
-			clearTimeout(copyFeedbackTimer);
+			window.removeEventListener('resize', positionPicker);
 		};
 	});
 </script>
@@ -117,14 +132,31 @@
 			></button>
 		{/each}
 
-		<details class="custom-picker" bind:this={customPicker} bind:open={customOpen}>
+		<details
+			class="custom-picker"
+			bind:this={customPicker}
+			bind:open={customOpen}
+			ontoggle={(event) => {
+				pickerPositioned = false;
+				if (event.currentTarget.open) requestAnimationFrame(positionPicker);
+			}}
+		>
 			<summary class:is-active={isCustomHue} aria-label="Custom color" title="Custom color"
 			></summary>
-			<div class="slider-card">
-				<HueSlider
-					value={Number(theme.hue)}
-					onValueChange={(value) => theme.setHue(String(value))}
-				/>
+			<div
+				bind:this={sliderCard}
+				class="slider-card"
+				class:is-positioned={pickerPositioned}
+				style:left={`${pickerPosition.left}px`}
+				style:top={`${pickerPosition.top}px`}
+			>
+				<div class="hue-row">
+					<HueSlider
+						value={Number(theme.hue)}
+						onValueChange={(value) => theme.setHue(String(value))}
+					/>
+					<output class="hue-value">{theme.hue}°</output>
+				</div>
 				<dl class="color-codes" aria-label="Brand color codes">
 					<div>
 						<dt>HEX</dt>
@@ -132,14 +164,10 @@
 							<button
 								type="button"
 								class="copy-value"
-								onclick={() => copyColor('hex')}
+								{@attach copyToClipboard(() => colorCodes.hex, 'HEX color')}
 								aria-label={`Copy HEX color ${colorCodes.hex}`}
 							>
-								<code>{colorCodes.hex}</code><span
-									class:visible={copyFeedback?.format === 'hex' &&
-										copyFeedback.value === colorCodes.hex}
-									aria-hidden="true">{copyFeedback?.success ? 'Copied' : 'Try again'}</span
-								>
+								<code>{colorCodes.hex}</code>
 							</button>
 						</dd>
 					</div>
@@ -149,14 +177,10 @@
 							<button
 								type="button"
 								class="copy-value"
-								onclick={() => copyColor('rgb')}
+								{@attach copyToClipboard(() => colorCodes.rgb, 'RGB color')}
 								aria-label={`Copy RGB color ${colorCodes.rgb}`}
 							>
-								<code>{colorCodes.rgb}</code><span
-									class:visible={copyFeedback?.format === 'rgb' &&
-										copyFeedback.value === colorCodes.rgb}
-									aria-hidden="true">{copyFeedback?.success ? 'Copied' : 'Try again'}</span
-								>
+								<code>{colorCodes.rgb}</code>
 							</button>
 						</dd>
 					</div>
@@ -166,14 +190,10 @@
 							<button
 								type="button"
 								class="copy-value"
-								onclick={() => copyColor('hsl')}
+								{@attach copyToClipboard(() => colorCodes.hsl, 'HSL color')}
 								aria-label={`Copy HSL color ${colorCodes.hsl}`}
 							>
-								<code>{colorCodes.hsl}</code><span
-									class:visible={copyFeedback?.format === 'hsl' &&
-										copyFeedback.value === colorCodes.hsl}
-									aria-hidden="true">{copyFeedback?.success ? 'Copied' : 'Try again'}</span
-								>
+								<code>{colorCodes.hsl}</code>
 							</button>
 						</dd>
 					</div>
@@ -189,19 +209,14 @@
 							<button
 								type="button"
 								class="copy-value"
-								onclick={() => copyColor('oklch')}
+								{@attach copyToClipboard(() => colorCodes.oklch, 'OKLCH color')}
 								aria-label={`Copy OKLCH color ${colorCodes.oklch}`}
 							>
-								<code>{colorCodes.oklch}</code><span
-									class:visible={copyFeedback?.format === 'oklch' &&
-										copyFeedback.value === colorCodes.oklch}
-									aria-hidden="true">{copyFeedback?.success ? 'Copied' : 'Try again'}</span
-								>
+								<code>{colorCodes.oklch}</code>
 							</button>
 						</dd>
 					</div>
 				</dl>
-				<p class="sr-only" role="status">{copyMessage}</p>
 			</div>
 		</details>
 	</div>
@@ -259,6 +274,7 @@
 
 	.custom-picker {
 		flex: none;
+		position: relative;
 	}
 
 	summary {
@@ -290,50 +306,64 @@
 		--hue-track-size: 1.25rem;
 		--hue-thumb-size: 1.8rem;
 		--hue-output-gap: -0.125rem;
-		background: color-mix(in srgb, var(--base) 92%, transparent);
+		background: var(--base-1);
+		border: 1px solid var(--edge);
 		border-radius: var(--radius-lg);
+		box-shadow: 0 16px 36px rgb(0 0 0 / 0.14);
 		box-sizing: border-box;
-		left: calc(100% + 1rem);
-		padding: 1.375rem 1rem 0.25rem;
+		padding: 0.6rem 0.75rem 0.7rem;
 		position: absolute;
-		top: 0;
-		width: min(19rem, calc(100vw - 2rem));
-		z-index: 2;
+		visibility: hidden;
+		width: min(16.5rem, calc(100vw - 1.5rem));
+		z-index: 10;
 	}
 
-	@media (max-width: 60rem) {
-		.slider-card {
-			left: 50%;
-			top: calc(100% + 6.5rem);
-			transform: translateX(-50%);
+	.slider-card.is-positioned {
+		visibility: visible;
+	}
+
+	@media (max-width: 25rem) {
+		.color-codes > div {
+			grid-template-columns: 3.5rem minmax(0, 1fr);
 		}
 	}
 
-	@media (max-width: 60rem) and (max-height: 45rem) {
-		.slider-card {
-			bottom: calc(var(--mobile-nav-height) + 0.25rem);
-			left: 50vw;
-			position: fixed;
-			top: auto;
-		}
+	.hue-row {
+		align-items: center;
+		display: flex;
+		gap: 0.65rem;
 	}
 
-	.slider-card :global(.hue-output-position output) {
-		opacity: 1;
+	.hue-row :global(.hue-control) {
+		flex: 1;
+		min-width: 0;
 		padding-block: 0;
+	}
+
+	.hue-row :global(.hue-output-track) {
+		display: none;
+	}
+
+	.hue-value {
+		color: var(--content);
+		font-family: var(--font-mono);
+		font-size: 0.72rem;
+		font-variant-numeric: tabular-nums;
+		text-align: right;
+		width: 4ch;
 	}
 
 	.color-codes {
 		display: grid;
 		gap: 0.2rem;
-		margin: 0.125rem 0 0;
+		margin: 0.8rem 0 0;
 	}
 
 	.color-codes > div {
 		align-items: baseline;
 		display: grid;
 		font-size: 0.68rem;
-		grid-template-columns: 4.5rem minmax(0, 1fr);
+		grid-template-columns: 4rem minmax(0, 1fr);
 		line-height: 1.2;
 		min-width: 0;
 	}
@@ -351,9 +381,11 @@
 	}
 
 	.color-codes dd {
+		justify-self: end;
 		line-height: 1.2;
 		margin: 0;
 		min-width: 0;
+		text-align: right;
 	}
 
 	.color-codes code {
@@ -365,18 +397,14 @@
 	}
 
 	.copy-value {
-		align-items: baseline;
 		background: transparent;
 		border: 0;
 		border-radius: 0.25rem;
 		cursor: copy;
-		display: flex;
+		display: inline-flex;
 		font-family: var(--font-mono);
-		gap: 0.25rem;
-		justify-content: space-between;
 		padding: 0;
 		text-align: left;
-		width: 100%;
 	}
 
 	.copy-value:hover code {
@@ -386,18 +414,5 @@
 	.copy-value:focus-visible {
 		outline: 2px solid var(--brand);
 		outline-offset: 2px;
-	}
-
-	.copy-value span {
-		color: var(--brand);
-		font-size: 0.6rem;
-		opacity: 0;
-		text-align: right;
-		transition: opacity 150ms ease;
-		width: 3.6rem;
-	}
-
-	.copy-value span.visible {
-		opacity: 1;
 	}
 </style>

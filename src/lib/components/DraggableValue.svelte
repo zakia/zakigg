@@ -8,6 +8,7 @@
 		step?: number;
 		pixelsPerStep?: number;
 		layout?: 'inline' | 'row';
+		showLabel?: boolean;
 		format?: (value: number) => string;
 		onChange: (value: number) => void;
 	};
@@ -21,6 +22,7 @@
 		step = 1,
 		pixelsPerStep = 8,
 		layout = 'inline',
+		showLabel = true,
 		format = String,
 		onChange
 	}: Props = $props();
@@ -79,6 +81,8 @@
 </script>
 
 <div class="draggable-value" class:row={layout === 'row'}>
+	<div class="modified-dot bottom-[110%]" class:visible={modified} aria-hidden="true"></div>
+
 	<button
 		type="button"
 		class:dragging
@@ -87,9 +91,8 @@
 		onpointerdown={startDrag}
 		aria-label={`${label}: ${format(value)}. Drag to adjust or click to reset to ${format(defaultValue)}.`}
 	>
-		<span>{label}:</span>
+		{#if showLabel}<span>{label}:</span>{/if}
 		<output>{format(value)}</output>
-		<span class="modified-dot" class:visible={modified} aria-hidden="true"></span>
 	</button>
 	<span class="hint" aria-hidden="true">Drag to adjust · Click to reset</span>
 </div>
@@ -101,6 +104,7 @@
 		font-family: var(--font-mono);
 		justify-content: center;
 		position: relative;
+		flex-direction: column;
 	}
 
 	.draggable-value.row {
@@ -149,6 +153,7 @@
 	}
 
 	.modified-dot {
+    position: absolute;
 		align-self: center;
 		background: var(--brand);
 		border-radius: 50%;

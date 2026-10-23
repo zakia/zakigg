@@ -1,38 +1,12 @@
 <script lang="ts">
 	import DraggableValue from './DraggableValue.svelte';
-	import { defaultPointerSettings } from '$lib/home/pointer-interaction';
-	import {
-		defaultParticleAppearance,
-		type ParticleAppearance
-	} from '$lib/home/particle-appearance';
-	import { DEFAULT_MIN_ACCELERATION } from '$lib/home/physics';
+	import type { ControlSectionSchema } from '$lib/home/particle-appearance';
 
-	type PointerSettings = typeof defaultPointerSettings;
 	type Props = {
-		settings: PointerSettings;
-		appearance: ParticleAppearance;
-		minAcceleration: number;
-		onSettingsChange: (settings: PointerSettings) => void;
-		onAppearanceChange: (appearance: ParticleAppearance) => void;
-		onMinAccelerationChange: (value: number) => void;
+		sections: readonly ControlSectionSchema[];
 	};
 
-	let {
-		settings,
-		appearance,
-		minAcceleration,
-		onSettingsChange,
-		onAppearanceChange,
-		onMinAccelerationChange
-	}: Props = $props();
-
-	function updateAppearance(key: keyof ParticleAppearance, value: number) {
-		onAppearanceChange({ ...appearance, [key]: value });
-	}
-
-	function updatePress(key: 'growthMuPerSecond' | 'visualGrowthPerSecond', value: number) {
-		onSettingsChange({ ...settings, press: { ...settings.press, [key]: value } });
-	}
+	let { sections }: Props = $props();
 </script>
 
 <button
@@ -55,85 +29,76 @@
 	role="dialog"
 	aria-label="Canvas settings"
 >
-	<div class="setting-list">
-		<DraggableValue
-			layout="row"
-			label="Dots opacity"
-			value={appearance.dotOpacity}
-			defaultValue={defaultParticleAppearance.dotOpacity}
-			min={0}
-			max={1}
-			step={0.05}
-			pixelsPerStep={14}
-			format={(value) => `${Math.round(value * 100)}%`}
-			onChange={(value) => updateAppearance('dotOpacity', value)}
-		/>
-		<DraggableValue
-			layout="row"
-			label="Links opacity"
-			value={appearance.linkOpacity}
-			defaultValue={defaultParticleAppearance.linkOpacity}
-			min={0}
-			max={1}
-			step={0.05}
-			pixelsPerStep={14}
-			format={(value) => `${Math.round(value * 100)}%`}
-			onChange={(value) => updateAppearance('linkOpacity', value)}
-		/>
-		<DraggableValue
-			layout="row"
-			label="Link radius"
-			value={appearance.linkRadius}
-			defaultValue={defaultParticleAppearance.linkRadius}
-			min={0}
-			step={10}
-			pixelsPerStep={8}
-			format={(value) => `${value} px`}
-			onChange={(value) => updateAppearance('linkRadius', value)}
-		/>
-		<div class="divider" aria-hidden="true"></div>
-		<DraggableValue
-			layout="row"
-			label="Hover push"
-			value={settings.hover.mu}
-			defaultValue={defaultPointerSettings.hover.mu}
-			min={0}
-			step={5000}
-			format={(value) => `${Math.round(value / 1000)}k`}
-			onChange={(value) =>
-				onSettingsChange({ ...settings, hover: { ...settings.hover, mu: value } })}
-		/>
-		<DraggableValue
-			layout="row"
-			label="Pull growth"
-			value={settings.press.growthMuPerSecond}
-			defaultValue={defaultPointerSettings.press.growthMuPerSecond}
-			min={0}
-			step={100000}
-			format={(value) => `${(value / 1_000_000).toFixed(1)}M/s`}
-			onChange={(value) => updatePress('growthMuPerSecond', value)}
-		/>
-		<DraggableValue
-			layout="row"
-			label="Core growth"
-			value={settings.press.visualGrowthPerSecond}
-			defaultValue={defaultPointerSettings.press.visualGrowthPerSecond}
-			min={0}
-			step={1}
-			format={(value) => `${value} px/s`}
-			onChange={(value) => updatePress('visualGrowthPerSecond', value)}
-		/>
-		<DraggableValue
-			layout="row"
-			label="Min acceleration"
-			value={minAcceleration}
-			defaultValue={DEFAULT_MIN_ACCELERATION}
-			min={0}
-			step={0.05}
-			pixelsPerStep={16}
-			format={(value) => `${value.toFixed(2)} px/s²`}
-			onChange={onMinAccelerationChange}
-		/>
+	<div class="section-stack">
+		{#each sections as section, index (section.id)}
+			{#if index > 0}
+				<div class="divider" aria-hidden="true"></div>
+			{/if}
+			<section class="setting-section" aria-label={section.title}>
+				<header class="section-header">
+					<span class="section-title">{section.title}</span>
+					{#if section.toggle}
+						{@const toggle = section.toggle}
+						<button
+							type="button"
+							class="mode-pill"
+							class:active={toggle.enabled}
+							aria-pressed={toggle.enabled}
+							onclick={() => toggle.onChange(!toggle.enabled)}
+						>
+							{toggle.label}
+						</button>
+					{/if}
+					{#if section.modes}
+						{@const modes = section.modes}
+						<div class="mode-group" role="group" aria-label={`${section.title} behaviour`}>
+							{#each modes.options as option (option.value)}
+								<button
+									type="button"
+									class="mode-pill"
+									class:active={modes.value === option.value}
+									aria-pressed={modes.value === option.value}
+									onclick={() => modes.onChange(option.value)}
+								>
+									{option.label}
+								</button>
+							{/each}
+						</div>
+					{/if}
+				</header>
+
+				{#if section.controls.length > 0}
+					<div class="setting-list">
+						{#each section.controls as control (control.id)}
+							<DraggableValue
+								layout="row"
+								label={control.label}
+								value={control.value}
+								defaultValue={control.defaultValue}
+								min={control.min}
+								max={control.max}
+								step={control.step}
+								pixelsPerStep={control.pixelsPerStep}
+								format={control.format}
+								onChange={control.onChange}
+							/>
+						{/each}
+					</div>
+				{/if}
+
+				{#if section.action}
+					{@const action = section.action}
+					<button
+						type="button"
+						class="action-button"
+						disabled={action.disabled}
+						onclick={action.onClick}
+					>
+						{action.label}
+					</button>
+				{/if}
+			</section>
+		{/each}
 	</div>
 </div>
 
@@ -172,28 +137,116 @@
 		background: var(--base-1);
 		border: 1px solid var(--edge);
 		border-radius: var(--radius-lg);
-		box-shadow: 0 12px 28px rgb(0 0 0 / 0.09);
+		box-shadow: 0 12px 28px rgb(0 0 0 / 0.12);
 		color: var(--content);
 		inset: auto;
 		left: calc(anchor(right) + 0.75rem);
 		margin: 0;
 		max-height: calc(100dvh - 2rem);
 		overflow: auto;
-		padding: 0.65rem 0.8rem;
+		padding: 0.7rem 0.85rem;
 		position: fixed;
 		position-anchor: --canvas-settings-trigger;
-		top: max(1rem, min(calc(anchor(top) - 4rem), calc(100dvh - 17rem)));
-		width: min(16rem, calc(100vw - 2rem));
+		top: max(1rem, min(calc(anchor(top) - 2rem), calc(100dvh - 26rem)));
+		width: min(17.5rem, calc(100vw - 2rem));
+	}
+
+	.section-stack {
+		display: grid;
+		gap: 0.45rem;
+	}
+
+	.setting-section {
+		display: grid;
+		gap: 0.25rem;
+	}
+
+	.section-header {
+		align-items: center;
+		display: flex;
+		justify-content: space-between;
+		gap: 0.5rem;
+		min-height: 1.35rem;
+	}
+
+	.section-title {
+		color: var(--content-2);
+		font-family: var(--font-mono);
+		font-size: 0.65rem;
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+	}
+
+	.mode-group {
+		background: var(--base-2);
+		border: 1px solid var(--edge);
+		border-radius: 0.35rem;
+		display: inline-flex;
+		gap: 0.1rem;
+		padding: 0.1rem;
+	}
+
+	.mode-pill {
+		background: transparent;
+		border: 1px solid transparent;
+		border-radius: 0.25rem;
+		color: var(--content-1);
+		cursor: pointer;
+		font-family: var(--font-mono);
+		font-size: 0.65rem;
+		line-height: 1.2;
+		padding: 0.15rem 0.4rem;
+	}
+
+	.mode-pill:hover {
+		color: var(--content);
+	}
+
+	.mode-pill.active {
+		background: var(--base-1);
+		border-color: var(--edge);
+		color: var(--brand);
+	}
+
+	.mode-pill:focus-visible,
+	.action-button:focus-visible {
+		outline: 2px solid var(--brand);
+		outline-offset: 2px;
 	}
 
 	.setting-list {
 		display: grid;
-		gap: 0.3rem;
+		gap: 0.22rem;
+	}
+
+	.action-button {
+		background: var(--base-2);
+		border: 1px solid var(--edge);
+		border-radius: 0.35rem;
+		color: var(--content);
+		cursor: pointer;
+		font-family: var(--font-mono);
+		font-size: 0.68rem;
+		margin-top: 0.15rem;
+		padding: 0.28rem 0.5rem;
+		text-align: center;
+	}
+
+	.action-button:hover:not(:disabled) {
+		border-color: var(--brand);
+		color: var(--brand);
+	}
+
+	.action-button:disabled {
+		color: var(--content-2);
+		cursor: default;
+		opacity: 0.55;
 	}
 
 	.divider {
 		border-top: 1px solid var(--edge);
-		margin-block: 0.15rem;
+		margin-block: 0.1rem;
 	}
 
 	@supports not (top: anchor(top)) {

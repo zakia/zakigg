@@ -343,3 +343,22 @@
 .app-tooltip[hidden] {
 	display: none;
 }
+
+.app-copy-feedback {
+	background: var(--content);
+	border-radius: var(--radius);
+	box-shadow: 0 5px 16px rgb(0 0 0 / 0.18);
+	color: var(--base-1);
+	font-family: 'Inter Variable', sans-serif;
+	font-size: 0.75rem;
+	line-height: 1.4;
+	padding: 0.35rem 0.55rem;
+	pointer-events: none;
+	position: fixed;
+	white-space: nowrap;
+	z-index: 101;
+}
+
+.app-copy-feedback[hidden] {
+	display: none;
+}

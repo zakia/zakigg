@@ -1,6 +1,7 @@
 import { command, getRequestEvent, query } from '$app/server';
 import { error } from '@sveltejs/kit';
 import * as v from 'valibot';
+import { listRepositoryCrafts } from '#lib/crafts/repository.remote.js';
 import { getAccountStore } from '#lib/server/auth/users.js';
 import {
 	SESSION_COOKIE_NAME,
@@ -25,6 +26,7 @@ export const signIn = command(SignInSchema, async ({ email, password }) => {
 
 	const user = await getAccountStore().authenticate({ email, password });
 	const session = createSession(user);
+	event.locals.session = session;
 	event.cookies.set(SESSION_COOKIE_NAME, createSessionCookieValue(session), {
 		path: '/',
 		httpOnly: true,
@@ -32,12 +34,17 @@ export const signIn = command(SignInSchema, async ({ email, password }) => {
 		sameSite: 'lax',
 		maxAge: SESSION_TTL_SECONDS
 	});
+	getSession().set(session);
+	await listRepositoryCrafts().refresh();
 
 	return session;
 });
 
 export const signOut = command(async () => {
 	const event = getRequestEvent();
+	event.locals.session = null;
 	event.cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
+	getSession().set(null);
+	await listRepositoryCrafts().refresh();
 	return null;
 });

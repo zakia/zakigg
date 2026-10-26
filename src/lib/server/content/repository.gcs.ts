@@ -19,7 +19,7 @@ import {
 const CRAFTS_PREFIX = 'content/crafts/';
 const TAGS_OBJECT_PATH = 'content/crafts/tags.json';
 const DELETED_OBJECT_PATH = 'content/crafts/deleted.json';
-const DEFAULT_REVALIDATE_MS = 5_000;
+const DEFAULT_REVALIDATE_MS = 60_000;
 
 const bundledMarkdownModules = import.meta.glob('/content/crafts/*.md', {
 	eager: true,
@@ -71,8 +71,7 @@ export function createBucketObjectStore(bucket = getAssetBucket()): GcsObjectSto
 		async readObject(path) {
 			const file = bucket.file(path);
 			try {
-				const [metadata] = await file.getMetadata();
-				const [buffer] = await file.download();
+				const [[metadata], [buffer]] = await Promise.all([file.getMetadata(), file.download()]);
 				return {
 					content: buffer.toString('utf8'),
 					generation: metadata.generation ?? 0
@@ -232,6 +231,12 @@ export function createGcsContentRepository(options: GcsRepositoryOptions = {}): 
 			...seedTags,
 			...(object ? readTagRegistry(object.content) : {})
 		};
+	}
+
+	if (!options.store) {
+		void ensureHydrated().catch((cause) => {
+			console.warn('Initial GCS craft hydration failed', cause);
+		});
 	}
 
 	return {

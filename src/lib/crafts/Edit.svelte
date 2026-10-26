@@ -1,134 +1,48 @@
 <script lang="ts">
-	import { onDestroy } from 'svelte';
+	import { untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import Icon from '#lib/components/Icon.svelte';
 	import BackLink from '#lib/components/BackLink.svelte';
-	import {
-		Workspace,
-		createPageRecord,
-		openRepositoryPage,
-		clearRecovery,
-		loadPageBySlug,
-		titleFromSlug,
-		type Page
-	} from '#lib/editor/index.js';
-	import { commitRepositoryCraft, loadRepositoryCraft } from './repository.client';
+	import { Workspace, createPage, titleFromSlug, type Page } from '#lib/editor/index.js';
+	import { commitRepositoryCraft } from './repository.client';
 
 	let {
 		slug,
 		initialPage = null,
+		initialSha = null,
 		editable = false
 	}: {
 		slug: string;
 		initialPage?: Page | null;
+		initialSha?: string | null;
 		editable?: boolean;
 	} = $props();
 
-	let craft = $state<Page | null>(null);
-	let loading = $state(true);
+	let craft = $state<Page | null>(untrack(() => initialPage));
+	let currentSha = $state<string | null>(untrack(() => initialSha));
 	let busy = $state('');
 	let notice = $state('');
-	let recovery = $state<Page | null>(null);
-	let saved = $state(false);
-	let save = $state<(page: Page) => Promise<unknown>>();
-	let loadVersion = 0;
-	let loadedKey = '';
-	let titleInput = $state('');
-	let tagsInput = $state('');
+	let titleInput = $state(untrack(() => initialPage?.title ?? titleFromSlug(slug)));
+	let tagsInput = $state(untrack(() => initialPage?.tags.join(', ') ?? ''));
 	const editCollectionHref = resolve('crafts');
-	onDestroy(() => {
-		loadVersion += 1;
-	});
 
 	$effect(() => {
-		const nextKey = `${slug}:${editable ? 'auth' : 'guest'}`;
-		if (loadedKey === nextKey) return;
-
-		loadedKey = nextKey;
-		void loadPage(slug, editable);
+		craft = initialPage;
+		currentSha = initialSha;
+		syncMetadataInputs(initialPage);
 	});
 
-	async function loadPage(slug: string, canSaveToCloud: boolean) {
-		const version = ++loadVersion;
-		loading = !craft;
-		recovery = null;
-		notice = '';
-		save = undefined;
-		saved = false;
-
-		if (!canSaveToCloud) {
-			const local = await Promise.allSettled([loadPageBySlug(slug)]).then(([res]) => res);
-			if (version !== loadVersion) return;
-			try {
-				if (initialPage) {
-					try {
-						const backup = await openRepositoryPage(initialPage);
-						if (version !== loadVersion) return;
-						recovery = backup;
-					} catch {
-						if (version !== loadVersion) return;
-					}
-					craft = initialPage;
-					saved = true;
-				} else {
-					craft = local.status === 'fulfilled' ? local.value : null;
-				}
-				syncMetadataInputs(craft);
-			} finally {
-				if (version === loadVersion) loading = false;
-			}
-			return;
-		}
-
-		const [local, remote] = await Promise.allSettled([
-			loadPageBySlug(slug),
-			loadRepositoryCraft(slug)
-		]);
-		if (version !== loadVersion) return;
-		try {
-			if (remote.status === 'fulfilled') {
-				let document = remote.value;
-				// A locally edited slug may differ from the repository's URL.
-				if (!document && local.status === 'fulfilled' && local.value) {
-					const { loadRepositoryCrafts } = await import('./repository.client');
-					const matching = (await loadRepositoryCrafts()).find(
-						(page) => page.id === local.value?.id
-					);
-					if (matching) document = await loadRepositoryCraft(matching.slug);
-				}
-				if (version !== loadVersion) return;
-				if (document) {
-					try {
-						const backup = await openRepositoryPage(document.page);
-						if (version !== loadVersion) return;
-						recovery = backup;
-					} catch {
-						if (version !== loadVersion) return;
-						notice = 'Browser storage is unavailable. Save or download to keep changes.';
-					}
-					craft = document.page;
-					saved = true;
-				} else craft = local.status === 'fulfilled' ? local.value : initialPage;
-				let expectedSha = document?.sha ?? null;
-				save = async (page) => {
-					const result = await commitRepositoryCraft(page, expectedSha);
-					expectedSha = result.sha;
+	const save = $derived(
+		editable
+			? async (page: Page) => {
+					const result = await commitRepositoryCraft(page, currentSha);
+					currentSha = result.sha;
+					handleSaved(page);
 					return result;
-				};
-			} else {
-				craft = (local.status === 'fulfilled' ? local.value : null) ?? initialPage;
-				notice =
-					'Cloud storage is unavailable. Showing the browser copy; saving is disabled until you reload.';
-			}
-			syncMetadataInputs(craft);
-		} catch {
-			if (version !== loadVersion) return;
-			notice = 'Could not load the latest repository version. Reload to try again.';
-		} finally {
-			if (version === loadVersion) loading = false;
-		}
-	}
+				}
+			: undefined
+	);
 
 	function syncMetadataInputs(page: Page | null) {
 		titleInput = page?.title ?? titleFromSlug(slug);
@@ -149,9 +63,6 @@
 		craft = page;
 
 		if (page.slug !== slug) {
-			// Mark this slug as already loaded so the navigation below doesn't
-			// re-trigger loadPage() and remount the editor mid-edit.
-			loadedKey = `${page.slug}:${editable ? 'auth' : 'guest'}`;
 			void navigateToEditCraft(page.slug, {
 				replaceState: true,
 				reset: false
@@ -161,17 +72,26 @@
 
 	async function createHere() {
 		busy = 'create';
+		notice = '';
 
 		try {
-			const page = await createPageRecord({
+			const page = createPage({
 				title: titleInput || titleFromSlug(slug),
 				slug,
-				tags: parseTagsInput(tagsInput)
+				tags: parseTagsInput(tagsInput),
+				published: false
 			});
+
+			if (editable) {
+				const result = await commitRepositoryCraft(page, null);
+				currentSha = result.sha;
+			}
 
 			craft = page;
 			syncMetadataInputs(page);
 			await navigateToEditCraft(page.slug, { replaceState: true });
+		} catch (error) {
+			notice = error instanceof Error ? error.message : 'Could not create craft.';
 		} finally {
 			busy = '';
 		}
@@ -204,16 +124,12 @@
 	<meta name="robots" content="noindex, nofollow" />
 </svelte:head>
 
-{#if loading}
-	<section class="craft-state">
-		<p>Loading craft...</p>
-	</section>
-{:else if !craft}
+{#if !craft}
 	<section class="craft-state">
 		<BackLink href={editCollectionHref} label="Crafts" />
 		<div class="missing-craft">
 			<h1>{titleFromSlug(slug)}</h1>
-			<p>{notice}</p>
+			{#if notice}<p>{notice}</p>{/if}
 			<p>No editable craft exists at /crafts/{slug} yet.</p>
 			<form onsubmit={(event) => (event.preventDefault(), void createHere())}>
 				<label>
@@ -238,14 +154,8 @@
 			<Workspace
 				page={craft}
 				publicHref={craftHref(craft.slug)}
-				onSaved={handleSaved}
 				{save}
-				{saved}
-				{recovery}
-				onRestore={async () => {
-					if (craft) await clearRecovery(craft.id);
-					recovery = null;
-				}}
+				saved={Boolean(currentSha) || !editable}
 				{navigation}
 			/>
 		{/key}

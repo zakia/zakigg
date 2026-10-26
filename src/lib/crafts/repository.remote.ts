@@ -1,6 +1,7 @@
 import { command, getRequestEvent, query } from '$app/server';
-import { error } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 import * as v from 'valibot';
+import { createPublicCraftList } from '#lib/crafts/publication.js';
 import { parseStoredPage, toStoredPage } from '#lib/editor/Page.js';
 import { auth } from '#lib/server/auth/index.js';
 import {
@@ -8,6 +9,10 @@ import {
 	RepositoryConflict,
 	parseRepositoryMarkdown
 } from '#lib/server/content/repository.js';
+import { compileCraft } from '#lib/server/content/static.js';
+import { tools } from '#lib/tools/registry.js';
+
+const toolSlugs = new Set(tools.filter((tool) => !tool.draft).map((tool) => tool.slug));
 
 const SafeIdSchema = v.pipe(
 	v.string(),
@@ -22,17 +27,43 @@ const PageJsonSchema = v.object({
 });
 
 export const listRepositoryCrafts = query(async () => {
-	auth({ required: true });
+	const editable = Boolean(getRequestEvent().locals.session);
 	const repository = getContentRepository();
 	const [documents, tags] = await Promise.all([repository.list(), repository.tags()]);
-	return { documents: documents.map(({ page, sha }) => ({ page: toStoredPage(page), sha })), tags };
+	const visibleDocuments = editable
+		? documents
+		: documents.filter((doc) => doc.page.frontmatter?.published === true);
+	const crafts = createPublicCraftList(visibleDocuments.map((doc) => compileCraft(doc).summary));
+	const pages = editable ? visibleDocuments.map((doc) => toStoredPage(doc.page)) : [];
+	return { crafts, pages, tags, editable };
 });
 
 export const getRepositoryCraft = query(SlugSchema, async (slug) => {
-	auth({ required: true });
+	if (toolSlugs.has(slug)) {
+		redirect(308, `/tools/${slug}`);
+	}
+	const editable = Boolean(getRequestEvent().locals.session);
 	const repository = getContentRepository();
 	const [document, tags] = await Promise.all([repository.readBySlug(slug), repository.tags()]);
-	return document ? { page: toStoredPage(document.page), sha: document.sha, tags } : null;
+	if (!document || (document.page.frontmatter?.published !== true && !editable)) {
+		return {
+			meta: null,
+			document: null,
+			page: null,
+			sha: null,
+			tags,
+			editable
+		};
+	}
+	const compiled = compileCraft(document);
+	return {
+		meta: compiled.summary,
+		document: compiled.document,
+		page: toStoredPage(document.page),
+		sha: document.sha,
+		tags,
+		editable
+	};
 });
 
 export const saveRepositoryCraft = command(PageJsonSchema, async ({ pageJson, expectedSha }) => {
@@ -64,11 +95,16 @@ export const saveRepositoryCraft = command(PageJsonSchema, async ({ pageJson, ex
 		if (cause instanceof RepositoryConflict) throw error(409, cause.message);
 		throw cause;
 	}
-	getRepositoryCraft(page.slug).set({
+	const compiled = compileCraft(saved);
+	getRepositoryCraft(saved.page.slug).set({
+		meta: compiled.summary,
+		document: compiled.document,
 		page: toStoredPage(saved.page),
 		sha: saved.sha,
-		tags: saved.tags
+		tags: saved.tags,
+		editable: true
 	});
+	await listRepositoryCrafts().refresh();
 	return { sha: saved.sha, path: saved.path, tags: saved.tags };
 });
 
@@ -76,6 +112,7 @@ export const deleteRepositoryCraft = command(SafeIdSchema, async (id) => {
 	auth({ required: true });
 	assertSameOrigin();
 	await getContentRepository().delete(id);
+	await listRepositoryCrafts().refresh();
 });
 
 function assertSameOrigin() {

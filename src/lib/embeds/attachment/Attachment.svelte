@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
-	import Icon from '$lib/components/Icon.svelte';
-	import { createLocalAssetSrc, getLocalAssetId } from '$lib/editor/document/persistence/assets';
+	import Icon from '#lib/components/Icon.svelte';
+	import { createLocalAssetSrc, getLocalAssetId } from '#lib/editor/document/persistence/assets.js';
 	import {
 		resolveNoteAssetObjectUrl,
 		saveNoteAsset
-	} from '$lib/editor/document/persistence/storage';
+	} from '#lib/editor/document/persistence/storage.js';
 
 	let {
 		src,

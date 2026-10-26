@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createPage } from '$lib/editor/Page';
+import { createPage } from '#lib/editor/Page.js';
 import {
 	createPublishedCraftDocument,
 	createPublishedCraftSummary,

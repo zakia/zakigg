@@ -1,8 +1,9 @@
-import type { TagRegistry } from '$lib/crafts/tags';
-import { dev } from '$app/environment';
-import { readFrontmatter } from '$lib/editor/features/frontmatter/source';
-import { readPage, type Page } from '$lib/editor/Page';
-import { createGithubContentRepository } from './repository.github';
+import type { TagRegistry } from '#lib/crafts/tags.js';
+import { dev } from '$app/env';
+import { GCS_BUCKET } from '$app/env/private';
+import { readFrontmatter } from '#lib/editor/features/frontmatter/source.js';
+import { readPage, type Page } from '#lib/editor/Page.js';
+import { createGcsContentRepository } from './repository.gcs';
 import { createLocalContentRepository } from './repository.local';
 
 export type RepositoryDocument = {
@@ -32,10 +33,9 @@ let repository: ContentRepository | null = null;
 export function getContentRepository(): ContentRepository {
 	if (repository) return repository;
 
-	try {
-		repository = createGithubContentRepository();
-	} catch (cause) {
-		if (!dev) throw cause;
+	if (!dev && GCS_BUCKET) {
+		repository = createGcsContentRepository();
+	} else {
 		repository = createLocalContentRepository();
 	}
 

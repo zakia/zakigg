@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import Icon from '$lib/components/Icon.svelte';
-	import InfoTip from '$lib/components/InfoTip.svelte';
-	import HueSlider from '$lib/components/HueSlider.svelte';
-	import { copyToClipboard } from '$lib/attachments/copy-to-clipboard';
-	import { theme, themeHues } from '$lib/theme.svelte';
+	import Icon from '#lib/components/Icon.svelte';
+	import InfoTip from '#lib/components/InfoTip.svelte';
+	import HueSlider from '#lib/components/HueSlider.svelte';
+	import { copyToClipboard } from '#lib/attachments/copy-to-clipboard.js';
+	import { theme, themeHues } from '#lib/theme.svelte.js';
 
 	let customOpen = $state(false);
 	let customPicker: HTMLDetailsElement;

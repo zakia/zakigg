@@ -1,6 +1,6 @@
 import { error, type RequestHandler } from '@sveltejs/kit';
-import { auth } from '$lib/server/auth';
-import { saveAssetBlob } from '$lib/server/assets/gcs';
+import { auth } from '#lib/server/auth/index.js';
+import { saveAssetBlob } from '#lib/server/assets/gcs.js';
 
 const MAX_ASSET_BYTES = 20_000_000;
 

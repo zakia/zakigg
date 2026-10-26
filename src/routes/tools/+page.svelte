@@ -1,6 +1,6 @@
 <script lang="ts">
-	import ToolCollection from '$lib/tools/ToolCollection.svelte';
-	import { tools } from '$lib/tools/registry';
+	import ToolCollection from '#lib/tools/ToolCollection.svelte';
+	import { tools } from '#lib/tools/registry.js';
 </script>
 
 <svelte:head>

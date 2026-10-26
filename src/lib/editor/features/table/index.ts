@@ -1,5 +1,5 @@
 import { Decoration, WidgetType, EditorView } from '@codemirror/view';
-import { renderCraftMarkdown } from '$lib/editor/document/markdown-renderer';
+import { renderCraftMarkdown } from '#lib/editor/document/markdown-renderer.js';
 import { feature } from '../feature';
 import { nodes, focusSource, revealSource } from '../source';
 

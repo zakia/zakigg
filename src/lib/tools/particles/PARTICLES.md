@@ -146,7 +146,7 @@ Both effects follow the exact same lifecycle above. The _only_ difference is wha
 
 ---
 
-## Shared Utilities (`$lib/particles.ts`)
+## Shared Utilities (`#lib/particles.ts`)
 
 These are the reusable building blocks:
 
@@ -174,7 +174,7 @@ The minimum viable effect:
 ```svelte
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { createParticleSystem } from '$lib/particles';
+	import { createParticleSystem } from '#lib/particles.js';
 
 	let canvas = $state<HTMLCanvasElement>();
 

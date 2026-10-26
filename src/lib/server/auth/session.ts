@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { env } from '$env/dynamic/private';
+import { AUTH_SESSION_SECRET } from '$app/env/private';
 import { error } from '@sveltejs/kit';
-import type { Session, User } from '$lib/auth/types';
+import type { Session, User } from '#lib/auth/types.js';
 
 // Firebase Hosting only forwards this specially named cookie to Cloud Run.
 export const SESSION_COOKIE_NAME = '__session';
@@ -10,7 +10,7 @@ export const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
 type SessionPayload = Session & { issuedAt: number };
 
 function getSessionSecret(): string {
-	const secret = env.AUTH_SESSION_SECRET;
+	const secret = AUTH_SESSION_SECRET;
 	if (!secret) throw error(500, 'AUTH_SESSION_SECRET is not configured');
 
 	return secret;
@@ -64,6 +64,7 @@ export function verifySessionCookieValue(value: string): Session | null {
 
 function parseCurrentSession(payload: Partial<SessionPayload>): Session | null {
 	const user = payload.user;
+
 	if (
 		!user ||
 		typeof user.id !== 'string' ||

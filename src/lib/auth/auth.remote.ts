@@ -1,29 +1,30 @@
 import { command, getRequestEvent, query } from '$app/server';
 import { error } from '@sveltejs/kit';
 import * as v from 'valibot';
-import { adminUser, verifyAdminPassword } from '$lib/server/auth/admin';
+import { getAccountStore } from '#lib/server/auth/users.js';
 import {
 	SESSION_COOKIE_NAME,
 	SESSION_TTL_SECONDS,
 	createSession,
 	createSessionCookieValue
-} from '$lib/server/auth/session';
+} from '#lib/server/auth/session.js';
 
 const SignInSchema = v.object({
+	email: v.optional(v.string()),
 	password: v.pipe(v.string(), v.nonEmpty())
 });
 
 export const getSession = query(async () => getRequestEvent().locals.session);
 
-export const signIn = command(SignInSchema, async ({ password }) => {
+export const signIn = command(SignInSchema, async ({ email, password }) => {
 	const event = getRequestEvent();
 	const requestOrigin = event.request.headers.get('origin');
 	if (requestOrigin && requestOrigin !== event.url.origin) {
 		throw error(403, 'Sign-in origin did not match');
 	}
 
-	verifyAdminPassword(password);
-	const session = createSession(adminUser());
+	const user = await getAccountStore().authenticate({ email, password });
+	const session = createSession(user);
 	event.cookies.set(SESSION_COOKIE_NAME, createSessionCookieValue(session), {
 		path: '/',
 		httpOnly: true,

@@ -366,7 +366,9 @@
 	<fieldset disabled={blocked || busy || preparing}>
 		{#if selected.length > 0}
 			<div class="selection-bar">
-				<span><strong>{selected.length}</strong> merchant{selected.length === 1 ? '' : 's'} selected</span>
+				<span
+					><strong>{selected.length}</strong> merchant{selected.length === 1 ? '' : 's'} selected</span
+				>
 				<div class="selection-actions">
 					<button type="button" disabled={picked.length < 2} onclick={() => edit(picked)}>
 						Combine into 1 rule
@@ -423,10 +425,7 @@
 					{#each visible as group (group.id)}
 						{@const hasSuggestion =
 							group.items.length > 0 && !group.conflict && group.categoryId !== UNCATEGORIZED_ID}
-						<tr
-							class:selected={selected.includes(group.id)}
-							class:is-suggested={hasSuggestion}
-						>
+						<tr class:selected={selected.includes(group.id)} class:is-suggested={hasSuggestion}>
 							<td class="check-col" data-label="Select">
 								<input
 									type="checkbox"
@@ -461,7 +460,7 @@
 										{tags}
 										{rowTags}
 									/>
-									{#if recurring.some((series) => group.transactions.some((row) => series.transactionIds.includes(row.id)))}
+									{#if recurring.some( (series) => group.transactions.some( (row) => series.transactionIds.includes(row.id) ) )}
 										<span class="pattern-badge">
 											↻ {group.transactions.filter((row) =>
 												recurring.some((series) => series.transactionIds.includes(row.id))

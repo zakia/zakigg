@@ -1,5 +1,5 @@
 import { WidgetType, type EditorView } from '@codemirror/view';
-import { resolveNoteAssetObjectUrl } from '$lib/editor/document/persistence/storage';
+import { resolveNoteAssetObjectUrl } from '#lib/editor/document/persistence/storage.js';
 import { assetIdFromMediaUrl, mediaKindForUrl } from './source';
 import { focusSource } from '../source';
 

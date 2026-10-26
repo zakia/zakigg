@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Session } from '$lib/auth/types';
+import type { Session } from '#lib/auth/types.js';
 
 const request = vi.hoisted(() => ({
 	locals: { session: null as Session | null },

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { formatDate, formatMonth } from '$lib/utils/date';
+	import { formatDate, formatMonth } from '#lib/utils/date.js';
 	import { type MonthSpending, type MonthSummary } from './processing';
 	import { type CategoryDictionary } from './category-model';
 
@@ -292,7 +292,9 @@
 						{/if}
 					</span>
 				{:else}
-					<span class="kpi-sub">{allMonths ? 'Across all imported months' : formatMonth(selectedMonth)}</span>
+					<span class="kpi-sub"
+						>{allMonths ? 'Across all imported months' : formatMonth(selectedMonth)}</span
+					>
 				{/if}
 			</div>
 
@@ -430,15 +432,18 @@
 					onclick={() => {
 						onAllMonthsToggle(false);
 						onMonthSelect(bar.month);
-					}}
-					><span class="sr-only">{monthName(bar.month)}</span></button
+					}}><span class="sr-only">{monthName(bar.month)}</span></button
 				>{/each}
 		</div>
 	</div>
 	<div class="month-detail" aria-label="Month spending breakdown">
 		{#if detail}
 			<div class="detail-heading">
-				<strong>{detail.month.length === 4 ? `${detail.month} breakdown` : formatMonth(detail.month)}</strong>
+				<strong
+					>{detail.month.length === 4
+						? `${detail.month} breakdown`
+						: formatMonth(detail.month)}</strong
+				>
 				<span>{detail.count ? money(detail.spendingCents) : 'No imported records'}</span>
 			</div>
 			{#if categories.length}
@@ -464,7 +469,8 @@
 									aria-hidden="true"
 								></span><span>{categoryName(category)}</span>
 								{#if amount !== 0}<strong>{money(amount)}</strong>{/if}
-								{#if category !== selectedCategory}<span class="chevron" aria-hidden="true">›</span>{/if}
+								{#if category !== selectedCategory}<span class="chevron" aria-hidden="true">›</span
+									>{/if}
 							</button>
 						</li>
 					{/each}

@@ -1,5 +1,5 @@
 import assignments from '../crafts/tags.json';
-import { readTagRegistry, tagKey, tagPalette, type TagRegistry } from '$lib/crafts/tags';
+import { readTagRegistry, tagKey, tagPalette, type TagRegistry } from '#lib/crafts/tags.js';
 
 const builtTags = readTagRegistry(JSON.stringify(assignments));
 

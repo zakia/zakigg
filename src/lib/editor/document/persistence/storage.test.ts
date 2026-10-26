@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { openDBMock } = vi.hoisted(() => ({ openDBMock: vi.fn() }));
 
-vi.mock('$app/environment', () => ({ browser: true }));
+vi.mock('$app/env', () => ({ browser: true }));
 vi.mock('idb', () => ({ openDB: openDBMock }));
 
 describe('notes database initialization', () => {

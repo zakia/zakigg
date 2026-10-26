@@ -1,23 +1,23 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { onMount } from 'svelte';
-	import InfoTip from '$lib/components/InfoTip.svelte';
-	import CanvasSettings from '$lib/components/CanvasSettings.svelte';
-	import ThemeControls from '$lib/components/ThemeControls.svelte';
-	import ParticleSettings from '$lib/components/ParticleSettings.svelte';
-	import DraggableValue from '$lib/components/DraggableValue.svelte';
-	import { createParticleSystem, type ParticleSystemCallbacks } from '$lib/particles';
+	import InfoTip from '#lib/components/InfoTip.svelte';
+	import CanvasSettings from '#lib/components/CanvasSettings.svelte';
+	import ThemeControls from '#lib/components/ThemeControls.svelte';
+	import ParticleSettings from '#lib/components/ParticleSettings.svelte';
+	import DraggableValue from '#lib/components/DraggableValue.svelte';
+	import { createParticleSystem, type ParticleSystemCallbacks } from '#lib/particles.js';
 	import {
 		createPointerFieldFollower,
 		resolvePointerEffect,
 		trackPlaygroundPointer
-	} from '$lib/home/pointer-interaction';
-	import { drawPointerFeedback, drawToolCursor } from '$lib/home/pointer-feedback';
+	} from '#lib/home/pointer-interaction.js';
+	import { drawPointerFeedback, drawToolCursor } from '#lib/home/pointer-feedback.js';
 	import {
 		buildPlaygroundControlSections,
 		createDefaultPlaygroundGroups,
 		toPointerSettings
-	} from '$lib/home/particle-appearance';
+	} from '#lib/home/particle-appearance.js';
 	import {
 		appendWallPoint,
 		applyRadialField,
@@ -26,7 +26,7 @@
 		eraseWallsAt,
 		rebuildWallStrokeGeometry,
 		type WallStroke
-	} from '$lib/home/physics';
+	} from '#lib/home/physics.js';
 
 	const SPEED = 24;
 	const RADIUS = 4;
@@ -400,9 +400,9 @@
 			details in user interfaces.
 		</p>
 		<p class="intro-description">
-			I'm fascinated by the idea of simple rules coming together to form <a
-				href={resolve('/crafts/particle-playground')}>complex systems</a
-			>. I built this particle system to explore that idea.
+			I'm fascinated by the idea of simple rules coming together to form
+			<a href={resolve('crafts/particle-playground')}>complex systems</a>
+			. I built this particle system to explore that idea.
 		</p>
 		<div class="dot-line">
 			Currently drawing
@@ -418,8 +418,10 @@
 			/>
 			dots.
 		</div>
+
 		<button type="button" class="explore-button" onclick={() => (gameMode = true)}>
-			Explore the canvas <span aria-hidden="true">↗</span>
+			Explore the canvas
+			<span aria-hidden="true">↗</span>
 		</button>
 	</div>
 	<div class="playground-controls">

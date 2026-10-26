@@ -1,4 +1,4 @@
-import type { ToolMeta } from '$lib/tools/types';
+import type { ToolMeta } from '#lib/tools/types.js';
 
 export const meta: ToolMeta = {
 	title: 'Recipes',

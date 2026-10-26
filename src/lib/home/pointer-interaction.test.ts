@@ -123,7 +123,11 @@ describe('homepage pointer physics', () => {
 		const settings = toPointerSettings(groups);
 
 		const hover = resolvePointerEffect({ phase: 'hover', x: 0, y: 0 }, settings, 0);
-		const press = resolvePointerEffect({ phase: 'press', x: 0, y: 0, startedAt: 0 }, settings, 1000);
+		const press = resolvePointerEffect(
+			{ phase: 'press', x: 0, y: 0, startedAt: 0 },
+			settings,
+			1000
+		);
 		expect(hover?.mu).toBe(50000);
 		expect(press?.mu).toBe(-600000);
 		expect(press?.coreRadius).toBe(32);

@@ -5,7 +5,7 @@ declare global {
 	namespace App {
 		// interface Error {}
 		interface Locals {
-			session: import('$lib/auth/types').Session | null;
+			session: import('#lib/auth/types.js').Session | null;
 		}
 		// interface PageData {}
 		// interface PageState {}

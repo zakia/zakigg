@@ -1,5 +1,5 @@
 import * as v from 'valibot';
-import { defineComponentEmbed } from '$lib/editor/components/registry';
+import { defineComponentEmbed } from '#lib/editor/components/registry.js';
 
 export const styleGuideSections = ['colors', 'buttons', 'cards', 'forms'] as const;
 export type StyleGuideSection = (typeof styleGuideSections)[number];

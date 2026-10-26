@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { componentEmbeds } from '$lib/embeds';
+import { componentEmbeds } from '#lib/embeds/index.js';
 import { getFirstMarkdownHeading, getMarkdownText, parseMarkdownAst } from './markdown-ast';
 import { parseEditorMarkdown } from './markdown';
 

@@ -4,10 +4,10 @@
 	import { goto } from '$app/navigation';
 	import { page as route } from '$app/state';
 	import { resolve } from '$app/paths';
-	import Icon from '$lib/components/Icon.svelte';
-	import Tag from '$lib/components/Tag.svelte';
+	import Icon from '#lib/components/Icon.svelte';
+	import Tag from '#lib/components/Tag.svelte';
 	import type { CraftListItem } from './types';
-	import type { Page } from '$lib/editor/Page';
+	import type { Page } from '#lib/editor/Page.js';
 
 	type YearGroup = {
 		year: number;
@@ -87,7 +87,7 @@
 		busy = 'create';
 
 		try {
-			const { createPageRecord } = await import('$lib/editor/document/persistence/storage');
+			const { createPageRecord } = await import('#lib/editor/document/persistence/storage.js');
 			const page = await createPageRecord();
 			await goto(craftHref(page.slug, true));
 		} finally {
@@ -141,8 +141,8 @@
 
 		try {
 			const [{ importDocumentFiles }, { componentEmbeds }] = await Promise.all([
-				import('$lib/editor/document/persistence/file-import'),
-				import('$lib/embeds')
+				import('#lib/editor/document/persistence/file-import.js'),
+				import('#lib/embeds/index.js')
 			]);
 			const result = await importDocumentFiles(files, componentEmbeds);
 			const importedPages = result.pages.length;
@@ -171,9 +171,9 @@
 		try {
 			const [{ listPages, listLocalPages }, { loadRepositoryCrafts }, { summarizePage }] =
 				await Promise.all([
-					import('$lib/editor/document/persistence/storage'),
+					import('#lib/editor/document/persistence/storage.js'),
 					import('./repository.client'),
-					import('$lib/editor/Page')
+					import('#lib/editor/Page.js')
 				]);
 			const [local, remote] = await Promise.allSettled([listPages(), loadRepositoryCrafts()]);
 			if (version !== refreshVersion || !editable) return;
@@ -205,12 +205,11 @@
 	}
 
 	function selectTag(tag: string | null) {
-		const url = new URL(route.url);
+		const url = new URL(route.url.href);
 		if (tag && tag !== selectedTag) url.searchParams.set('tag', tag);
 		else url.searchParams.delete('tag');
 		// This URL retains the current resolved pathname; only its query changes.
-		// eslint-disable-next-line svelte/no-navigation-without-resolve
-		void goto(url, { keepFocus: true, noScroll: true });
+		void goto(url, { reset: false });
 	}
 
 	function filterPages(source: CraftListItem[]) {
@@ -273,8 +272,8 @@
 
 		try {
 			const [{ loadPageById }, { downloadPagesExport }] = await Promise.all([
-				import('$lib/editor/document/persistence/storage'),
-				import('$lib/editor/document/persistence/export')
+				import('#lib/editor/document/persistence/storage.js'),
+				import('#lib/editor/document/persistence/export.js')
 			]);
 			const selectedPages = (
 				await Promise.all(
@@ -305,7 +304,7 @@
 		busy = 'delete';
 		try {
 			const [{ deletePage }, { removeRepositoryCraft }] = await Promise.all([
-				import('$lib/editor/document/persistence/storage'),
+				import('#lib/editor/document/persistence/storage.js'),
 				import('./repository.client')
 			]);
 			for (const id of selectedIds) {
@@ -508,7 +507,7 @@
 			{/if}
 			<button type="button" class="quiet-button" onclick={() => void refresh()}>Try again</button>
 		</div>
-	{:else if loading}
+	{:else if loading && !filteredPages.length}
 		<p class="empty-state">Loading crafts...</p>
 	{:else if !filteredPages.length}
 		<p class="empty-state">

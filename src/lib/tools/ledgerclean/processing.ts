@@ -11,7 +11,7 @@ import {
 	type AccountType,
 	type BudgetOverride
 } from './activity';
-import { parseDate, shiftMonth, type DateOrder } from '$lib/utils/date';
+import { parseDate, shiftMonth, type DateOrder } from '#lib/utils/date.js';
 
 // Pure domain functions: no browser APIs, storage, file access, or network calls.
 // Amounts use integer minor units. Positive = money in; negative = money out.

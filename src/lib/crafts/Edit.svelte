@@ -2,8 +2,8 @@
 	import { onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import Icon from '$lib/components/Icon.svelte';
-	import BackLink from '$lib/components/BackLink.svelte';
+	import Icon from '#lib/components/Icon.svelte';
+	import BackLink from '#lib/components/BackLink.svelte';
 	import {
 		Workspace,
 		createPageRecord,
@@ -12,7 +12,7 @@
 		loadPageBySlug,
 		titleFromSlug,
 		type Page
-	} from '$lib/editor';
+	} from '#lib/editor/index.js';
 	import { commitRepositoryCraft, loadRepositoryCraft } from './repository.client';
 
 	let { slug }: { slug: string } = $props();
@@ -28,7 +28,7 @@
 	let loadedSlug = '';
 	let titleInput = $state('');
 	let tagsInput = $state('');
-	const editCollectionHref = resolve('/crafts');
+	const editCollectionHref = resolve('crafts');
 	onDestroy(() => {
 		loadVersion += 1;
 	});
@@ -109,7 +109,7 @@
 		}
 
 		event.preventDefault();
-		void goto(resolve('/crafts'));
+		void goto(resolve('crafts'));
 	}
 
 	function handleSaved(page: Page) {
@@ -121,8 +121,7 @@
 			loadedSlug = page.slug;
 			void navigateToEditCraft(page.slug, {
 				replaceState: true,
-				keepFocus: true,
-				noScroll: true
+				reset: false
 			});
 		}
 	}

@@ -1,5 +1,5 @@
-import { parseMarkdownAst } from '$lib/editor/document/markdown-ast';
-import { wikiLinkHref } from '$lib/editor/document/markdown-renderer';
+import { parseMarkdownAst } from '#lib/editor/document/markdown-ast.js';
+import { wikiLinkHref } from '#lib/editor/document/markdown-renderer.js';
 import { syntaxTree } from '@codemirror/language';
 import { Decoration, EditorView, type KeyBinding } from '@codemirror/view';
 import type { SyntaxNode } from '@lezer/common';

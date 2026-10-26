@@ -16,24 +16,6 @@ resource "google_secret_manager_secret_iam_member" "app_runtime_session_secret" 
   member    = "serviceAccount:${google_service_account.app_runtime.email}"
 }
 
-# Add the GitHub App PEM out-of-band:
-#   gcloud secrets versions add github-app-private-key --data-file=private-key.pem
-resource "google_secret_manager_secret" "github_app_private_key" {
-  secret_id = "github-app-private-key"
-
-  replication {
-    auto {}
-  }
-
-  depends_on = [google_project_service.services]
-}
-
-resource "google_secret_manager_secret_iam_member" "app_runtime_github_app_private_key" {
-  secret_id = google_secret_manager_secret.github_app_private_key.id
-  role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${google_service_account.app_runtime.email}"
-}
-
 # Admin password for the private editor. Value is added out-of-band so it never
 # enters TF state:
 #   printf '%s' 'your-password' | gcloud secrets versions add admin-password --data-file=-

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import DraggableValue from './DraggableValue.svelte';
-	import type { ControlSectionSchema } from '$lib/home/particle-appearance';
+	import type { ControlSectionSchema } from '#lib/home/particle-appearance.js';
 
 	type Props = {
 		sections: readonly ControlSectionSchema[];

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Icon from '$lib/components/Icon.svelte';
+	import Icon from '#lib/components/Icon.svelte';
 	import type { TimerProps } from './embed';
 
 	type Props = TimerProps & {

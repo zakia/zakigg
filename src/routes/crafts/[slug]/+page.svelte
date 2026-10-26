@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
-	import { auth } from '$lib/auth';
-	import BackLink from '$lib/components/BackLink.svelte';
-	import Icon from '$lib/components/Icon.svelte';
-	import Content from '$lib/crafts/Content.svelte';
-	import Header from '$lib/editor/document/Header.svelte';
-	import Layout from '$lib/editor/document/Layout.svelte';
+	import { auth } from '#lib/auth/index.js';
+	import BackLink from '#lib/components/BackLink.svelte';
+	import Icon from '#lib/components/Icon.svelte';
+	import Content from '#lib/crafts/Content.svelte';
+	import Header from '#lib/editor/document/Header.svelte';
+	import Layout from '#lib/editor/document/Layout.svelte';
 
 	let { data } = $props();
 
@@ -16,7 +16,7 @@
 </script>
 
 {#snippet navigation()}
-	<BackLink href={resolve('/crafts')} />
+	<BackLink href={resolve('crafts')} />
 {/snippet}
 
 {#snippet actions()}

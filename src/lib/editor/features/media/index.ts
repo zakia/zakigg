@@ -1,5 +1,5 @@
 import { Decoration, EditorView } from '@codemirror/view';
-import { parseMarkdownAst } from '$lib/editor/document/markdown-ast';
+import { parseMarkdownAst } from '#lib/editor/document/markdown-ast.js';
 import { feature, onLine } from '../feature';
 import { nodes } from '../source';
 import { Widget } from './Widget';

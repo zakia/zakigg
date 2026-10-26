@@ -4,11 +4,7 @@ import {
 	type HoverMode,
 	type PointerSettings
 } from './pointer-interaction';
-import {
-	DEFAULT_MIN_ACCELERATION,
-	DEFAULT_TICK_RATE,
-	DEFAULT_TIME_SCALE
-} from './physics';
+import { DEFAULT_MIN_ACCELERATION, DEFAULT_TICK_RATE, DEFAULT_TIME_SCALE } from './physics';
 
 export type ParticleAppearance = {
 	dotOpacity: number;
@@ -215,8 +211,7 @@ export function buildPlaygroundControlSections(
 						step: 100000,
 						pixelsPerStep: 8,
 						format: formatForceRate,
-						onChange: (growthMuPerSecond) =>
-							handlers.onClickChange({ ...click, growthMuPerSecond })
+						onChange: (growthMuPerSecond) => handlers.onClickChange({ ...click, growthMuPerSecond })
 					},
 					{
 						id: 'click-core-radius',
@@ -471,8 +466,7 @@ export function buildPlaygroundControlSections(
 					step: 0.05,
 					pixelsPerStep: 16,
 					format: (value) => `${value.toFixed(2)} px/s²`,
-					onChange: (minAcceleration) =>
-						handlers.onWorldChange({ ...world, minAcceleration })
+					onChange: (minAcceleration) => handlers.onWorldChange({ ...world, minAcceleration })
 				}
 			]
 		}

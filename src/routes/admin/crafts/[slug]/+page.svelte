@@ -2,10 +2,10 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
-	import { auth } from '$lib/auth';
-	import Icon from '$lib/components/Icon.svelte';
-	import Edit from '$lib/crafts/Edit.svelte';
-	import { titleFromSlug } from '$lib/editor/document/slug';
+	import { auth } from '#lib/auth/index.js';
+	import Icon from '#lib/components/Icon.svelte';
+	import Edit from '#lib/crafts/Edit.svelte';
+	import { titleFromSlug } from '#lib/editor/document/slug.js';
 
 	const slug = $derived(page.params.slug ?? '');
 
@@ -29,8 +29,9 @@
 		<Icon icon="mdi:lock-outline" />
 		<h1>Sign in to edit</h1>
 		<p>
-			Sign in with the admin password on the <a href={resolve('/profile')}>profile</a> page to open the
-			private craft editor.
+			Sign in with the admin password on the
+			<a href={resolve('profile')}>profile</a>
+			page to open the private craft editor.
 		</p>
 	</section>
 {:else}

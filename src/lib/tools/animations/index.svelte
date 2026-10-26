@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { createSpring } from '$lib/utils/spring';
+	import { createSpring } from '#lib/utils/spring.js';
 
 	function springFlip(node: HTMLElement, { from, to }: { from: DOMRect; to: DOMRect }) {
 		const dx = from.left - to.left;

@@ -1,4 +1,4 @@
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 import { getSession, signIn, signOut } from './auth.remote';
 import type { Session, User } from './types';
 

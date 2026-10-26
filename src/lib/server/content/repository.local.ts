@@ -2,12 +2,13 @@ import {
 	assignTagColors,
 	readTagRegistry,
 	writeTagRegistry,
-	tagRegistryPath
-} from '$lib/crafts/tags';
+	tagRegistryPath,
+	type TagRegistry
+} from '#lib/crafts/tags.js';
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, readdir, unlink, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import type { Page } from '$lib/editor/Page';
+import type { Page } from '#lib/editor/Page.js';
 import {
 	RepositoryConflict,
 	parseRepositoryMarkdown,
@@ -21,23 +22,59 @@ export function createLocalContentRepository(
 	tagsPath = resolve(tagRegistryPath)
 ): ContentRepository {
 	let saves: Promise<unknown> = Promise.resolve();
+	let documentsById = new Map<string, RepositoryDocument>();
+	let documentsBySlug = new Map<string, RepositoryDocument>();
+	let cachedTags: TagRegistry | null = null;
+	let hydrated = false;
+	let hydrationPromise: Promise<void> | null = null;
+
+	async function readTagsFromDisk(): Promise<TagRegistry> {
+		try {
+			return readTagRegistry(await readFile(tagsPath, 'utf8'));
+		} catch (cause) {
+			if ((cause as NodeJS.ErrnoException).code === 'ENOENT') return {};
+			throw cause;
+		}
+	}
+
+	async function hydrateFromDisk(): Promise<void> {
+		await mkdir(root, { recursive: true });
+		const [names, tags] = await Promise.all([readdir(root), readTagsFromDisk()]);
+		const markdownNames = names.filter((name) => name.endsWith('.md')).sort();
+		const docs = await Promise.all(markdownNames.map((name) => readDocument(resolve(root, name))));
+		const nextById = new Map<string, RepositoryDocument>();
+		const nextBySlug = new Map<string, RepositoryDocument>();
+		for (const doc of docs) {
+			nextById.set(doc.page.id, doc);
+			nextBySlug.set(doc.page.slug, doc);
+		}
+		documentsById = nextById;
+		documentsBySlug = nextBySlug;
+		cachedTags = tags;
+		hydrated = true;
+	}
+
+	async function ensureHydrated(): Promise<void> {
+		if (hydrated) return;
+		hydrationPromise ??= hydrateFromDisk().finally(() => {
+			hydrationPromise = null;
+		});
+		await hydrationPromise;
+	}
+
 	return {
 		async tags() {
-			try {
-				return readTagRegistry(await readFile(tagsPath, 'utf8'));
-			} catch (cause) {
-				if ((cause as NodeJS.ErrnoException).code === 'ENOENT') return {};
-				throw cause;
-			}
+			if (cachedTags) return cachedTags;
+			cachedTags = await readTagsFromDisk();
+			return cachedTags;
 		},
 		async list() {
-			await mkdir(root, { recursive: true });
-			const names = (await readdir(root)).filter((name) => name.endsWith('.md')).sort();
-			return Promise.all(names.map((name) => readDocument(resolve(root, name))));
+			await ensureHydrated();
+			return [...documentsById.values()];
 		},
 		async readBySlug(slug) {
-			const documents = await this.list();
-			return documents.find((document) => document.page.slug === slug) ?? null;
+			await ensureHydrated();
+			return documentsBySlug.get(slug) ?? null;
 		},
 		save(page, expectedSha) {
 			const saved = saves.then(async () => {
@@ -51,7 +88,7 @@ export function createLocalContentRepository(
 					if ((cause as NodeJS.ErrnoException).code !== 'ENOENT') throw cause;
 				}
 				if ((current?.sha ?? null) !== expectedSha) throw new RepositoryConflict();
-				const registry = await this.tags();
+				const registry = await readTagsFromDisk();
 				const tags = assignTagColors(registry, page.tags);
 				// Keep assignments if the document write fails; unused colors are valid registry entries.
 				if (writeTagRegistry(tags) !== writeTagRegistry(registry)) {
@@ -61,7 +98,17 @@ export function createLocalContentRepository(
 					encoding: 'utf8',
 					flag: current ? 'w' : 'wx'
 				});
-				return { ...toDocument(page, path), tags };
+				const doc = toDocument(page, path);
+				if (hydrated) {
+					const previous = documentsById.get(page.id);
+					if (previous && previous.page.slug !== page.slug) {
+						documentsBySlug.delete(previous.page.slug);
+					}
+					documentsById.set(page.id, doc);
+					documentsBySlug.set(page.slug, doc);
+				}
+				cachedTags = tags;
+				return { ...doc, tags };
 			});
 			saves = saved.catch(() => {});
 			return saved;
@@ -71,6 +118,13 @@ export function createLocalContentRepository(
 				await unlink(resolve(root, `${id}.md`));
 			} catch (cause) {
 				if ((cause as NodeJS.ErrnoException).code !== 'ENOENT') throw cause;
+			}
+			if (hydrated) {
+				const existing = documentsById.get(id);
+				if (existing) {
+					documentsById.delete(id);
+					documentsBySlug.delete(existing.page.slug);
+				}
 			}
 		}
 	};

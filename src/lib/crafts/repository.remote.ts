@@ -1,13 +1,13 @@
 import { command, getRequestEvent, query } from '$app/server';
 import { error } from '@sveltejs/kit';
 import * as v from 'valibot';
-import { parseStoredPage, toStoredPage } from '$lib/editor/Page';
-import { auth } from '$lib/server/auth';
+import { parseStoredPage, toStoredPage } from '#lib/editor/Page.js';
+import { auth } from '#lib/server/auth/index.js';
 import {
 	getContentRepository,
 	RepositoryConflict,
 	parseRepositoryMarkdown
-} from '$lib/server/content/repository';
+} from '#lib/server/content/repository.js';
 
 const SafeIdSchema = v.pipe(
 	v.string(),

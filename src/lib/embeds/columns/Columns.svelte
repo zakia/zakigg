@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Content from '$lib/crafts/Content.svelte';
+	import Content from '#lib/crafts/Content.svelte';
 	import type { ColumnsProps } from './embed';
 
 	let {

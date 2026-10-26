@@ -1,6 +1,4 @@
-import { listStaticCrafts } from '$lib/server/content/static';
+import { listPublishedCrafts } from '#lib/server/content/static.js';
 import type { PageServerLoad } from './$types';
 
-export const prerender = true;
-
-export const load: PageServerLoad = async () => ({ crafts: listStaticCrafts() });
+export const load: PageServerLoad = async () => ({ crafts: await listPublishedCrafts() });

@@ -2,7 +2,7 @@
 	import { matchingRule, type Rule, type Transaction } from './processing';
 	import { categoryPath, type CategoryDictionary } from './category-model';
 	import { DEFAULT_TAGS, type TagDictionary } from './tags';
-	import { formatDate } from '$lib/utils/date';
+	import { formatDate } from '#lib/utils/date.js';
 	let {
 		rule,
 		transactions,

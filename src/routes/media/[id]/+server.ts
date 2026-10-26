@@ -1,5 +1,5 @@
 import { error, type RequestHandler } from '@sveltejs/kit';
-import { readAssetBlob } from '$lib/server/assets/gcs';
+import { readAssetBlob } from '#lib/server/assets/gcs.js';
 
 export const GET: RequestHandler = async ({ params, url, request }) => {
 	const id = stripAssetExtension(params.id ?? '');

@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { onDestroy, tick } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
-	import Icon from '$lib/components/Icon.svelte';
-	import { createLocalAssetSrc, getLocalAssetId } from '$lib/editor/document/persistence/assets';
+	import Icon from '#lib/components/Icon.svelte';
+	import { createLocalAssetSrc, getLocalAssetId } from '#lib/editor/document/persistence/assets.js';
 	import {
 		resolveNoteAssetObjectUrl,
 		saveNoteAsset
-	} from '$lib/editor/document/persistence/storage';
+	} from '#lib/editor/document/persistence/storage.js';
 	import {
 		carouselAspectRatios,
 		carouselNavigationOptions,

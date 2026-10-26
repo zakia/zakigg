@@ -1,4 +1,4 @@
-import { tagColor } from '$lib/components/tag';
+import { tagColor } from '#lib/components/tag.js';
 import type { EditorState } from '@codemirror/state';
 import { feature, touches } from '../feature';
 import { Decoration, EditorView, WidgetType, type KeyBinding } from '@codemirror/view';

@@ -2,7 +2,7 @@ import { budgetFlow } from './activity';
 import { groupMerchantTransactions } from './merchants';
 import type { CategoryDictionary } from './category-model';
 import type { Rule, Transaction } from './processing';
-import { parseDate } from '$lib/utils/date';
+import { parseDate } from '#lib/utils/date.js';
 
 export type RecurringSeries = {
 	id: string;

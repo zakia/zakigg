@@ -1,5 +1,5 @@
 <script lang="ts">
-	import ComboboxInput from '$lib/components/ComboboxInput.svelte';
+	import ComboboxInput from '#lib/components/ComboboxInput.svelte';
 	import type { BudgetOverride } from './activity';
 	import { categoryList, categoryPath, type CategoryDictionary } from './category-model';
 

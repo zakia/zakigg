@@ -1,8 +1,8 @@
 <script lang="ts">
-	import Icon from '$lib/components/Icon.svelte';
+	import Icon from '#lib/components/Icon.svelte';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import { tools } from '$lib/tools/registry';
+	import { tools } from '#lib/tools/registry.js';
 
 	const status = $derived(page.status);
 	const message = $derived(page.error?.message ?? '');
@@ -73,14 +73,11 @@
 	{/if}
 
 	<div class="actions">
-		<a href={resolve('/crafts')} class="btn variant-primary">
-			<Icon icon="mdi:arrow-left" />
-			Browse crafts
-		</a>
-		<a href={resolve('/')} class="btn variant-base">
-			<Icon icon="mdi:home" />
-			Home
-		</a>
+		<a href={resolve('crafts')} class="btn variant-primary"
+			><Icon icon="mdi:arrow-left" />Browse crafts</a
+		>
+
+		<a href={resolve('/')} class="btn variant-base"><Icon icon="mdi:home" />Home</a>
 	</div>
 </section>
 

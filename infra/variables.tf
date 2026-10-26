@@ -20,22 +20,6 @@ variable "github_repo" {
   type        = string
 }
 
-variable "github_client_id" {
-  description = "GitHub App client id used as the CMS JWT issuer"
-  type        = string
-}
-
-variable "github_installation_id" {
-  description = "Installation id for the GitHub App on github_repo"
-  type        = string
-}
-
-variable "github_content_branch" {
-  description = "Branch receiving Markdown commits from the CMS"
-  type        = string
-  default     = "main"
-}
-
 variable "custom_domain" {
   description = "Custom domain served by Firebase Hosting in front of Cloud Run (empty to skip)"
   type        = string

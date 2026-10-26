@@ -1,8 +1,3 @@
-locals {
-  github_content_owner = split("/", var.github_repo)[0]
-  github_content_repo  = split("/", var.github_repo)[1]
-}
-
 resource "google_cloud_run_v2_service" "app_us_east1" {
   name                = var.service_name
   location            = var.region
@@ -29,10 +24,6 @@ resource "google_cloud_run_v2_service" "app_us_east1" {
       }
 
       env {
-        name  = "GCP_PROJECT_ID"
-        value = var.project_id
-      }
-      env {
         name  = "PROTOCOL_HEADER"
         value = "x-forwarded-proto"
       }
@@ -47,35 +38,6 @@ resource "google_cloud_run_v2_service" "app_us_east1" {
       env {
         name  = "GCS_BUCKET"
         value = google_storage_bucket.note_assets_us_east1.name
-      }
-      env {
-        name  = "GITHUB_CLIENT_ID"
-        value = var.github_client_id
-      }
-      env {
-        name  = "GITHUB_INSTALLATION_ID"
-        value = var.github_installation_id
-      }
-      env {
-        name  = "GITHUB_OWNER"
-        value = local.github_content_owner
-      }
-      env {
-        name  = "GITHUB_REPO"
-        value = local.github_content_repo
-      }
-      env {
-        name  = "GITHUB_BRANCH"
-        value = var.github_content_branch
-      }
-      env {
-        name = "GITHUB_PRIVATE_KEY"
-        value_source {
-          secret_key_ref {
-            secret  = google_secret_manager_secret.github_app_private_key.secret_id
-            version = "latest"
-          }
-        }
       }
       env {
         name = "AUTH_SESSION_SECRET"
@@ -105,7 +67,6 @@ resource "google_cloud_run_v2_service" "app_us_east1" {
   depends_on = [
     google_project_service.services,
     google_secret_manager_secret_iam_member.app_runtime_session_secret,
-    google_secret_manager_secret_iam_member.app_runtime_github_app_private_key,
     google_secret_manager_secret_iam_member.app_runtime_admin_password,
   ]
 }

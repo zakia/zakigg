@@ -11,10 +11,11 @@ export function auth(): Session | null;
 export function auth(options: RequiredAuth | RedirectAuth): Session;
 export function auth(options?: AuthOptions): Session | null;
 export function auth(options: AuthOptions = {}): Session | null {
-	const { locals, url } = getRequestEvent();
-	if (locals.session) return locals.session;
+	const event = getRequestEvent();
+	if (event.locals.session) return event.locals.session;
 
 	if (options.redirect) {
+		const { url } = event;
 		const signInPath = options.redirect === true ? '/' : options.redirect;
 		const destination = new URL(signInPath, url.origin);
 		destination.searchParams.set('returnTo', `${url.pathname}${url.search}`);

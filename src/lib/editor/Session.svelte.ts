@@ -47,12 +47,12 @@ export class Session {
 
 	get status() {
 		if (this.error) return { state: 'error', label: this.error };
-		if (this.saving) return { state: 'saving', label: 'Saving to Git…' };
-		if (!this.dirty) return { state: 'clean', label: 'Saved to Git' };
+		if (this.saving) return { state: 'saving', label: 'Saving…' };
+		if (!this.dirty) return { state: 'clean', label: 'Saved' };
 		if (this.backupError)
-			return { state: 'error', label: 'Browser backup failed. Save to Git or download Markdown.' };
+			return { state: 'error', label: 'Browser backup failed. Save or download Markdown.' };
 		if (this.backupPending) return { state: 'dirty', label: 'Backing up in this browser…' };
-		return { state: 'dirty', label: 'Local changes · not saved to Git' };
+		return { state: 'dirty', label: 'Unsaved local changes' };
 	}
 
 	update(markdown: string) {
@@ -107,7 +107,7 @@ export class Session {
 			this.#savedMarkdown = page.markdown;
 			return page;
 		} catch (cause) {
-			this.error = cause instanceof Error ? cause.message : 'Save to Git failed. Try again.';
+			this.error = cause instanceof Error ? cause.message : 'Save failed. Try again.';
 			return null;
 		} finally {
 			this.saving = false;

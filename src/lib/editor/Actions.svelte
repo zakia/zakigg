@@ -63,11 +63,11 @@
 			type="button"
 			class="commit-action"
 			disabled={saving || !dirty}
-			title="Save Markdown to Git"
+			title="Save Markdown"
 			onclick={() => void onSave()}
 		>
 			<Icon icon={saving ? 'mdi:loading' : 'mdi:content-save-outline'} />
-			<span>{saving ? 'Saving…' : 'Save to Git'}</span>
+			<span>{saving ? 'Saving…' : 'Save'}</span>
 		</button>
 	{/if}
 	<details class="more-actions" bind:this={menu}>
@@ -101,7 +101,7 @@
 				/>
 				<span>Published</span>
 			</label>
-			<p class="publication-hint">Takes effect after Save to Git and the next site build.</p>
+			<p class="publication-hint">Takes effect immediately when saved.</p>
 			<button
 				type="button"
 				onclick={() => {

@@ -29,8 +29,19 @@ describe('server auth facade', () => {
 		expect(auth({ required: true })).toBe(session);
 	});
 
-	it('throws 401 when authentication is required', () => {
-		expect(() => auth({ required: true })).toThrowError(expect.objectContaining({ status: 401 }));
+	it('throws 401 when authentication is required without reading event.url', () => {
+		const originalDesc = Object.getOwnPropertyDescriptor(request, 'url');
+		Object.defineProperty(request, 'url', {
+			configurable: true,
+			get() {
+				throw new Error('Cannot access event.url in a query');
+			}
+		});
+		try {
+			expect(() => auth({ required: true })).toThrowError(expect.objectContaining({ status: 401 }));
+		} finally {
+			if (originalDesc) Object.defineProperty(request, 'url', originalDesc);
+		}
 	});
 
 	it('redirects to sign in while preserving the current URL', () => {

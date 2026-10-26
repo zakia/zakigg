@@ -88,7 +88,7 @@
 	{/snippet}
 	{#if recovery}
 		<div class="recovery" role="status">
-			<span>Showing Git’s version. A browser backup is available.</span>
+			<span>Showing saved version. A browser backup is available.</span>
 			<button
 				type="button"
 				onclick={async () => {

@@ -153,7 +153,7 @@
 
 			await refresh();
 			showToast(
-				`Imported ${importedPages} ${importedPages === 1 ? 'craft' : 'crafts'} locally · Save to Git from the editor${result.failed.length ? ` · ${result.failed.length} skipped` : ''}`
+				`Imported ${importedPages} ${importedPages === 1 ? 'craft' : 'crafts'} locally · Save from the editor${result.failed.length ? ` · ${result.failed.length} skipped` : ''}`
 			);
 
 			if (importedPages === 1) {
@@ -189,10 +189,10 @@
 						.map((page) => ({ ...page, published: false }))
 				];
 				if (local.status === 'rejected')
-					showToast('Browser backups are unavailable. Showing Git documents.');
+					showToast('Browser backups are unavailable. Showing saved documents.');
 			} else if (local.status === 'fulfilled') {
 				pages = local.value;
-				showToast('Git is unavailable. Showing browser copies.');
+				showToast('Cloud storage is unavailable. Showing browser copies.');
 			} else throw local.reason;
 		} catch (error) {
 			if (version !== refreshVersion || !editable) return;
@@ -354,7 +354,7 @@
 				class:published={page.published}
 				role="img"
 				aria-label={page.published ? 'Published' : 'Unpublished'}
-				title={page.published ? 'Published in Git · appears after the site builds' : 'Unpublished'}
+				title={page.published ? 'Published' : 'Unpublished'}
 			>
 				<Icon icon={page.published ? 'mdi:check-circle-outline' : 'mdi:minus-circle-outline'} />
 			</span>
@@ -414,8 +414,8 @@
 							<button
 								type="button"
 								class="quiet-button"
-								aria-label="Refresh from Git"
-								title="Refresh from Git"
+								aria-label="Refresh crafts"
+								title="Refresh crafts"
 								disabled={loading || Boolean(busy)}
 								onclick={() => void refresh()}
 							>

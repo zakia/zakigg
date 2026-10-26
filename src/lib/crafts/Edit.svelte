@@ -72,7 +72,7 @@
 						recovery = backup;
 					} catch {
 						if (version !== loadVersion) return;
-						notice = 'Browser storage is unavailable. Save to Git or download to keep changes.';
+						notice = 'Browser storage is unavailable. Save or download to keep changes.';
 					}
 					craft = document.page;
 					saved = true;
@@ -86,7 +86,7 @@
 			} else {
 				craft = local.status === 'fulfilled' ? local.value : null;
 				notice =
-					'Git is unavailable. Showing the browser copy; saving to Git is disabled until you reload.';
+					'Cloud storage is unavailable. Showing the browser copy; saving is disabled until you reload.';
 			}
 			syncMetadataInputs(craft);
 		} catch {

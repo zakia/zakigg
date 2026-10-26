@@ -1,6 +1,6 @@
 import { getRequestEvent } from '$app/server';
 import { error, redirect } from '@sveltejs/kit';
-import type { Session } from '$lib/auth/types';
+import type { Session } from '#lib/auth/types.js';
 
 type OptionalAuth = { required?: false; redirect?: false };
 type RequiredAuth = { required: true; redirect?: false };

@@ -1,5 +1,5 @@
 import * as v from 'valibot';
-import { defineComponentEmbed } from '$lib/editor/components/registry';
+import { defineComponentEmbed } from '#lib/editor/components/registry.js';
 
 export const carouselAspectRatios = ['3:2', '16:9', '1:1', '4:5'] as const;
 export const carouselObjectPositions = ['center', 'top', 'bottom', 'left', 'right'] as const;

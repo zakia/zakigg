@@ -1,5 +1,10 @@
 <script lang="ts">
-	import { budgetFlow, isDeclaredTransfer, setBudgetOverrides, type BudgetOverride } from './activity';
+	import {
+		budgetFlow,
+		isDeclaredTransfer,
+		setBudgetOverrides,
+		type BudgetOverride
+	} from './activity';
 	import { onMount, onDestroy, tick } from 'svelte';
 	import { nanoid } from 'nanoid';
 	import {
@@ -44,7 +49,7 @@
 		type MerchantGroup
 	} from './merchant-workspace';
 	import AiConnectionSettings from './AiSettings.svelte';
-	import { formatDate, formatMonth as monthLabel } from '$lib/utils/date';
+	import { formatDate, formatMonth as monthLabel } from '#lib/utils/date.js';
 	import {
 		applyRules,
 		clearRuleScopes,
@@ -811,12 +816,7 @@
 					>
 				</div>
 			{/if}
-			<button
-				type="button"
-				class="primary"
-				disabled={loading}
-				onclick={() => fileInput.click()}
-			>
+			<button type="button" class="primary" disabled={loading} onclick={() => fileInput.click()}>
 				{loading ? 'Reading…' : '+ Import CSV'}
 			</button>
 		</div>
@@ -925,7 +925,8 @@
 						? 'One detail before importing'
 						: 'Check this file'}
 				</h2>
-				<button type="button" class="quiet" disabled={loading} onclick={cancelImport}>Cancel</button>
+				<button type="button" class="quiet" disabled={loading} onclick={cancelImport}>Cancel</button
+				>
 			</div>
 			<fieldset disabled={loading}>
 				{#each staged as file (file.options.idPrefix)}
@@ -1272,8 +1273,8 @@
 								</label>
 							{/if}
 							<p>
-								{transactions.length} imported transactions will be kept. {resetMovedCount} category
-								assignments change; {resetRemovedRules} saved rules are removed.
+								{transactions.length} imported transactions will be kept. {resetMovedCount} category assignments
+								change; {resetRemovedRules} saved rules are removed.
 							</p>
 							<div class="actions">
 								<button type="button" class="primary" onclick={resetCategories}>

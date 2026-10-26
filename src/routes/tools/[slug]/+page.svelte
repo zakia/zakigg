@@ -1,14 +1,14 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import BackLink from '$lib/components/BackLink.svelte';
-	import Header from '$lib/editor/document/Header.svelte';
-	import Layout from '$lib/editor/document/Layout.svelte';
+	import BackLink from '#lib/components/BackLink.svelte';
+	import Header from '#lib/editor/document/Header.svelte';
+	import Layout from '#lib/editor/document/Layout.svelte';
 
 	let { data } = $props();
 </script>
 
 {#snippet navigation()}
-	<BackLink href={resolve('/tools')} label="Tools" />
+	<BackLink href={resolve('tools')} label="Tools" />
 {/snippet}
 
 <svelte:head>

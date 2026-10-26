@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import Tag from '$lib/components/Tag.svelte';
+	import Tag from '#lib/components/Tag.svelte';
 	import { Temporal } from 'temporal-polyfill';
 
 	type Props = {
@@ -48,7 +48,7 @@
 				<!-- Resolve the pathname before appending the encoded query. -->
 				<!-- eslint-disable svelte/no-navigation-without-resolve -->
 				<a
-					href={`${resolve('/crafts')}?tag=${encodeURIComponent(tag)}`}
+					href={`${resolve('crafts')}?tag=${encodeURIComponent(tag)}`}
 					aria-label={`More crafts tagged ${tag}`}><Tag name={tag} /></a
 				>
 				<!-- eslint-enable svelte/no-navigation-without-resolve -->

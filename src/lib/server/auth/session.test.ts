@@ -1,8 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-const privateEnv = vi.hoisted<Record<string, string | undefined>>(() => ({}));
+const privateEnv = vi.hoisted<{ AUTH_SESSION_SECRET?: string }>(() => ({}));
 
-vi.mock('$env/dynamic/private', () => ({ env: privateEnv }));
+vi.mock('$app/env/private', () => ({
+	get AUTH_SESSION_SECRET() {
+		return privateEnv.AUTH_SESSION_SECRET ?? '';
+	}
+}));
 
 import {
 	SESSION_COOKIE_NAME,

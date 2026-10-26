@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Content from '$lib/crafts/Content.svelte';
+	import Content from '#lib/crafts/Content.svelte';
 	import type { CalloutProps } from './embed';
 
 	let {

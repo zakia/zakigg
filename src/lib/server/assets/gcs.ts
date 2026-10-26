@@ -1,14 +1,16 @@
-import { env } from '$env/dynamic/private';
+import { GCS_BUCKET, GCP_PROJECT_ID } from '$app/env/private';
 import { Storage, type Bucket } from '@google-cloud/storage';
 
 let bucket: Bucket | null = null;
 
 export function getAssetBucket(): Bucket {
 	if (bucket) return bucket;
-	if (!env.GCS_BUCKET) throw new Error('GCS_BUCKET is not configured');
-	bucket = new Storage(env.GCP_PROJECT_ID ? { projectId: env.GCP_PROJECT_ID } : undefined).bucket(
-		env.GCS_BUCKET
+	if (!GCS_BUCKET) throw new Error('GCS_BUCKET is not configured');
+
+	bucket = new Storage(GCP_PROJECT_ID ? { projectId: GCP_PROJECT_ID } : undefined).bucket(
+		GCS_BUCKET
 	);
+
 	return bucket;
 }
 

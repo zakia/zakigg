@@ -2,7 +2,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { createPage, readPage } from '$lib/editor/Page';
+import { createPage, readPage } from '#lib/editor/Page.js';
 import { parseRepositoryMarkdown, repositoryPath } from './repository';
 import { createLocalContentRepository } from './repository.local';
 

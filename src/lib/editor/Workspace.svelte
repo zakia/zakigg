@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onDestroy, onMount, untrack, type Snippet } from 'svelte';
 	import type { EditorView } from '@codemirror/view';
-	import Editor from '$lib/editor/Editor.svelte';
+	import Editor from '#lib/editor/Editor.svelte';
 	import type { Page } from './Page';
 	import { updateFrontmatterValue, type FrontmatterValue } from './features/frontmatter/source';
 	import { Session } from './Session.svelte';

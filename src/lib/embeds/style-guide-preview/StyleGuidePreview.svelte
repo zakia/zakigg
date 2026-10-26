@@ -1,6 +1,6 @@
 <script lang="ts">
-	import Icon from '$lib/components/Icon.svelte';
-	import Date from '$lib/ui/Date.svelte';
+	import Icon from '#lib/components/Icon.svelte';
+	import Date from '#lib/ui/Date.svelte';
 	import { styleGuideSections, type StyleGuideSection } from './embed';
 
 	type Props = {

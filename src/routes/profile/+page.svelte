@@ -1,6 +1,6 @@
 <script lang="ts">
-	import ProfileAccount from '$lib/auth/ProfileAccount.svelte';
-	import { useGridSettings } from '$lib/grid-settings.svelte';
+	import ProfileAccount from '#lib/auth/ProfileAccount.svelte';
+	import { useGridSettings } from '#lib/grid-settings.svelte.js';
 
 	const grid = useGridSettings();
 </script>

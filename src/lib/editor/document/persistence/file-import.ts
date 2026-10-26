@@ -1,8 +1,8 @@
-import type { ComponentEmbedRegistry } from '$lib/editor/components/registry';
+import type { ComponentEmbedRegistry } from '#lib/editor/components/registry.js';
 import { importNotesFromZip, isNotesArchiveFile } from './import';
 import { parseEditorMarkdown, isMarkdownFile } from '../markdown';
 import { isMediaFile } from './assets';
-import { altTextFromFile, escapeAlt, mediaUrlForAsset } from '$lib/editor/features/media/source';
+import { altTextFromFile, escapeAlt, mediaUrlForAsset } from '#lib/editor/features/media/source.js';
 import { createPageRecord, saveNoteAsset, savePage } from './storage';
 import { getFirstMarkdownHeading } from '../markdown-ast';
 import type { MetadataProperties } from '../metadata';

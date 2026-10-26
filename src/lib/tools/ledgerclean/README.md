@@ -20,7 +20,7 @@ The **Merchants** view is one merchant workspace: saved rules and unmatched merc
 
 ## Ownership
 
-- `processing.ts`: pure PapaParse parsing, integer-cent normalization, rules, filtering, totals, and CSV export. Dates use the shared Temporal-backed `$lib/utils/date.ts`.
+- `processing.ts`: pure PapaParse parsing, integer-cent normalization, rules, filtering, totals, and CSV export. Dates use the shared Temporal-backed `#lib/utils/date.ts`.
 - `import-inference.ts`: automatic import proposals and focused ambiguity detection. Explicit purchase activity determines statement signs; otherwise net cash/debit/credit columns and known deposit/repayment conventions provide evidence. For generic amount columns, the most frequent nonzero sign is spending; ties use negative. This counts transactions rather than total value and does not depend on category rules. Explicit bank cash/debit/credit meanings and remembered choices take precedence. Only contradictory typed purchase signs and ambiguous numeric dates ask for confirmation. Confirmed profiles retain columns, account, sign convention, date order, and currency.
 - `identity.ts`: account/date/original description/signed amount/currency fingerprints and browser SHA-256 IDs. Overlapping imports preserve the largest observed occurrence count, so identical purchases within a file remain distinct. Existing IDs and edits survive overlaps.
 - `categories.ts`: only the spending hierarchy and Savings presets, with stable IDs, names, colors, financial types, classification descriptions and examples. This is the single place to change product defaults and their AI meaning.

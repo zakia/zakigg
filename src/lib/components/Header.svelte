@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import NavigationLinks from '$lib/components/NavigationLinks.svelte';
-	import { clamp } from '$lib/utils';
+	import NavigationLinks from '#lib/components/NavigationLinks.svelte';
+	import { clamp } from '#lib/utils/index.js';
 
 	let desktopDock = $state<HTMLElement>();
 

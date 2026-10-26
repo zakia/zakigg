@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { createParticleSystem, GravityParticle, type GravityConfig } from '$lib/particles';
+	import { createParticleSystem, GravityParticle, type GravityConfig } from '#lib/particles.js';
 
 	let canvas = $state<HTMLCanvasElement>();
 	let config: GravityConfig = $state({

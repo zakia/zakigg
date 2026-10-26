@@ -4,11 +4,11 @@ import { toHtml } from 'hast-util-to-html';
 import { gfmToMarkdown } from 'mdast-util-gfm';
 import { mdxJsxToMarkdown } from 'mdast-util-mdx-jsx';
 import { toMarkdown } from 'mdast-util-to-markdown';
-import type { ComponentEmbedAttrs } from '$lib/editor/components/registry';
-import { mediaKindForUrl } from '$lib/editor/features/media/source';
-import { parseMarkdownAst } from '$lib/editor/document/markdown-ast';
-import { parseMarkdownFrontmatter } from '$lib/editor/document/markdown';
-import { normalizePageSlug } from '$lib/editor/Page';
+import type { ComponentEmbedAttrs } from '#lib/editor/components/registry.js';
+import { mediaKindForUrl } from '#lib/editor/features/media/source.js';
+import { parseMarkdownAst } from '#lib/editor/document/markdown-ast.js';
+import { parseMarkdownFrontmatter } from '#lib/editor/document/markdown.js';
+import { normalizePageSlug } from '#lib/editor/Page.js';
 
 type AstAttribute =
 	| { type: 'mdxJsxAttribute'; name: string; value?: string | null | { value?: string } }

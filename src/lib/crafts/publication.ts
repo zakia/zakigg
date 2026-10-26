@@ -1,6 +1,6 @@
-import { getMarkdownText } from '$lib/editor/document/markdown-ast';
-import { parseMarkdownFrontmatter } from '$lib/editor/document/markdown';
-import type { Page } from '$lib/editor/Page';
+import { getMarkdownText } from '#lib/editor/document/markdown-ast.js';
+import { parseMarkdownFrontmatter } from '#lib/editor/document/markdown.js';
+import type { Page } from '#lib/editor/Page.js';
 import type { CraftDocument, CraftListItem, CraftMeta } from './types';
 
 export type PublishedCraftSummary = CraftMeta & {

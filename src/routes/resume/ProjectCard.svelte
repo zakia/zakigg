@@ -1,6 +1,6 @@
 <script lang="ts">
-	import Icon from '$lib/components/Icon.svelte';
-	import { renderMarkdownInlineToHtml } from '$lib/markdown/render';
+	import Icon from '#lib/components/Icon.svelte';
+	import { renderMarkdownInlineToHtml } from '#lib/markdown/render.js';
 	import type { projects } from './data';
 
 	let props: (typeof projects)[0] = $props();

@@ -1,4 +1,4 @@
-import { saveNoteAsset } from '$lib/editor/document/persistence/storage';
+import { saveNoteAsset } from '#lib/editor/document/persistence/storage.js';
 import {
 	altTextFromFile,
 	escapeAlt,

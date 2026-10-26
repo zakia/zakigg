@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { renderMarkdownInlineToHtml } from '$lib/markdown/render';
+	import { renderMarkdownInlineToHtml } from '#lib/markdown/render.js';
 
 	type CardProps = {
 		company: string;

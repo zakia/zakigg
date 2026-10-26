@@ -1,9 +1,9 @@
 <script lang="ts">
-	import { browser } from '$app/environment';
+	import { browser } from '$app/env';
 	import { beforeNavigate } from '$app/navigation';
 	import { page } from '$app/state';
-	import { useGridSettings } from '$lib/grid-settings.svelte';
-	import { theme } from '$lib/theme.svelte';
+	import { useGridSettings } from '#lib/grid-settings.svelte.js';
+	import { theme } from '#lib/theme.svelte.js';
 	import '@fontsource-variable/inter/index.css';
 	import '@fontsource/fira-mono/400.css';
 	import type { Snippet } from 'svelte';
@@ -31,7 +31,9 @@
 	const privateWorkspace = $derived(page.url.pathname === '/tools/ledgerclean');
 
 	// Start a fresh document so telemetry from another page cannot follow this workspace.
-	beforeNavigate(({ from, to, willUnload, cancel }) => {
+	beforeNavigate(({ from, to, willUnload, cancel, shallow, type }) => {
+		if (shallow && type === 'goto') return;
+
 		if (
 			!willUnload &&
 			from &&

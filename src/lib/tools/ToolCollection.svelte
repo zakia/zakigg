@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import Icon from '$lib/components/Icon.svelte';
+	import Icon from '#lib/components/Icon.svelte';
 	import type { ToolSummary } from './types';
 
 	let { items }: { items: ToolSummary[] } = $props();

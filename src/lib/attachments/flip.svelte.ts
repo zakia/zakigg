@@ -22,8 +22,7 @@ const sharedRects = new Map<string, StoredRect>();
 
 function prefersReducedMotion(): boolean {
 	return (
-		typeof window !== 'undefined' &&
-		window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+		typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 	);
 }
 
@@ -147,8 +146,7 @@ export function flip(
 
 		return () => {
 			if (sharedKey) {
-				const rect =
-					node.isConnected ? node.getBoundingClientRect() : (preRect ?? lastKnownRect);
+				const rect = node.isConnected ? node.getBoundingClientRect() : (preRect ?? lastKnownRect);
 				if (rect && (rect.width > 0 || rect.height > 0)) {
 					sharedRects.set(sharedKey, { rect, time: performance.now() });
 				}
@@ -158,4 +156,3 @@ export function flip(
 		};
 	};
 }
-

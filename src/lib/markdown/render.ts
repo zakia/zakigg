@@ -1,6 +1,6 @@
 import { toHast } from 'mdast-util-to-hast';
 import { toHtml } from 'hast-util-to-html';
-import { parseMarkdownAst } from '$lib/editor/document/markdown-ast';
+import { parseMarkdownAst } from '#lib/editor/document/markdown-ast.js';
 
 /**
  * Renders a short Markdown string (typically a single paragraph) to inline HTML

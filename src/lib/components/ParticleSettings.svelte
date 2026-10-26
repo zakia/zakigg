@@ -1,6 +1,6 @@
 <script lang="ts">
 	import DraggableValue from './DraggableValue.svelte';
-	import type { ClickMode } from '$lib/home/pointer-interaction';
+	import type { ClickMode } from '#lib/home/pointer-interaction.js';
 
 	type Props = {
 		count: number;
@@ -79,7 +79,15 @@
 				onclick={() => selectTool(tool.mode)}
 			>
 				{#if tool.mode === 'pull'}
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+					<svg
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="1.85"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						aria-hidden="true"
+					>
 						<circle cx="12" cy="12" r="2" fill="currentColor" stroke="none" />
 						<path d="M4 4l4.5 4.5M8.5 5v3.5H5" />
 						<path d="M20 4l-4.5 4.5M15.5 5v3.5H19" />
@@ -87,7 +95,15 @@
 						<path d="M20 20l-4.5-4.5M15.5 19v-3.5H19" />
 					</svg>
 				{:else if tool.mode === 'push'}
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+					<svg
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="1.85"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						aria-hidden="true"
+					>
 						<circle cx="12" cy="12" r="2" fill="currentColor" stroke="none" />
 						<path d="M9 9L4 4M4 7.5V4h3.5" />
 						<path d="M15 9l5-5M20 7.5V4h-3.5" />
@@ -95,13 +111,31 @@
 						<path d="M15 15l5 5M20 16.5V20h-3.5" />
 					</svg>
 				{:else if tool.mode === 'draw'}
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+					<svg
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="1.85"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						aria-hidden="true"
+					>
 						<path d="M4 20l3.8-1L18.4 8.4a2 2 0 0 0 0-2.8l-.8-.8a2 2 0 0 0-2.8 0L4.2 15.4 4 20z" />
 						<path d="M13.5 6.5l4 4" />
 					</svg>
 				{:else if tool.mode === 'erase'}
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-						<path d="M19 20H8.5l-4.2-4.2a2 2 0 0 1 0-2.8l9.2-9.2a2 2 0 0 1 2.8 0l4.4 4.4a2 2 0 0 1 0 2.8L12 19.7" />
+					<svg
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="1.85"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						aria-hidden="true"
+					>
+						<path
+							d="M19 20H8.5l-4.2-4.2a2 2 0 0 1 0-2.8l9.2-9.2a2 2 0 0 1 2.8 0l4.4 4.4a2 2 0 0 1 0 2.8L12 19.7"
+						/>
 						<path d="M9.5 8.5l6 6" />
 					</svg>
 				{/if}

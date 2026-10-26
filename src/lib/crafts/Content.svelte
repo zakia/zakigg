@@ -1,8 +1,8 @@
 <script lang="ts">
-	import Content from '$lib/editor/features/code/Content.svelte';
+	import Content from '#lib/editor/features/code/Content.svelte';
 	import type { CraftDocument } from './types';
 	import Embed from './Embed.svelte';
-	import { renderCraftMarkdown } from '$lib/editor/document/markdown-renderer';
+	import { renderCraftMarkdown } from '#lib/editor/document/markdown-renderer.js';
 
 	let { document }: { document: CraftDocument } = $props();
 	const blocks = $derived(renderCraftMarkdown(document.markdown));

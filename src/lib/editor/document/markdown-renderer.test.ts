@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { renderCraftMarkdown } from '$lib/editor/document/markdown-renderer';
+import { renderCraftMarkdown } from '#lib/editor/document/markdown-renderer.js';
 
 describe('public Markdown renderer', () => {
 	it('renders the canonical Markdown body without exposing YAML frontmatter', () => {

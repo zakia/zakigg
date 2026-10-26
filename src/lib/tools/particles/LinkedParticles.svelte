@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { createParticleSystem, trackMouse, distance, type MouseState } from '$lib/particles';
+	import { createParticleSystem, trackMouse, distance, type MouseState } from '#lib/particles.js';
 
 	const SPEED = 0.3;
 	const RADIUS = 5;

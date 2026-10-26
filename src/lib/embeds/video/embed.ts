@@ -1,5 +1,5 @@
 import * as v from 'valibot';
-import { defineComponentEmbed } from '$lib/editor/components/registry';
+import { defineComponentEmbed } from '#lib/editor/components/registry.js';
 
 export const propsSchema = v.object({
 	src: v.optional(v.string(), ''),

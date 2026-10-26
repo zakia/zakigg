@@ -1,4 +1,4 @@
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import {
 	DEFAULT_SLUG,

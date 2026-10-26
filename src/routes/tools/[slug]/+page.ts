@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { loadTool, tools } from '$lib/tools/registry';
+import { loadTool, tools } from '#lib/tools/registry.js';
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ params }) => {

@@ -1,6 +1,11 @@
-import { applyTagColors } from '$lib/components/tag';
-import { getReferencedAssetIds, parseStoredPage, toStoredPage, type Page } from '$lib/editor/Page';
-import { loadNoteAsset, markRepositorySaved } from '$lib/editor/document/persistence/storage';
+import { applyTagColors } from '#lib/components/tag.js';
+import {
+	getReferencedAssetIds,
+	parseStoredPage,
+	toStoredPage,
+	type Page
+} from '#lib/editor/Page.js';
+import { loadNoteAsset, markRepositorySaved } from '#lib/editor/document/persistence/storage.js';
 import {
 	deleteRepositoryCraft,
 	getRepositoryCraft,

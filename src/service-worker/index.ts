@@ -1,17 +1,22 @@
 /// <reference lib="webworker" />
 
-import { build, files, version } from '$service-worker';
+import { version } from '$app/env';
+import { assets, immutable } from '$app/manifest';
+import { asset, resolve } from '$app/paths';
 
 const worker = self as unknown as ServiceWorkerGlobalScope;
 const CACHE = `zaki-gg-${version}`;
+const CRAFTS_PATH = resolve('/crafts');
 const STATIC_ASSETS = [
-	...build,
-	...files.filter(
-		(path) =>
-			path === '/manifest.webmanifest' ||
-			path === '/apple-touch-icon.png' ||
-			path.startsWith('/icons/')
-	)
+	...immutable.map(({ path }) => `/${path}`),
+	...assets
+		.filter(
+			({ path }) =>
+				path === 'manifest.webmanifest' ||
+				path === 'apple-touch-icon.png' ||
+				path.startsWith('icons/')
+		)
+		.map(({ path }) => asset(path))
 ];
 
 worker.addEventListener('install', (event) => {
@@ -19,7 +24,7 @@ worker.addEventListener('install', (event) => {
 		(async () => {
 			const cache = await caches.open(CACHE);
 			await cache.addAll(STATIC_ASSETS);
-			await cache.add('/crafts');
+			await cache.add(CRAFTS_PATH);
 			await worker.skipWaiting();
 		})()
 	);
@@ -61,14 +66,14 @@ async function handleNavigation(request: Request): Promise<Response> {
 	try {
 		const response = await fetch(request);
 		const url = new URL(request.url);
-		if (response.ok && url.pathname.startsWith('/crafts')) {
+		if (response.ok && url.pathname.startsWith(CRAFTS_PATH)) {
 			await cache.put(request, response.clone());
 		}
 		return response;
 	} catch {
 		return (
 			(await cache.match(request)) ??
-			(await cache.match('/crafts')) ??
+			(await cache.match(CRAFTS_PATH)) ??
 			new Response('This page is unavailable offline.', {
 				status: 503,
 				headers: { 'content-type': 'text/plain; charset=utf-8' }

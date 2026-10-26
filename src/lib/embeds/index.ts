@@ -1,7 +1,7 @@
 import {
 	createComponentEmbedRegistry,
 	type ComponentEmbedDefinition
-} from '$lib/editor/components/registry';
+} from '#lib/editor/components/registry.js';
 
 // This path is the registration boundary. Adding a typed `embed.ts` to any
 // direct child folder makes the component available to Markdown rendering and

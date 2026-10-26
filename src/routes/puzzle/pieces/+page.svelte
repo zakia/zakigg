@@ -9,9 +9,9 @@
 		outlinePath,
 		pointedTipCorners,
 		type Cell
-	} from '$lib/puzzle/geometry';
-	import { assemblyReport } from '$lib/puzzle/engine';
-	import { BOARD_CELLS, BOARD_H, BOARD_W, PIECES } from '$lib/puzzle/pieces';
+	} from '#lib/puzzle/geometry.js';
+	import { assemblyReport } from '#lib/puzzle/engine.js';
+	import { BOARD_CELLS, BOARD_H, BOARD_W, PIECES } from '#lib/puzzle/pieces.js';
 
 	const U = 44; // px per cell in piece views
 	const AU = 34; // px per cell in the assembly view

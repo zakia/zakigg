@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import type { Pathname } from '$app/types';
-	import Icon from '$lib/components/Icon.svelte';
-	import { tooltip } from '$lib/attachments/tooltip';
+	import type { Path } from '$app/types';
+	import Icon from '#lib/components/Icon.svelte';
+	import { tooltip } from '#lib/attachments/tooltip.js';
 
-	let { label, text, href }: { label: string; text: string; href?: Pathname } = $props();
+	let { label, text, href }: { label: string; text: string; href?: Path } = $props();
 	// resolve's tuple overload cannot accept the generated union of valid pathnames directly.
-	const resolveHref = (path: Pathname) => resolve(path as '/');
+	const resolveHref = (path: Path) => resolve(path as '/');
 </script>
 
 {#if href}

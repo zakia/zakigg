@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Icon from '$lib/components/Icon.svelte';
+	import Icon from '#lib/components/Icon.svelte';
 	import Card from './Card.svelte';
 	import { experiences, projects, skills } from './data';
 	import ProjectCard from './ProjectCard.svelte';

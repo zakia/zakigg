@@ -1,11 +1,18 @@
+import { createHash } from 'node:crypto';
 import {
 	createPublishedCraftDocument,
 	createPublishedCraftSummary,
 	createPublicCraftList,
-	rewritePublishedAssetSources
-} from '$lib/crafts/publication';
-import type { CraftDocument, CraftListItem } from '$lib/crafts/types';
-import { parseRepositoryMarkdown } from './repository';
+	rewritePublishedAssetSources,
+	type PublishedCraftSummary
+} from '#lib/crafts/publication.js';
+import type { CraftDocument, CraftListItem } from '#lib/crafts/types.js';
+import {
+	getContentRepository,
+	parseRepositoryMarkdown,
+	repositoryPath,
+	type RepositoryDocument
+} from './repository';
 
 const markdownModules = import.meta.glob('/content/crafts/*.md', {
 	eager: true,
@@ -17,27 +24,78 @@ const repositoryPages = Object.values(markdownModules).map((markdown) =>
 	parseRepositoryMarkdown(markdown)
 );
 
-const published = repositoryPages
-	.filter((page) => page.frontmatter?.published === true)
-	.map((page) => ({
-		page,
-		summary: createPublishedCraftSummary(page),
-		document: rewritePublishedAssetSources(createPublishedCraftDocument(page))
-	}));
+export const seedRepositoryDocuments: RepositoryDocument[] = repositoryPages.map((page) => ({
+	page,
+	path: repositoryPath(page.id),
+	sha: createHash('sha256').update(page.markdown).digest('hex')
+}));
+
+type CompiledCraft = {
+	sha: string;
+	summary: PublishedCraftSummary;
+	document: CraftDocument;
+};
+
+const compiledById = new Map<string, CompiledCraft>();
+
+function compileCraft(doc: RepositoryDocument): CompiledCraft {
+	const cached = compiledById.get(doc.page.id);
+	if (cached && cached.sha === doc.sha) return cached;
+
+	const compiled: CompiledCraft = {
+		sha: doc.sha,
+		summary: createPublishedCraftSummary(doc.page),
+		document: rewritePublishedAssetSources(createPublishedCraftDocument(doc.page))
+	};
+	compiledById.set(doc.page.id, compiled);
+	return compiled;
+}
+
+const seedPublished = seedRepositoryDocuments
+	.filter((doc) => doc.page.frontmatter?.published === true)
+	.map(compileCraft);
 
 export function listStaticCrafts(): CraftListItem[] {
-	return createPublicCraftList(published.map(({ summary }) => summary));
+	return createPublicCraftList(seedPublished.map(({ summary }) => summary));
 }
 
 export function listStaticCraftSlugs() {
-	return published.map(({ page }) => page.slug);
+	return seedPublished.map(({ summary }) => summary.slug);
 }
 
 export function getStaticCraft(slug: string):
 	| {
-			summary: (typeof published)[number]['summary'];
+			summary: PublishedCraftSummary;
 			document: CraftDocument;
 	  }
 	| undefined {
-	return published.find(({ page }) => page.slug === slug);
+	return seedPublished.find(({ summary }) => summary.slug === slug);
+}
+
+export async function listPublishedCrafts(): Promise<CraftListItem[]> {
+	try {
+		const documents = await getContentRepository().list();
+		const summaries = documents
+			.filter((doc) => doc.page.frontmatter?.published === true)
+			.map((doc) => compileCraft(doc).summary);
+		return createPublicCraftList(summaries);
+	} catch {
+		return listStaticCrafts();
+	}
+}
+
+export async function getPublishedCraft(slug: string): Promise<
+	| {
+			summary: PublishedCraftSummary;
+			document: CraftDocument;
+	  }
+	| undefined
+> {
+	try {
+		const doc = await getContentRepository().readBySlug(slug);
+		if (!doc || doc.page.frontmatter?.published !== true) return undefined;
+		return compileCraft(doc);
+	} catch {
+		return getStaticCraft(slug);
+	}
 }

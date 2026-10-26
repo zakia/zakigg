@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { EmbedComponent } from '$lib/editor/components/registry';
-	import { componentEmbeds } from '$lib/embeds';
+	import type { EmbedComponent } from '#lib/editor/components/registry.js';
+	import { componentEmbeds } from '#lib/embeds/index.js';
 
 	let { attrs }: { attrs: unknown } = $props();
 	let LoadedComponent = $state<EmbedComponent | null>(null);

@@ -63,7 +63,7 @@
 		}
 
 		let cancelled = false;
-		void import('$lib/editor/document/persistence/storage')
+		void import('#lib/editor/document/persistence/storage.js')
 			.then(({ resolveNoteAssetObjectUrl }) => resolveNoteAssetObjectUrl(attrs.assetId))
 			.then((value) => {
 				if (cancelled) {
@@ -99,6 +99,7 @@
 >
 	{#if displaySrc}
 		{#if kind === 'video'}
+			<!-- svelte-ignore a11y_media_has_caption -->
 			<video
 				src={displaySrc}
 				aria-label={attrs.alt || attrs.title || 'Video'}

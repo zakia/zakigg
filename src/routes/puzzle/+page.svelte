@@ -1,5 +1,5 @@
 <script lang="ts">
-	import NumberSnug from '$lib/puzzle/NumberSnug.svelte';
+	import NumberSnug from '#lib/puzzle/NumberSnug.svelte';
 </script>
 
 <svelte:head>

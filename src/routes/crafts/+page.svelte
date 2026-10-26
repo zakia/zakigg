@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { auth } from '$lib/auth';
-	import Collection from '$lib/crafts/Collection.svelte';
+	import { auth } from '#lib/auth/index.js';
+	import Collection from '#lib/crafts/Collection.svelte';
 
 	let { data } = $props();
 	onMount(() => {

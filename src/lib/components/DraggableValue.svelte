@@ -153,7 +153,7 @@
 	}
 
 	.modified-dot {
-    position: absolute;
+		position: absolute;
 		align-self: center;
 		background: var(--brand);
 		border-radius: 50%;

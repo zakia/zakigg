@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
-	import { auth } from '$lib/auth';
+	import { auth } from '#lib/auth/index.js';
 
 	let password = $state('');
 	let busy = $state(false);
@@ -44,7 +44,7 @@
 				<strong>Admin</strong>
 			</div>
 			<div class="account-actions">
-				<a href={resolve('/crafts')}>Crafts</a>
+				<a href={resolve('crafts')}>Crafts</a>
 				<button type="button" onclick={() => void signOut()}>Sign out</button>
 			</div>
 		</div>

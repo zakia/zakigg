@@ -1,14 +1,20 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import { auth } from '#lib/auth/index.js';
 	import BackLink from '#lib/components/BackLink.svelte';
 	import Icon from '#lib/components/Icon.svelte';
 	import Content from '#lib/crafts/Content.svelte';
+	import Edit from '#lib/crafts/Edit.svelte';
 	import Header from '#lib/editor/document/Header.svelte';
 	import Layout from '#lib/editor/document/Layout.svelte';
+	import { titleFromSlug } from '#lib/editor/document/slug.js';
 
 	let { data } = $props();
+
+	const slug = $derived(page.params.slug ?? data.meta?.slug ?? '');
+	const isEditing = $derived(page.url.searchParams.has('edit'));
 
 	onMount(() => {
 		void auth.refresh();
@@ -20,32 +26,41 @@
 {/snippet}
 
 {#snippet actions()}
-	{#if auth.user}
-		<a class="edit-link" href={resolve('/admin/crafts/[slug]', { slug: data.meta.slug })}>
-			<Icon icon="mdi:pencil-outline" />
-			Edit
-		</a>
-	{/if}
+	<!-- eslint-disable svelte/no-navigation-without-resolve -->
+	<a class="edit-link" href={`${resolve('/crafts/[slug]', { slug })}?edit`}>
+		<Icon icon="mdi:pencil-outline" />
+		Edit
+	</a>
+	<!-- eslint-enable svelte/no-navigation-without-resolve -->
 {/snippet}
 
 <svelte:head>
-	<title>{data.meta.title} – zaki.gg</title>
-	<meta name="description" content={data.meta.description} />
-	<meta property="og:title" content={data.meta.title} />
-	<meta property="og:description" content={data.meta.description} />
+	<title>{data.meta?.title ?? titleFromSlug(slug)}{isEditing ? ' – Edit' : ''} – zaki.gg</title>
+	{#if data.meta}
+		<meta name="description" content={data.meta.description} />
+		<meta property="og:title" content={data.meta.title} />
+		<meta property="og:description" content={data.meta.description} />
+	{/if}
+	{#if isEditing}
+		<meta name="robots" content="noindex, nofollow" />
+	{/if}
 </svelte:head>
 
-<Layout {navigation} {actions}>
-	<article>
-		<Header
-			title={data.meta.title}
-			date={data.meta.date}
-			wordCount={data.meta.wordCount}
-			tags={data.meta.tags}
-		/>
-		<Content document={data.document} />
-	</article>
-</Layout>
+{#if isEditing}
+	<Edit {slug} initialPage={data.page} editable={Boolean(auth.user)} />
+{:else if data.meta && data.document}
+	<Layout {navigation} {actions}>
+		<article>
+			<Header
+				title={data.meta.title}
+				date={data.meta.date}
+				wordCount={data.meta.wordCount}
+				tags={data.meta.tags}
+			/>
+			<Content document={data.document} />
+		</article>
+	</Layout>
+{/if}
 
 <style>
 	.edit-link {

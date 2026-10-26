@@ -15,7 +15,15 @@
 	} from '#lib/editor/index.js';
 	import { commitRepositoryCraft, loadRepositoryCraft } from './repository.client';
 
-	let { slug }: { slug: string } = $props();
+	let {
+		slug,
+		initialPage = null,
+		editable = false
+	}: {
+		slug: string;
+		initialPage?: Page | null;
+		editable?: boolean;
+	} = $props();
 
 	let craft = $state<Page | null>(null);
 	let loading = $state(true);
@@ -25,7 +33,7 @@
 	let saved = $state(false);
 	let save = $state<(page: Page) => Promise<unknown>>();
 	let loadVersion = 0;
-	let loadedSlug = '';
+	let loadedKey = '';
 	let titleInput = $state('');
 	let tagsInput = $state('');
 	const editCollectionHref = resolve('crafts');
@@ -34,20 +42,45 @@
 	});
 
 	$effect(() => {
-		if (loadedSlug === slug) return;
+		const nextKey = `${slug}:${editable ? 'auth' : 'guest'}`;
+		if (loadedKey === nextKey) return;
 
-		loadedSlug = slug;
-		void loadPage(slug);
+		loadedKey = nextKey;
+		void loadPage(slug, editable);
 	});
 
-	async function loadPage(slug: string) {
+	async function loadPage(slug: string, canSaveToCloud: boolean) {
 		const version = ++loadVersion;
-		loading = true;
-		craft = null;
+		loading = !craft;
 		recovery = null;
 		notice = '';
 		save = undefined;
 		saved = false;
+
+		if (!canSaveToCloud) {
+			const local = await Promise.allSettled([loadPageBySlug(slug)]).then(([res]) => res);
+			if (version !== loadVersion) return;
+			try {
+				if (initialPage) {
+					try {
+						const backup = await openRepositoryPage(initialPage);
+						if (version !== loadVersion) return;
+						recovery = backup;
+					} catch {
+						if (version !== loadVersion) return;
+					}
+					craft = initialPage;
+					saved = true;
+				} else {
+					craft = local.status === 'fulfilled' ? local.value : null;
+				}
+				syncMetadataInputs(craft);
+			} finally {
+				if (version === loadVersion) loading = false;
+			}
+			return;
+		}
+
 		const [local, remote] = await Promise.allSettled([
 			loadPageBySlug(slug),
 			loadRepositoryCraft(slug)
@@ -76,7 +109,7 @@
 					}
 					craft = document.page;
 					saved = true;
-				} else craft = local.status === 'fulfilled' ? local.value : null;
+				} else craft = local.status === 'fulfilled' ? local.value : initialPage;
 				let expectedSha = document?.sha ?? null;
 				save = async (page) => {
 					const result = await commitRepositoryCraft(page, expectedSha);
@@ -84,7 +117,7 @@
 					return result;
 				};
 			} else {
-				craft = local.status === 'fulfilled' ? local.value : null;
+				craft = (local.status === 'fulfilled' ? local.value : null) ?? initialPage;
 				notice =
 					'Cloud storage is unavailable. Showing the browser copy; saving is disabled until you reload.';
 			}
@@ -118,7 +151,7 @@
 		if (page.slug !== slug) {
 			// Mark this slug as already loaded so the navigation below doesn't
 			// re-trigger loadPage() and remount the editor mid-edit.
-			loadedSlug = page.slug;
+			loadedKey = `${page.slug}:${editable ? 'auth' : 'guest'}`;
 			void navigateToEditCraft(page.slug, {
 				replaceState: true,
 				reset: false
@@ -156,7 +189,8 @@
 	}
 
 	function navigateToEditCraft(slug: string, options?: Parameters<typeof goto>[1]) {
-		return goto(resolve('/admin/crafts/[slug]', { slug }), options);
+		// eslint-disable-next-line svelte/no-navigation-without-resolve
+		return goto(`${resolve('/crafts/[slug]', { slug })}?edit`, options);
 	}
 </script>
 
@@ -200,7 +234,7 @@
 {:else}
 	<section class="craft-edit-page">
 		{#if notice}<p class="notice" role="status">{notice}</p>{/if}
-		{#key craft.id}
+		{#key `${craft.id}:${Boolean(save)}`}
 			<Workspace
 				page={craft}
 				publicHref={craftHref(craft.slug)}

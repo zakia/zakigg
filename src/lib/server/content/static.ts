@@ -7,6 +7,7 @@ import {
 	type PublishedCraftSummary
 } from '#lib/crafts/publication.js';
 import type { CraftDocument, CraftListItem } from '#lib/crafts/types.js';
+import type { Page } from '#lib/editor/Page.js';
 import {
 	getContentRepository,
 	parseRepositoryMarkdown,
@@ -32,6 +33,7 @@ export const seedRepositoryDocuments: RepositoryDocument[] = repositoryPages.map
 
 type CompiledCraft = {
 	sha: string;
+	page: Page;
 	summary: PublishedCraftSummary;
 	document: CraftDocument;
 };
@@ -44,6 +46,7 @@ function compileCraft(doc: RepositoryDocument): CompiledCraft {
 
 	const compiled: CompiledCraft = {
 		sha: doc.sha,
+		page: doc.page,
 		summary: createPublishedCraftSummary(doc.page),
 		document: rewritePublishedAssetSources(createPublishedCraftDocument(doc.page))
 	};
@@ -65,6 +68,7 @@ export function listStaticCraftSlugs() {
 
 export function getStaticCraft(slug: string):
 	| {
+			page: Page;
 			summary: PublishedCraftSummary;
 			document: CraftDocument;
 	  }
@@ -86,6 +90,7 @@ export async function listPublishedCrafts(): Promise<CraftListItem[]> {
 
 export async function getPublishedCraft(slug: string): Promise<
 	| {
+			page: Page;
 			summary: PublishedCraftSummary;
 			document: CraftDocument;
 	  }

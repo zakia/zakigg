@@ -341,7 +341,8 @@
 	}
 
 	function craftHref(slug: string, edit = false) {
-		return edit ? resolve('/admin/crafts/[slug]', { slug }) : resolve('/crafts/[slug]', { slug });
+		const base = resolve('/crafts/[slug]', { slug });
+		return edit ? `${base}?edit` : base;
 	}
 </script>
 
@@ -539,9 +540,11 @@
 									{@render rowContent(page)}
 								</button>
 							{:else}
-								<a class="page-link" href={craftHref(page.slug, editable)}>
+								<!-- eslint-disable svelte/no-navigation-without-resolve -->
+								<a class="page-link" href={craftHref(page.slug, editable && !page.published)}>
 									{@render rowContent(page)}
 								</a>
+								<!-- eslint-enable svelte/no-navigation-without-resolve -->
 							{/if}
 						</li>
 					{/each}

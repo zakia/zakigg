@@ -70,6 +70,14 @@
 			<span>{saving ? 'Saving…' : 'Save'}</span>
 		</button>
 	{/if}
+	{#if publicHref}
+		<!-- eslint-disable svelte/no-navigation-without-resolve -->
+		<a class="view-action" href={publicHref} title="Exit editor and view craft">
+			<Icon icon="mdi:eye-outline" />
+			<span>View</span>
+		</a>
+		<!-- eslint-enable svelte/no-navigation-without-resolve -->
+	{/if}
 	<details class="more-actions" bind:this={menu}>
 		<summary aria-label="More document actions" title="More document actions">
 			<Icon icon="mdi:dots-horizontal" />
@@ -93,15 +101,17 @@
 				</a>
 				<!-- eslint-enable svelte/no-navigation-without-resolve -->
 			{/if}
-			<label class="publication-setting">
-				<input
-					type="checkbox"
-					checked={published}
-					onchange={(event) => onSetPublished(event.currentTarget.checked)}
-				/>
-				<span>Published</span>
-			</label>
-			<p class="publication-hint">Takes effect immediately when saved.</p>
+			{#if onSave}
+				<label class="publication-setting">
+					<input
+						type="checkbox"
+						checked={published}
+						onchange={(event) => onSetPublished(event.currentTarget.checked)}
+					/>
+					<span>Published</span>
+				</label>
+				<p class="publication-hint">Takes effect immediately when saved.</p>
+			{/if}
 			<button
 				type="button"
 				onclick={() => {
@@ -137,6 +147,7 @@
 		color: var(--error);
 	}
 	.commit-action,
+	.view-action,
 	.more-actions summary {
 		align-items: center;
 		backdrop-filter: blur(14px);
@@ -147,6 +158,18 @@
 		gap: var(--s-3);
 		justify-content: center;
 		min-height: 2.1rem;
+	}
+	.view-action {
+		background: var(--base-1);
+		color: var(--content);
+		font-size: var(--s-1);
+		font-weight: 600;
+		padding: 0 var(--s-2);
+		text-decoration: none;
+	}
+	.view-action:hover,
+	.view-action:focus-visible {
+		background: var(--base-2);
 	}
 	.commit-action {
 		background: var(--brand);
@@ -217,6 +240,7 @@
 	}
 	.more-menu :global(svg),
 	.commit-action :global(svg),
+	.view-action :global(svg),
 	.more-actions summary :global(svg) {
 		height: 1rem;
 		width: 1rem;

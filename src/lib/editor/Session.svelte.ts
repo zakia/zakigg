@@ -47,6 +47,15 @@ export class Session {
 
 	get status() {
 		if (this.error) return { state: 'error', label: this.error };
+		if (!this.#options.save) {
+			if (this.backupError)
+				return { state: 'error', label: 'Browser backup failed. Download Markdown to keep changes.' };
+			if (this.backupPending) return { state: 'dirty', label: 'Saving in browser…' };
+			return {
+				state: 'clean',
+				label: this.dirty ? 'Saved in browser' : 'Interactive preview · edits stay in your browser'
+			};
+		}
 		if (this.saving) return { state: 'saving', label: 'Saving…' };
 		if (!this.dirty) return { state: 'clean', label: 'Saved' };
 		if (this.backupError)

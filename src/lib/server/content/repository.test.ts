@@ -78,8 +78,8 @@ it('rejects stale updates and accidental recreation without losing repository co
 	const first = await repository.save(original, null);
 	const newer = readPage(original.markdown + 'Newer', original);
 	const second = await repository.save(newer, first.sha);
-	await expect(repository.save(original, first.sha)).rejects.toThrow('Git changed');
-	await expect(repository.save(original, null)).rejects.toThrow('Git changed');
+	await expect(repository.save(original, first.sha)).rejects.toThrow('This document changed');
+	await expect(repository.save(original, null)).rejects.toThrow('This document changed');
 	expect((await repository.readBySlug(newer.slug))?.sha).toBe(second.sha);
 });
 

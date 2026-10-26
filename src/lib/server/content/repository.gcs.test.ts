@@ -68,7 +68,7 @@ describe('In-memory KV + GCS content repository', () => {
 
 		await expect(
 			repo.save(createPage({ id: 'page_stale', title: 'Stale' }, 'Stale body'), 'old-sha')
-		).rejects.toThrow('Git changed');
+		).rejects.toThrow('This document changed');
 		expect(store.writeObject).not.toHaveBeenCalled();
 	});
 
@@ -82,7 +82,7 @@ describe('In-memory KV + GCS content repository', () => {
 		);
 		const repo = createGcsContentRepository({ store });
 
-		await expect(repo.save(page, sha256(page.markdown))).rejects.toThrow('Git changed');
+		await expect(repo.save(page, sha256(page.markdown))).rejects.toThrow('This document changed');
 	});
 
 	it('persists the document and new tag assignments and serves subsequent reads from memory', async () => {

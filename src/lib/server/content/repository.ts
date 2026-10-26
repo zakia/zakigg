@@ -23,7 +23,7 @@ export type ContentRepository = {
 export class RepositoryConflict extends Error {
 	constructor() {
 		super(
-			'Git changed since this document was opened. Your browser backup is kept. Reload to review the latest version before saving.'
+			'This document changed since it was opened. Your browser backup is kept. Reload to review the latest version before saving.'
 		);
 	}
 }

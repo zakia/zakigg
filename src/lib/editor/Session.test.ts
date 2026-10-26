@@ -61,10 +61,10 @@ describe('save lifecycle', () => {
 		await first;
 		expect(save.mock.calls[0][0].markdown).toBe(firstSource);
 		expect(session.dirty).toBe(true);
-		expect(session.status.label).not.toBe('Saved to Git');
+		expect(session.status.label).not.toBe('Saved');
 		await session.save();
 		expect(save.mock.calls[1][0].markdown).toBe(session.markdown);
-		expect(session.status.label).toBe('Saved to Git');
+		expect(session.status.label).toBe('Saved');
 	});
 
 	it('serializes local writes and never reports newer text backed up early', async () => {

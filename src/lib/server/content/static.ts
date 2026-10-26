@@ -31,7 +31,7 @@ export const seedRepositoryDocuments: RepositoryDocument[] = repositoryPages.map
 	sha: createHash('sha256').update(page.markdown).digest('hex')
 }));
 
-type CompiledCraft = {
+export type CompiledCraft = {
 	sha: string;
 	page: Page;
 	summary: PublishedCraftSummary;
@@ -40,7 +40,7 @@ type CompiledCraft = {
 
 const compiledById = new Map<string, CompiledCraft>();
 
-function compileCraft(doc: RepositoryDocument): CompiledCraft {
+export function compileCraft(doc: RepositoryDocument): CompiledCraft {
 	const cached = compiledById.get(doc.page.id);
 	if (cached && cached.sha === doc.sha) return cached;
 

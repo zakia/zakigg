@@ -1,23 +1,24 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
-	import { auth } from '#lib/auth/index.js';
 	import BackLink from '#lib/components/BackLink.svelte';
 	import Icon from '#lib/components/Icon.svelte';
+	import { applyTagColors } from '#lib/components/tag.js';
 	import Content from '#lib/crafts/Content.svelte';
 	import Edit from '#lib/crafts/Edit.svelte';
+	import { getRepositoryCraft } from '#lib/crafts/repository.remote.js';
+	import { parseStoredPage } from '#lib/editor/Page.js';
 	import Header from '#lib/editor/document/Header.svelte';
 	import Layout from '#lib/editor/document/Layout.svelte';
 	import { titleFromSlug } from '#lib/editor/document/slug.js';
 
-	let { data } = $props();
-
-	const slug = $derived(page.params.slug ?? data.meta?.slug ?? '');
+	const slug = $derived(page.params.slug ?? '');
 	const isEditing = $derived(page.url.searchParams.has('edit'));
+	const data = $derived(await getRepositoryCraft(slug));
+	const initialPage = $derived(data.page ? parseStoredPage(data.page) : null);
 
-	onMount(() => {
-		void auth.refresh();
+	$effect(() => {
+		applyTagColors(data.tags);
 	});
 </script>
 
@@ -47,7 +48,7 @@
 </svelte:head>
 
 {#if isEditing}
-	<Edit {slug} initialPage={data.page} editable={Boolean(auth.user)} />
+	<Edit {slug} {initialPage} initialSha={data.sha} editable={data.editable} />
 {:else if data.meta && data.document}
 	<Layout {navigation} {actions}>
 		<article>
@@ -58,6 +59,13 @@
 				tags={data.meta.tags}
 			/>
 			<Content document={data.document} />
+		</article>
+	</Layout>
+{:else}
+	<Layout {navigation} {actions}>
+		<article class="craft-missing">
+			<h1>Craft not found</h1>
+			<p>No published craft exists at /crafts/{slug}.</p>
 		</article>
 	</Layout>
 {/if}
@@ -80,5 +88,16 @@
 	.edit-link :global(svg) {
 		height: 1rem;
 		width: 1rem;
+	}
+
+	.craft-missing {
+		display: grid;
+		gap: var(--s-1);
+		padding-block: var(--s2);
+	}
+
+	.craft-missing p {
+		color: var(--content-1);
+		margin: 0;
 	}
 </style>

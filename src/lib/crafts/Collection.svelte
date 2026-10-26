@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, onDestroy, untrack } from 'svelte';
+	import { onMount } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import { goto } from '$app/navigation';
 	import { page as route } from '$app/state';
@@ -7,8 +7,22 @@
 	import { auth } from '#lib/auth/index.js';
 	import Icon from '#lib/components/Icon.svelte';
 	import Tag from '#lib/components/Tag.svelte';
+	import { updateFrontmatterValue } from '#lib/editor/features/frontmatter/source.js';
+	import {
+		DEFAULT_SLUG,
+		createPage,
+		normalizePageSlug,
+		parseStoredPage,
+		readPage,
+		type Page,
+		type StoredPage
+	} from '#lib/editor/Page.js';
+	import {
+		commitRepositoryCraft,
+		refreshRepositoryCrafts,
+		removeRepositoryCraft
+	} from './repository.client';
 	import type { CraftListItem } from './types';
-	import type { Page } from '#lib/editor/Page.js';
 
 	type YearGroup = {
 		year: number;
@@ -20,21 +34,21 @@
 
 	let {
 		initialCrafts = [],
+		initialPages = [],
 		editable = false,
 		pending = false,
 		loadError = false,
 		onRetry
 	}: {
 		initialCrafts?: CraftListItem[];
+		initialPages?: StoredPage[];
 		editable?: boolean;
 		pending?: boolean;
 		loadError?: boolean;
 		onRetry?: () => void;
 	} = $props();
 
-	let pages = $state<CraftListItem[]>(untrack(() => initialCrafts));
-	let repositoryPages = $state<Page[]>([]);
-	let loading = $state(untrack(() => editable));
+	let loading = $state(false);
 	let localLoadError = $state<'blocked' | 'failed' | null>(null);
 	let busy = $state('');
 	let toast = $state('');
@@ -46,11 +60,10 @@
 	let signInError = $state('');
 	let signingIn = $state(false);
 	let signInPopover = $state<HTMLElement>();
-	let refreshVersion = 0;
 	const selectedIds = new SvelteSet<string>();
 	let dragDepth = 0;
 
-	const visiblePages = $derived(editable ? pages : initialCrafts);
+	const visiblePages = $derived(initialCrafts);
 	const availableTags = $derived(
 		[...new Set(visiblePages.flatMap((page) => page.tags))].sort((a, b) => a.localeCompare(b))
 	);
@@ -63,11 +76,7 @@
 	const yearGroups = $derived(groupPagesByYear(filteredPages));
 
 	$effect(() => {
-		if (editable) void refresh();
-		else {
-			refreshVersion += 1;
-			pages = initialCrafts;
-			repositoryPages = [];
+		if (!editable) {
 			loading = false;
 			localLoadError = null;
 			toast = '';
@@ -76,9 +85,6 @@
 		}
 	});
 
-	onDestroy(() => {
-		refreshVersion += 1;
-	});
 	onMount(() => {
 		mounted = true;
 		function handleEscape(event: KeyboardEvent) {
@@ -88,12 +94,36 @@
 		return () => document.removeEventListener('keydown', handleEscape);
 	});
 
+	function getAvailableRepositorySlug(candidate: string, currentId = '') {
+		const usedSlugs = new Set(
+			visiblePages.filter((item) => item.id !== currentId).map((item) => item.slug)
+		);
+		const baseSlug = normalizePageSlug(candidate || DEFAULT_SLUG);
+		let slug = baseSlug;
+		let suffix = 2;
+		while (usedSlugs.has(slug)) {
+			slug = `${baseSlug}-${suffix}`;
+			suffix += 1;
+		}
+		return slug;
+	}
+
+	function withAvailableSlug(page: Page): Page {
+		const slug = getAvailableRepositorySlug(page.slug, page.id);
+		if (slug === page.slug) return page;
+		const change = updateFrontmatterValue(page.markdown, 'slug', slug);
+		const markdown = change
+			? `${page.markdown.slice(0, change.from)}${change.insert}${page.markdown.slice(change.to)}`
+			: page.markdown;
+		return readPage(markdown, { ...page, slug });
+	}
+
 	async function createCraft() {
 		busy = 'create';
 
 		try {
-			const { createPageRecord } = await import('#lib/editor/document/persistence/storage.js');
-			const page = await createPageRecord();
+			const page = withAvailableSlug(createPage({ published: false }));
+			await commitRepositoryCraft(page, null);
 			await goto(craftHref(page.slug, true));
 		} finally {
 			busy = '';
@@ -156,13 +186,19 @@
 				return;
 			}
 
-			await refresh();
+			const savedPages: Page[] = [];
+			for (const importedPage of result.pages) {
+				const page = withAvailableSlug(importedPage);
+				await commitRepositoryCraft(page, null);
+				savedPages.push(page);
+			}
+
 			showToast(
-				`Imported ${importedPages} ${importedPages === 1 ? 'craft' : 'crafts'} locally · Save from the editor${result.failed.length ? ` · ${result.failed.length} skipped` : ''}`
+				`Imported ${importedPages} ${importedPages === 1 ? 'craft' : 'crafts'}${result.failed.length ? ` · ${result.failed.length} skipped` : ''}`
 			);
 
-			if (importedPages === 1) {
-				await goto(craftHref(result.pages[0].slug, true));
+			if (savedPages.length === 1) {
+				await goto(craftHref(savedPages[0].slug, true));
 			}
 		} finally {
 			busy = '';
@@ -170,42 +206,15 @@
 	}
 
 	async function refresh() {
-		const version = ++refreshVersion;
 		loading = true;
 		localLoadError = null;
 		try {
-			const [{ listPages, listLocalPages }, { loadRepositoryCrafts }, { summarizePage }] =
-				await Promise.all([
-					import('#lib/editor/document/persistence/storage.js'),
-					import('./repository.client'),
-					import('#lib/editor/Page.js')
-				]);
-			const [local, remote] = await Promise.allSettled([listPages(), loadRepositoryCrafts()]);
-			if (version !== refreshVersion || !editable) return;
-			if (remote.status === 'fulfilled') {
-				repositoryPages = remote.value;
-				const ids = new Set(repositoryPages.map((page) => page.id));
-				const localChanges = local.status === 'fulfilled' ? await listLocalPages() : [];
-				if (version !== refreshVersion || !editable) return;
-				pages = [
-					...repositoryPages.map(summarizePage),
-					...localChanges
-						.filter((page) => !ids.has(page.id))
-						.map((page) => ({ ...page, published: false }))
-				];
-				if (local.status === 'rejected')
-					showToast('Browser backups are unavailable. Showing saved documents.');
-			} else if (local.status === 'fulfilled') {
-				pages = local.value;
-				showToast('Cloud storage is unavailable. Showing browser copies.');
-			} else throw local.reason;
+			await refreshRepositoryCrafts();
 		} catch (error) {
-			if (version !== refreshVersion || !editable) return;
 			console.error('Failed to load crafts', error);
-			localLoadError =
-				error instanceof Error && error.name === 'NotesDatabaseBlockedError' ? 'blocked' : 'failed';
+			localLoadError = 'failed';
 		} finally {
-			if (version === refreshVersion) loading = false;
+			loading = false;
 		}
 	}
 
@@ -276,17 +285,16 @@
 		busy = 'export';
 
 		try {
-			const [{ loadPageById }, { downloadPagesExport }] = await Promise.all([
-				import('#lib/editor/document/persistence/storage.js'),
-				import('#lib/editor/document/persistence/export.js')
-			]);
-			const selectedPages = (
-				await Promise.all(
-					[...selectedIds].map(
-						(id) => repositoryPages.find((page) => page.id === id) ?? loadPageById(id)
-					)
-				)
-			).filter((page) => page !== null);
+			const { downloadPagesExport } = await import('#lib/editor/document/persistence/export.js');
+			const pagesById = new Map(
+				initialPages
+					.map((stored) => parseStoredPage(stored))
+					.filter((page): page is Page => page !== null)
+					.map((page) => [page.id, page])
+			);
+			const selectedPages = [...selectedIds]
+				.map((id) => pagesById.get(id) ?? null)
+				.filter((page): page is Page => page !== null);
 			await downloadPagesExport(selectedPages);
 			showToast(
 				`Exported ${selectedPages.length} ${selectedPages.length === 1 ? 'craft' : 'crafts'}`
@@ -308,16 +316,10 @@
 
 		busy = 'delete';
 		try {
-			const [{ deletePage }, { removeRepositoryCraft }] = await Promise.all([
-				import('#lib/editor/document/persistence/storage.js'),
-				import('./repository.client')
-			]);
 			for (const id of selectedIds) {
 				await removeRepositoryCraft(id);
-				await deletePage(id);
 			}
 			leaveSelectionMode();
-			await refresh();
 			showToast(`Deleted ${count} ${count === 1 ? 'craft' : 'crafts'}`);
 		} finally {
 			busy = '';

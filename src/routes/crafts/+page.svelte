@@ -1,11 +1,12 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { auth } from '#lib/auth/index.js';
+	import { applyTagColors } from '#lib/components/tag.js';
 	import Collection from '#lib/crafts/Collection.svelte';
+	import { listRepositoryCrafts } from '#lib/crafts/repository.remote.js';
 
-	let { data } = $props();
-	onMount(() => {
-		void auth.refresh();
+	const data = $derived(await listRepositoryCrafts());
+
+	$effect(() => {
+		applyTagColors(data.tags);
 	});
 </script>
 
@@ -14,4 +15,8 @@
 	<meta name="description" content="A collection of essays, experiments, and interactive crafts." />
 </svelte:head>
 
-<Collection initialCrafts={data.crafts} editable={Boolean(auth.user)} />
+<Collection
+	initialCrafts={data.crafts}
+	initialPages={data.pages}
+	editable={data.editable}
+/>

@@ -5,13 +5,11 @@
 	import type { Page } from './Page';
 	import { updateFrontmatterValue, type FrontmatterValue } from './features/frontmatter/source';
 	import { Session } from './Session.svelte';
-	import { savePage } from './document/persistence/storage';
 	import Actions from './Actions.svelte';
 	import Layout from './document/Layout.svelte';
 
 	let {
 		page,
-		onSaved,
 		publicHref,
 		navigation,
 		save,
@@ -20,7 +18,6 @@
 		onRestore
 	}: {
 		page: Page;
-		onSaved?: (page: Page) => void;
 		publicHref?: string;
 		navigation?: Snippet;
 		save?: (page: Page) => Promise<unknown>;
@@ -34,8 +31,7 @@
 	const session = new Session({
 		page: untrack(() => page),
 		saved: untrack(() => saved),
-		backup: savePage,
-		onSaved: (nextPage) => onSaved?.(nextPage),
+		backup: async (nextPage) => nextPage,
 		save: untrack(() => save)
 	});
 
@@ -47,7 +43,7 @@
 			void session.save();
 		}
 		function beforeUnload(event: BeforeUnloadEvent) {
-			if (!session.dirty || (!session.backupPending && !session.backupError)) return;
+			if (!save || !session.dirty) return;
 			event.preventDefault();
 			event.returnValue = '';
 		}

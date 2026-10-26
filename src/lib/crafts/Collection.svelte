@@ -4,7 +4,7 @@
 	import { goto } from '$app/navigation';
 	import { page as route } from '$app/state';
 	import { resolve } from '$app/paths';
-	import { auth } from '#lib/auth/index.js';
+	import { signIn, signOut } from '#lib/auth/auth.remote.js';
 	import Icon from '#lib/components/Icon.svelte';
 	import Tag from '#lib/components/Tag.svelte';
 	import { updateFrontmatterValue } from '#lib/editor/features/frontmatter/source.js';
@@ -17,11 +17,8 @@
 		type Page,
 		type StoredPage
 	} from '#lib/editor/Page.js';
-	import {
-		commitRepositoryCraft,
-		refreshRepositoryCrafts,
-		removeRepositoryCraft
-	} from './repository.client';
+	import { commitRepositoryCraft } from './repository.client';
+	import { deleteRepositoryCraft, listRepositoryCrafts } from './repository.remote';
 	import type { CraftListItem } from './types';
 
 	type YearGroup = {
@@ -209,7 +206,7 @@
 		loading = true;
 		localLoadError = null;
 		try {
-			await refreshRepositoryCrafts();
+			await listRepositoryCrafts().refresh();
 		} catch (error) {
 			console.error('Failed to load crafts', error);
 			localLoadError = 'failed';
@@ -317,7 +314,7 @@
 		busy = 'delete';
 		try {
 			for (const id of selectedIds) {
-				await removeRepositoryCraft(id);
+				await deleteRepositoryCraft(id);
 			}
 			leaveSelectionMode();
 			showToast(`Deleted ${count} ${count === 1 ? 'craft' : 'crafts'}`);
@@ -356,7 +353,7 @@
 		signingIn = true;
 		signInError = '';
 		try {
-			await auth.signIn(signInPassword);
+			await signIn({ password: signInPassword });
 			signInPassword = '';
 			signInPopover?.hidePopover();
 		} catch {
@@ -492,7 +489,7 @@
 						aria-label="Sign out"
 						title="Sign out"
 						disabled={Boolean(busy)}
-						onclick={() => void auth.signOut()}
+						onclick={() => void signOut()}
 					>
 						<Icon icon="mdi:logout-variant" />
 					</button>

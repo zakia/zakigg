@@ -13,17 +13,13 @@
 		publicHref,
 		navigation,
 		save,
-		saved = false,
-		recovery,
-		onRestore
+		saved = false
 	}: {
 		page: Page;
 		publicHref?: string;
 		navigation?: Snippet;
 		save?: (page: Page) => Promise<unknown>;
 		saved?: boolean;
-		recovery?: Page | null;
-		onRestore?: () => void;
 	} = $props();
 
 	let editorMode = $state<'live' | 'source'>('live');
@@ -82,22 +78,6 @@
 			onSetPublished={(value) => updateSourceProperty('published', value)}
 		/>
 	{/snippet}
-	{#if recovery}
-		<div class="recovery" role="status">
-			<span>Showing saved version. A browser backup is available.</span>
-			<button
-				type="button"
-				onclick={async () => {
-					if (!editorView || !recovery) return;
-					editorView.dispatch({
-						changes: { from: 0, to: editorView.state.doc.length, insert: recovery.markdown },
-						userEvent: 'input'
-					});
-					if (await session.backup()) onRestore?.();
-				}}>Restore local changes</button
-			>
-		</div>
-	{/if}
 	<Editor
 		initialMarkdown={session.markdown}
 		mode={editorMode}
@@ -107,23 +87,3 @@
 		onReady={(view) => (editorView = view)}
 	/>
 </Layout>
-
-<style>
-	.recovery {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: var(--s-1);
-		padding: var(--s0);
-		color: var(--content-1);
-	}
-	.recovery button {
-		font: inherit;
-		color: var(--content);
-		background: var(--base-1);
-		border: 1px solid var(--edge);
-		border-radius: var(--radius);
-		padding: var(--s-2);
-		cursor: pointer;
-	}
-</style>

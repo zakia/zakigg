@@ -1,3 +1,5 @@
+import { browser } from '$app/env';
+
 const GRID_SPACING_KEY = 'zaki.gg:grid-spacing';
 const GRID_DOT_SIZE_KEY = 'zaki.gg:grid-dot-size';
 const GRID_FIXED_KEY = 'zaki.gg:grid-fixed';
@@ -7,26 +9,17 @@ export const DEFAULT_GRID_DOT_SIZE = 2;
 export const DEFAULT_GRID_FIXED = false;
 
 const state = $state({
-	spacing: DEFAULT_GRID_SPACING,
-	dotSize: DEFAULT_GRID_DOT_SIZE,
-	fixed: DEFAULT_GRID_FIXED,
-	ready: false
+	spacing: browser ? readNumber(GRID_SPACING_KEY, DEFAULT_GRID_SPACING, 24, 112) : DEFAULT_GRID_SPACING,
+	dotSize: browser ? readNumber(GRID_DOT_SIZE_KEY, DEFAULT_GRID_DOT_SIZE, 0, 6) : DEFAULT_GRID_DOT_SIZE,
+	fixed: browser ? readBoolean(GRID_FIXED_KEY, DEFAULT_GRID_FIXED) : DEFAULT_GRID_FIXED,
+	ready: browser
 });
 
-let initialized = false;
+if (browser) {
+	applyGridSettings();
+}
 
 export function useGridSettings() {
-	$effect(() => {
-		if (initialized) return;
-		initialized = true;
-
-		state.spacing = readNumber(GRID_SPACING_KEY, DEFAULT_GRID_SPACING, 24, 112);
-		state.dotSize = readNumber(GRID_DOT_SIZE_KEY, DEFAULT_GRID_DOT_SIZE, 0, 6);
-		state.fixed = readBoolean(GRID_FIXED_KEY, DEFAULT_GRID_FIXED);
-		state.ready = true;
-		applyGridSettings();
-	});
-
 	function setSpacing(value: number) {
 		state.spacing = clamp(value, 24, 112);
 		persist(GRID_SPACING_KEY, state.spacing);

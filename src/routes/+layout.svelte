@@ -2,8 +2,6 @@
 	import { browser } from '$app/env';
 	import { beforeNavigate } from '$app/navigation';
 	import { page } from '$app/state';
-	import { useGridSettings } from '#lib/grid-settings.svelte.js';
-	import { theme } from '#lib/theme.svelte.js';
 	import '@fontsource-variable/inter/index.css';
 	import '@fontsource/fira-mono/400.css';
 	import type { Snippet } from 'svelte';
@@ -12,8 +10,6 @@
 	import MobileStatusBar from '../lib/components/MobileStatusBar.svelte';
 
 	let { children }: { children: Snippet } = $props();
-	useGridSettings();
-	if (browser) theme.initialize();
 
 	function titleFromPathname(pathname: string) {
 		const segment = decodeURIComponent(pathname).split('/').filter(Boolean).at(-1);

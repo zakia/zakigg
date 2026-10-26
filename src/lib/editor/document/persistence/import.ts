@@ -1,5 +1,12 @@
-import { getReferencedAssetIds, parseStoredPage, type Page } from '../../Page';
-import { importNoteAsset, importPage } from './storage';
+import {
+	createPageId,
+	getReferencedAssetIds,
+	parseStoredPage,
+	readPage,
+	type Page
+} from '../../Page';
+import { updateFrontmatterValue } from '../../features/frontmatter/source';
+import { importNoteAsset } from './storage';
 import { readZipEntries } from './zip';
 
 const decoder = new TextDecoder();
@@ -47,11 +54,14 @@ export async function importNotesFromZip(source: Blob): Promise<NotesImportResul
 	}
 
 	const assetCount = await importAssets(files, manifest, parsedPages);
-	const pages: Page[] = [];
-
-	for (const page of parsedPages) {
-		pages.push(await importPage(page));
-	}
+	const pages: Page[] = parsedPages.map((input) => {
+		const id = createPageId();
+		const change = updateFrontmatterValue(input.markdown, 'id', id);
+		if (!change) throw new Error('Imported Markdown must have valid frontmatter.');
+		const markdown =
+			input.markdown.slice(0, change.from) + change.insert + input.markdown.slice(change.to);
+		return readPage(markdown, { ...input, id });
+	});
 
 	return { pages, assetCount };
 }

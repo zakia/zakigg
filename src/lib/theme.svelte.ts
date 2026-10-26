@@ -16,9 +16,22 @@ const syncSystemThemeColor = () => {
 };
 
 class ThemeController {
-	#mode = $state<ThemeMode>('light');
-	#hue = $state('145');
-	#initialized = false;
+	#mode = $state<ThemeMode>(
+		typeof document !== 'undefined' && document.documentElement.dataset.theme === 'dark'
+			? 'dark'
+			: 'light'
+	);
+	#hue = $state(
+		typeof document !== 'undefined'
+			? document.documentElement.style.getPropertyValue('--hue').trim() || '145'
+			: '145'
+	);
+
+	constructor() {
+		if (typeof document !== 'undefined') {
+			syncSystemThemeColor();
+		}
+	}
 
 	get mode() {
 		return this.#mode;
@@ -27,15 +40,6 @@ class ThemeController {
 	get hue() {
 		return this.#hue;
 	}
-
-	initialize = () => {
-		if (this.#initialized || typeof document === 'undefined') return;
-		this.#initialized = true;
-
-		this.#mode = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
-		this.#hue = document.documentElement.style.getPropertyValue('--hue').trim() || '145';
-		syncSystemThemeColor();
-	};
 
 	setTheme = (newTheme: ThemeMode) => {
 		localStorage.setItem('theme', newTheme);

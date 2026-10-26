@@ -1,29 +1,12 @@
 <script lang="ts">
-	import type { EmbedComponent } from '#lib/editor/components/registry.js';
 	import { componentEmbeds } from '#lib/embeds/index.js';
 
 	let { attrs }: { attrs: unknown } = $props();
-	let LoadedComponent = $state<EmbedComponent | null>(null);
 
 	const embed = $derived(componentEmbeds.parseAttrs(attrs));
-	const embedId = $derived(embed.ok ? embed.entry.id : '');
-
-	$effect(() => {
-		if (!embedId) {
-			LoadedComponent = null;
-			return;
-		}
-
-		let cancelled = false;
-
-		componentEmbeds.resolveComponent(embedId).then((component) => {
-			if (!cancelled) LoadedComponent = component;
-		});
-
-		return () => {
-			cancelled = true;
-		};
-	});
+	const LoadedComponent = $derived(
+		embed.ok ? await componentEmbeds.resolveComponent(embed.entry.id) : null
+	);
 </script>
 
 <div class="component-embed-frame" data-component-embed-frame>

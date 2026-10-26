@@ -9,6 +9,29 @@ export type PublishedCraftSummary = CraftMeta & {
 	updatedAt: string;
 };
 
+export type CompiledCraft = {
+	sha: string;
+	page: Page;
+	summary: PublishedCraftSummary;
+	document: CraftDocument;
+};
+
+const compiledById = new Map<string, CompiledCraft>();
+
+export function compileCraft(doc: { page: Page; sha: string }): CompiledCraft {
+	const cached = compiledById.get(doc.page.id);
+	if (cached && cached.sha === doc.sha) return cached;
+
+	const compiled: CompiledCraft = {
+		sha: doc.sha,
+		page: doc.page,
+		summary: createPublishedCraftSummary(doc.page),
+		document: rewritePublishedAssetSources(createPublishedCraftDocument(doc.page))
+	};
+	compiledById.set(doc.page.id, compiled);
+	return compiled;
+}
+
 export function createPublicCraftList(crafts: PublishedCraftSummary[]): CraftListItem[] {
 	return [...crafts]
 		.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))

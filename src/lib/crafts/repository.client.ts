@@ -1,28 +1,13 @@
-import { applyTagColors } from '#lib/components/tag.js';
 import { getReferencedAssetIds, toStoredPage, type Page } from '#lib/editor/Page.js';
 import { loadNoteAsset } from '#lib/editor/document/persistence/storage.js';
-import {
-	deleteRepositoryCraft,
-	listRepositoryCrafts,
-	saveRepositoryCraft
-} from './repository.remote';
-
-export async function refreshRepositoryCrafts() {
-	await listRepositoryCrafts().refresh();
-}
+import { saveRepositoryCraft } from './repository.remote';
 
 export async function commitRepositoryCraft(page: Page, expectedSha: string | null) {
 	await uploadReferencedAssets(page);
-	const result = await saveRepositoryCraft({
+	return saveRepositoryCraft({
 		pageJson: JSON.stringify(toStoredPage(page)),
 		expectedSha
 	});
-	applyTagColors(result.tags);
-	return result;
-}
-
-export async function removeRepositoryCraft(id: string) {
-	await deleteRepositoryCraft(id);
 }
 
 async function uploadReferencedAssets(page: Page) {

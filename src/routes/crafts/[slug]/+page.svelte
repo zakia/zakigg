@@ -3,7 +3,6 @@
 	import { resolve } from '$app/paths';
 	import BackLink from '#lib/components/BackLink.svelte';
 	import Icon from '#lib/components/Icon.svelte';
-	import { applyTagColors } from '#lib/components/tag.js';
 	import Content from '#lib/crafts/Content.svelte';
 	import Edit from '#lib/crafts/Edit.svelte';
 	import { getRepositoryCraft } from '#lib/crafts/repository.remote.js';
@@ -16,10 +15,6 @@
 	const isEditing = $derived(page.url.searchParams.has('edit'));
 	const data = $derived(await getRepositoryCraft(slug));
 	const initialPage = $derived(data.page ? parseStoredPage(data.page) : null);
-
-	$effect(() => {
-		applyTagColors(data.tags);
-	});
 </script>
 
 {#snippet navigation()}

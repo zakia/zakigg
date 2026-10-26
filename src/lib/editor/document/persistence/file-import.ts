@@ -3,10 +3,10 @@ import { importNotesFromZip, isNotesArchiveFile } from './import';
 import { parseEditorMarkdown, isMarkdownFile } from '../markdown';
 import { isMediaFile } from './assets';
 import { altTextFromFile, escapeAlt, mediaUrlForAsset } from '#lib/editor/features/media/source.js';
-import { createPageRecord, saveNoteAsset, savePage } from './storage';
+import { saveNoteAsset } from './storage';
 import { getFirstMarkdownHeading } from '../markdown-ast';
 import type { MetadataProperties } from '../metadata';
-import { titleFromSlug, readPage, type Page } from '../../Page';
+import { createPage, titleFromSlug, readPage, type Page } from '../../Page';
 
 const TEXT_FILE_RE =
 	/\.(?:txt|text|csv|json|ya?ml|xml|html?|css|[cm]?js|[cm]?ts|jsx|tsx|svelte|svx)$/i;
@@ -63,23 +63,23 @@ async function importTextDocument(file: File, embeds: ComponentEmbedRegistry) {
 
 	const properties: MetadataProperties = { ...parsed.properties, title };
 	delete properties.id;
-	return createPageRecord(properties, parsed.markdown);
+	return createPage(properties, parsed.markdown);
 }
 
 async function importMediaDocument(file: File) {
 	const title = titleFromFile(file);
-	const page = await createPageRecord({ title });
+	const page = createPage({ title });
 	const asset = await saveNoteAsset(file, page.id);
 	const markdown = `![${escapeAlt(altTextFromFile(file))}](${mediaUrlForAsset(asset.id, file.name, file.type)})`;
-	return savePage(readPage(`${page.markdown}\n${markdown}\n`, page));
+	return readPage(`${page.markdown}\n${markdown}\n`, page);
 }
 
 async function importAttachmentDocument(file: File) {
 	const title = titleFromFile(file);
-	const page = await createPageRecord({ title });
+	const page = createPage({ title });
 	const asset = await saveNoteAsset(file, page.id);
 	const markdown = `![${escapeAlt(altTextFromFile(file))}](${mediaUrlForAsset(asset.id, file.name, file.type)})`;
-	return savePage(readPage(`${page.markdown}\n${markdown}\n`, page));
+	return readPage(`${page.markdown}\n${markdown}\n`, page);
 }
 
 function titleFromFile(file: File) {

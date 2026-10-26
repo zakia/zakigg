@@ -1,13 +1,8 @@
 <script lang="ts">
-	import { applyTagColors } from '#lib/components/tag.js';
 	import Collection from '#lib/crafts/Collection.svelte';
 	import { listRepositoryCrafts } from '#lib/crafts/repository.remote.js';
 
 	const data = $derived(await listRepositoryCrafts());
-
-	$effect(() => {
-		applyTagColors(data.tags);
-	});
 </script>
 
 <svelte:head>

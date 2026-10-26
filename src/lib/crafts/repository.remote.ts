@@ -1,7 +1,7 @@
 import { command, getRequestEvent, query } from '$app/server';
 import { error, redirect } from '@sveltejs/kit';
 import * as v from 'valibot';
-import { createPublicCraftList } from '#lib/crafts/publication.js';
+import { compileCraft, createPublicCraftList } from '#lib/crafts/publication.js';
 import { parseStoredPage, toStoredPage } from '#lib/editor/Page.js';
 import { auth } from '#lib/server/auth/index.js';
 import {
@@ -9,7 +9,6 @@ import {
 	RepositoryConflict,
 	parseRepositoryMarkdown
 } from '#lib/server/content/repository.js';
-import { compileCraft } from '#lib/server/content/static.js';
 import { tools } from '#lib/tools/registry.js';
 
 const toolSlugs = new Set(tools.filter((tool) => !tool.draft).map((tool) => tool.slug));
@@ -28,14 +27,13 @@ const PageJsonSchema = v.object({
 
 export const listRepositoryCrafts = query(async () => {
 	const editable = Boolean(getRequestEvent().locals.session);
-	const repository = getContentRepository();
-	const [documents, tags] = await Promise.all([repository.list(), repository.tags()]);
+	const documents = await getContentRepository().list();
 	const visibleDocuments = editable
 		? documents
 		: documents.filter((doc) => doc.page.frontmatter?.published === true);
 	const crafts = createPublicCraftList(visibleDocuments.map((doc) => compileCraft(doc).summary));
 	const pages = editable ? visibleDocuments.map((doc) => toStoredPage(doc.page)) : [];
-	return { crafts, pages, tags, editable };
+	return { crafts, pages, editable };
 });
 
 export const getRepositoryCraft = query(SlugSchema, async (slug) => {
@@ -43,15 +41,13 @@ export const getRepositoryCraft = query(SlugSchema, async (slug) => {
 		redirect(308, `/tools/${slug}`);
 	}
 	const editable = Boolean(getRequestEvent().locals.session);
-	const repository = getContentRepository();
-	const [document, tags] = await Promise.all([repository.readBySlug(slug), repository.tags()]);
+	const document = await getContentRepository().readBySlug(slug);
 	if (!document || (document.page.frontmatter?.published !== true && !editable)) {
 		return {
 			meta: null,
 			document: null,
 			page: null,
 			sha: null,
-			tags,
 			editable
 		};
 	}
@@ -61,7 +57,6 @@ export const getRepositoryCraft = query(SlugSchema, async (slug) => {
 		document: compiled.document,
 		page: toStoredPage(document.page),
 		sha: document.sha,
-		tags,
 		editable
 	};
 });
@@ -101,11 +96,10 @@ export const saveRepositoryCraft = command(PageJsonSchema, async ({ pageJson, ex
 		document: compiled.document,
 		page: toStoredPage(saved.page),
 		sha: saved.sha,
-		tags: saved.tags,
 		editable: true
 	});
 	await listRepositoryCrafts().refresh();
-	return { sha: saved.sha, path: saved.path, tags: saved.tags };
+	return { sha: saved.sha, path: saved.path };
 });
 
 export const deleteRepositoryCraft = command(SafeIdSchema, async (id) => {

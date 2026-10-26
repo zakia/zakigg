@@ -7,7 +7,7 @@
 </script>
 
 <div>
-	<div class="gap-s-2 flex items-center justify-between">
+	<div class="gap-s-2 flex items-center">
 		<a href={props.website} target="_blank" rel="external" class="text-brand">
 			{props.company}
 		</a>

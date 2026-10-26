@@ -122,6 +122,10 @@ button:focus:not(:focus-visible) {
 		background-position-y: 100%;
 		color: var(--brand-content);
 	}
+
+	@media print {
+		background-image: none;
+	}
 }
 
 .preview {

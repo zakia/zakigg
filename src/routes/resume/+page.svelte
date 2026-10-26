@@ -7,18 +7,20 @@
 	const contactLinks = [
 		{ href: 'mailto:azakica@gmail.com', icon: 'mdi:email', text: 'azakica@gmail.com' },
 		{ href: 'https://github.com/zakia', icon: 'mdi:github', text: 'zakia' },
-		{ href: 'https://www.linkedin.com/in/adhamzaki/', icon: 'mdi:linkedin', text: 'adhamzaki' }
+		{ href: 'https://www.linkedin.com/in/adhamzaki/', icon: 'mdi:linkedin', text: 'adhamzaki' },
+		{ href: 'https://zaki.gg', icon: 'mdi:web', text: 'zaki.gg' }
 	];
 </script>
 
 <div class="gap-s0 mx-auto flex flex-col px-6 py-16 text-sm not-print:max-w-3xl print:p-3">
-	<section>
-		<div class="gap-s0 flex items-center">
+	<header>
+		<div class="gap-s0 flex flex-wrap items-center justify-between">
 			<h1 class="text-s3 trim">
 				<span class="font-extralight">Adham</span>
 				<span class="font-bold">Zaki</span>
 			</h1>
-			<div class="gap-s0 ml-auto flex">
+
+			<div class="gap-s-1 flex items-center">
 				{#each contactLinks as link (link.href)}
 					<a
 						href={link.href}
@@ -26,22 +28,23 @@
 						target="_blank"
 						rel="external"
 					>
-						<Icon icon={link.icon} class="h-5 w-5" />
+						<Icon icon={link.icon} class="size-5" />
 						{link.text}
 					</a>
 				{/each}
 			</div>
 		</div>
+
 		<div class="mt-s-1">
 			<div>
-				<b> University of Toronto, </b>
-				<span> Bachelor of Applied Science in Industrial Engineering </span>
+				<b>University of Toronto,</b>
+				<span>Bachelor of Applied Science in Industrial Engineering</span>
 			</div>
-			<p class="text-sm opacity-60">
+			<p class="text-content-1 text-sm">
 				Honors | Minor in AI Engineering | Certificate in Engineering Business
 			</p>
 		</div>
-	</section>
+	</header>
 
 	<section class="flex flex-col">
 		<h2 class="text-brand border-edge mb-1 border-b pb-1 font-bold uppercase">Experience</h2>

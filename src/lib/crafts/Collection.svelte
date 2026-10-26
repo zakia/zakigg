@@ -4,6 +4,7 @@
 	import { goto } from '$app/navigation';
 	import { page as route } from '$app/state';
 	import { resolve } from '$app/paths';
+	import { auth } from '#lib/auth/index.js';
 	import Icon from '#lib/components/Icon.svelte';
 	import Tag from '#lib/components/Tag.svelte';
 	import type { CraftListItem } from './types';
@@ -41,6 +42,10 @@
 	let mounted = $state(false);
 	let dragActive = $state(false);
 	let selectionMode = $state(false);
+	let signInPassword = $state('');
+	let signInError = $state('');
+	let signingIn = $state(false);
+	let signInPopover = $state<HTMLElement>();
 	let refreshVersion = 0;
 	const selectedIds = new SvelteSet<string>();
 	let dragDepth = 0;
@@ -344,6 +349,20 @@
 		const base = resolve('/crafts/[slug]', { slug });
 		return edit ? `${base}?edit` : base;
 	}
+
+	async function handleSignIn() {
+		signingIn = true;
+		signInError = '';
+		try {
+			await auth.signIn(signInPassword);
+			signInPassword = '';
+			signInPopover?.hidePopover();
+		} catch {
+			signInError = 'Incorrect password.';
+		} finally {
+			signingIn = false;
+		}
+	}
 </script>
 
 {#snippet rowContent(page: CraftListItem)}
@@ -465,6 +484,59 @@
 					>
 						<Icon icon={selectionMode ? 'mdi:close' : 'mdi:checkbox-multiple-outline'} />
 					</button>
+					<button
+						type="button"
+						class="quiet-button"
+						aria-label="Sign out"
+						title="Sign out"
+						disabled={Boolean(busy)}
+						onclick={() => void auth.signOut()}
+					>
+						<Icon icon="mdi:logout-variant" />
+					</button>
+				</div>
+			{:else}
+				<div class="toolbar-actions">
+					<button
+						type="button"
+						class="quiet-button signin-trigger"
+						popovertarget="crafts-signin-popover"
+						aria-label="Sign in"
+						title="Sign in"
+					>
+						<Icon icon="mdi:lock-outline" />
+					</button>
+					<div
+						id="crafts-signin-popover"
+						bind:this={signInPopover}
+						class="signin-popover"
+						popover="auto"
+						role="dialog"
+						aria-label="Sign in"
+					>
+						<form
+							class="signin-form"
+							onsubmit={(event) => {
+								event.preventDefault();
+								void handleSignIn();
+							}}
+						>
+							<label class="signin-field">
+								<span>Admin password</span>
+								<input
+									type="password"
+									bind:value={signInPassword}
+									placeholder="Password"
+									autocomplete="current-password"
+									required
+								/>
+							</label>
+							{#if signInError}<p class="signin-error" role="alert">{signInError}</p>{/if}
+							<button type="submit" class="signin-submit" disabled={signingIn || !signInPassword}>
+								{signingIn ? 'Signing in…' : 'Sign in'}
+							</button>
+						</form>
+					</div>
 				</div>
 			{/if}
 		</div>
@@ -1012,6 +1084,89 @@
 		position: fixed;
 		transform: translateX(-50%);
 		z-index: 1000;
+	}
+
+	.signin-trigger {
+		anchor-name: --crafts-signin-trigger;
+	}
+
+	.signin-popover {
+		background: var(--base-1);
+		border: 1px solid var(--edge);
+		border-radius: var(--radius-lg);
+		box-shadow: 0 12px 28px rgb(0 0 0 / 0.14);
+		color: var(--content);
+		inset: auto;
+		margin: 0;
+		padding: 0.75rem 0.85rem;
+		position: fixed;
+		position-anchor: --crafts-signin-trigger;
+		right: max(1rem, anchor(right));
+		top: calc(anchor(bottom) + 0.5rem);
+		width: min(16rem, calc(100vw - 2rem));
+		z-index: 1000;
+	}
+
+	.signin-form {
+		display: grid;
+		gap: 0.5rem;
+	}
+
+	.signin-field {
+		display: grid;
+		gap: 0.25rem;
+	}
+
+	.signin-field span {
+		color: var(--content-2);
+		font-family: var(--font-mono);
+		font-size: 0.65rem;
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+	}
+
+	.signin-field input {
+		background: var(--base-2);
+		border: 1px solid var(--edge);
+		border-radius: 0.375rem;
+		color: var(--content);
+		font: inherit;
+		font-size: 0.85rem;
+		padding: 0.4rem 0.55rem;
+		width: 100%;
+	}
+
+	.signin-submit {
+		background: var(--brand);
+		border: 0;
+		border-radius: 0.375rem;
+		color: var(--brand-content);
+		cursor: pointer;
+		font: inherit;
+		font-size: 0.8rem;
+		font-weight: 650;
+		padding: 0.42rem 0.65rem;
+	}
+
+	.signin-submit:disabled {
+		cursor: default;
+		opacity: 0.55;
+	}
+
+	.signin-error {
+		color: var(--error);
+		font-size: 0.75rem;
+		margin: 0;
+	}
+
+	@supports not (top: anchor(bottom)) {
+		.signin-popover {
+			left: 50%;
+			right: auto;
+			top: 50%;
+			transform: translate(-50%, -50%);
+		}
 	}
 
 	@media (max-width: 42rem) {

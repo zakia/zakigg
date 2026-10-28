@@ -1,6 +1,5 @@
 import { UNCATEGORIZED_ID, type CategoryDictionary } from './category-model';
 import { budgetFlow, isDeclaredTransfer } from './activity';
-import { canSuggestCategory, needsAiRule } from './ai';
 import { groupMerchantTransactions } from './merchants';
 import { patternError } from './rule-pattern';
 import {
@@ -61,27 +60,6 @@ export function workspaceMerchantGroups(
 			saved: false
 		});
 	return [...groups.values()];
-}
-
-/** Count and run exactly the same unmatched spending in the displayed groups. */
-export function merchantAiTargets(
-	groups: readonly MerchantGroup[],
-	rules: readonly Rule[],
-	categories: CategoryDictionary,
-	selected: readonly string[] = []
-) {
-	const ids = new Set(selected);
-	const candidates = ids.size ? groups.filter((group) => ids.has(group.id)) : groups;
-	const rows: Transaction[] = [];
-	let groupCount = 0;
-	for (const group of candidates) {
-		const eligible = group.transactions.filter((row) =>
-			ids.size ? canSuggestCategory(row, categories) : needsAiRule(row, rules, categories)
-		);
-		if (eligible.length) groupCount++;
-		rows.push(...eligible);
-	}
-	return { rows, groupCount };
 }
 
 export function combinedMerchantRule(groups: readonly MerchantGroup[]): Rule {

@@ -15,16 +15,11 @@
 		validateCategories,
 		type CategoryDictionary
 	} from './category-model';
-	import {
-		emptyWorkspace,
-		loadWorkspace,
-		persistWorkspace,
-		type AiSettings,
-		type ImportInfo
-	} from './workspace-storage';
-	import { localAi } from './local-ai.svelte';
-	import type { TagProposal } from './ai';
-	import { approveLearning } from './learning';
+	import { emptyWorkspace, type Workspace, type ImportInfo } from './workspace-storage';
+	import { WorkspaceDatabase } from './workspace-db';
+	import WorkspaceData from './WorkspaceData.svelte';
+	import { assignmentReason } from './rules';
+	import { removeLegacyModelDownloads } from './legacy-model-cache';
 	import { identifyTransactions, planImport } from './identity';
 	import CategoryEditor from './CategoryEditor.svelte';
 	import CategoryPicker from './CategoryPicker.svelte';
@@ -32,7 +27,6 @@
 	import TagEditor from './TagEditor.svelte';
 	import {
 		DEFAULT_TAGS,
-		validateTagIds,
 		editTransactionTags,
 		transactionTagMap,
 		filterByTag,
@@ -40,30 +34,22 @@
 	} from './tags';
 	import { detectRecurring } from './recurring';
 	import { groupMerchantTransactions } from './merchants';
-	import { consolidateMerchantRules } from './merchant-rules';
-	import { needsAiRule } from './ai';
-	import AiCategorizer from './AiCategorizer.svelte';
-	import {
-		previewMerchantRule,
-		workspaceMerchantGroups,
-		type MerchantGroup
-	} from './merchant-workspace';
-	import AiConnectionSettings from './AiSettings.svelte';
+	import RuleWorkspace from './RuleWorkspace.svelte';
+	import { workspaceMerchantGroups } from './merchant-workspace';
 	import { formatDate, formatMonth as monthLabel } from '#lib/utils/date.js';
 	import {
 		applyRules,
 		clearRuleScopes,
+		clearCategoryOverride,
 		matchingRule,
 		mergeCategoryMappings,
 		proposedCategoryMappings,
-		ruleKey,
 		exportTransactions,
 		filterTransactions,
 		normalizeTransactions,
 		previousMonth,
 		restoreDefaultCategories,
 		readCsv,
-		saveRule,
 		setCategory,
 		summarizeMonths,
 		summarizeYearSpending,
@@ -122,7 +108,23 @@
 	);
 	const taggedRows = $derived(filterByTag(transactions, rowTags, tagFilter, tags));
 	let importedFiles = $state<ImportInfo[]>([]);
-	let aiSettings = $state<AiSettings>(emptyWorkspace().ai);
+	let starterVersion = $state(emptyWorkspace().starterVersion);
+	const database = new WorkspaceDatabase();
+	let saveGeneration = 0;
+	let saving = $state(false);
+	let sessionDirty = $state(false);
+	let blockedBaseline: Workspace | null = null;
+	let ruleEditorRequest = $state<{ id: string; rule: Rule; transactionId: string } | null>(null);
+	const workspace = $derived<Workspace>({
+		version: 5,
+		starterVersion,
+		tags,
+		categories,
+		transactions,
+		rules: learnedRules,
+		imports: importedFiles,
+		profiles
+	});
 	let storageReady = $state(false);
 	let persistenceBlocked = $state(false);
 	const categoryOptions = $derived(categoryList(categories));
@@ -135,7 +137,7 @@
 	type View = 'overview' | 'categories' | 'settings' | 'import';
 	let view = $state<View>('overview');
 	let returnView = $state<View>('overview');
-	let aiReviewActive = $state(false);
+	let ruleEditorActive = $state(false);
 	let fileInput: HTMLInputElement;
 	let exportScope = $state('month');
 	let resetCategoriesOpen = $state(false);
@@ -255,48 +257,84 @@
 		imports.reduce((total, file) => total + file.result.issues.length, 0)
 	);
 
-	onDestroy(() => localAi.unload());
+	onDestroy(() => {
+		void database.close();
+	});
+	function adoptWorkspace(saved: Workspace) {
+		categories = saved.categories;
+		tags = saved.tags;
+		transactions = saved.transactions;
+		learnedRules = saved.rules;
+		importedFiles = saved.imports;
+		profiles = saved.profiles;
+		starterVersion = saved.starterVersion;
+		const latest = [...saved.transactions].sort((a, b) => b.date.localeCompare(a.date))[0];
+		if (latest) {
+			currency = latest.currency;
+			month = latest.date.slice(0, 7);
+		} else month = '';
+		ruleToast = null;
+		importUndo = null;
+		categoryResetUndo = null;
+		category = '';
+		tagFilter = '';
+		page = 1;
+	}
 	onMount(() => {
-		try {
-			const saved = loadWorkspace(localStorage);
-			categories = saved.categories;
-			tags = saved.tags;
-			transactions = saved.transactions;
-			learnedRules = saved.rules;
-			importedFiles = saved.imports;
-			aiSettings = saved.ai;
-			profiles = saved.profiles;
-			const latest = [...saved.transactions].sort((a, b) => b.date.localeCompare(a.date))[0];
-			if (latest) {
-				currency = latest.currency;
-				month = latest.date.slice(0, 7);
+		let mounted = true;
+		const protectUnsaved = (event: BeforeUnloadEvent) => {
+			if (saving || sessionDirty || (!persistenceBlocked && storageWarning)) {
+				event.preventDefault();
+				event.returnValue = '';
 			}
-		} catch {
-			persistenceBlocked = true;
-			storageWarning =
-				'Saved data could not be loaded. It has been preserved; changes will stay in this session until you replace the saved workspace.';
-		}
-		storageReady = true;
+		};
+		window.addEventListener('beforeunload', protectUnsaved);
+		void database
+			.load(localStorage)
+			.then((saved) => {
+				if (mounted) adoptWorkspace(saved);
+			})
+			.catch(() => {
+				if (!mounted) return;
+				persistenceBlocked = true;
+				blockedBaseline = $state.snapshot(workspace);
+				storageWarning =
+					'Saved data could not be loaded. It has been preserved; changes will stay in this session until you replace the saved workspace.';
+			})
+			.finally(() => {
+				if (mounted) storageReady = true;
+			});
+		void removeLegacyModelDownloads().catch(() => {});
+		return () => {
+			mounted = false;
+			window.removeEventListener('beforeunload', protectUnsaved);
+		};
 	});
 	$effect(() => {
-		if (!storageReady || persistenceBlocked) return;
-		const workspace = {
-			version: 4 as const,
-			tags,
-			categories,
-			transactions,
-			rules: learnedRules,
-			imports: importedFiles,
-			ai: aiSettings,
-			profiles
-		};
-		try {
-			persistWorkspace(localStorage, workspace);
-			storageWarning = '';
-		} catch {
-			storageWarning =
-				'Browser storage is unavailable or full. Recent changes are only available in this session.';
+		if (!storageReady) return;
+		const snapshot = $state.snapshot(workspace);
+		if (persistenceBlocked) {
+			sessionDirty = JSON.stringify(snapshot) !== JSON.stringify(blockedBaseline);
+			return;
 		}
+		sessionDirty = false;
+		const generation = ++saveGeneration;
+		saving = true;
+		void database
+			.save(snapshot)
+			.then(() => {
+				if (generation === saveGeneration) {
+					storageWarning = '';
+					saving = false;
+				}
+			})
+			.catch(() => {
+				if (generation === saveGeneration) {
+					saving = false;
+					storageWarning =
+						'Browser storage is unavailable or full. Recent changes are only available in this session. Export a workspace backup to keep them.';
+				}
+			});
 	});
 	$effect(() => {
 		if (
@@ -314,8 +352,25 @@
 		)
 			ruleToast = null;
 	});
+	async function applyRuleChanges(next: Rule[], releaseId?: string) {
+		learnedRules = next;
+		transactions = applyRules(
+			releaseId ? clearCategoryOverride(transactions, releaseId) : transactions,
+			next,
+			categories
+		);
+		await tick();
+		if (!persistenceBlocked) await database.flush();
+	}
+	async function restoreLocalWorkspace(saved: Workspace) {
+		adoptWorkspace(saved);
+		persistenceBlocked = false;
+		await tick();
+		await database.flush();
+		message = 'Local workspace updated.';
+	}
 	function resetCategories() {
-		if (aiReviewActive) return;
+		if (ruleEditorActive) return;
 		const before = $state.snapshot({ categories, transactions, rules: learnedRules });
 		const next = resetCategoryPreview;
 		categories = next.categories;
@@ -326,11 +381,11 @@
 		category = '';
 		ruleToast = null;
 		message = resetAssignments
-			? 'Default categories restored. Transactions are ready for a fresh AI categorization.'
+			? 'Default categories restored. Transactions are ready for your rules.'
 			: 'Default categories restored.';
 	}
 	function undoCategoryReset() {
-		if (!categoryResetUndo || aiReviewActive) return;
+		if (!categoryResetUndo || ruleEditorActive) return;
 		const before = categoryResetUndo.before;
 		categoryResetUndo = null;
 		categories = before.categories;
@@ -346,7 +401,7 @@
 		ruleToast = null;
 		message = '';
 		void tick().then(() => {
-			if (view === next) window.scrollTo({ top: 0 });
+			if (view === next) window.scrollTo({ top: 0, behavior: 'instant' });
 		});
 	}
 	function applyBudgetFlags(ids: string[], flag: BudgetOverride) {
@@ -362,9 +417,6 @@
 				: flag === 'exclude'
 					? `${ids.length === 1 ? 'Excluded' : `${ids.length} excluded`} from budget totals.`
 					: `Budget treatment reset.`;
-	}
-	function updateAiSettings(value: AiSettings) {
-		aiSettings = value;
 	}
 	function cancelImport() {
 		staged = [];
@@ -403,12 +455,6 @@
 		transactions = applyRules(transactions, learnedRules, categories);
 		if (category === id) category = '';
 		ruleToast = null;
-	}
-	function applyAiTags(proposal: TagProposal, requested: Transaction[]) {
-		const approved = approveLearning(transactions, proposal, requested, learnedRules, categories);
-		learnedRules = approved.rules;
-		transactions = approved.transactions;
-		message = `Saved ${approved.savedCount} rule${approved.savedCount === 1 ? '' : 's'}; updated ${approved.updatedCount} transaction${approved.updatedCount === 1 ? '' : 's'}.`;
 	}
 	function changeImportSigns(id: string, expenses: ImportInfo['expenses']) {
 		const file = importedFiles.find((file) => file.id === id);
@@ -467,6 +513,9 @@
 		const months = summaries.filter((entry) => entry.month.startsWith(`${value}-`));
 		const next = months.find((entry) => entry.month.slice(5) === month.slice(5)) ?? months[0];
 		if (next) selectMonth(next.month);
+	}
+	function requestImport() {
+		if (storageReady && !loading && !ruleEditorActive) fileInput.click();
 	}
 	async function stageFiles(files: FileList | null) {
 		if (loading || !files?.length) return;
@@ -552,7 +601,6 @@
 						proposedCategoryMappings(file.data, file.options.columns, learnedRules, categories),
 					categories
 				);
-			learnedRules = consolidateMerchantRules(combined, learnedRules, categories);
 			const incomingGroups = groupMerchantTransactions(
 				incoming,
 				combined,
@@ -601,12 +649,13 @@
 				transactions.some(
 					(row) =>
 						incoming.some((item) => item.id === row.id) &&
-						needsAiRule(row, learnedRules, categories)
+						budgetFlow(row, categories) === 'expense' &&
+						row.categoryId === UNCATEGORIZED_ID
 				)
 					? 'categories'
 					: 'overview';
 			staged = [];
-			void tick().then(() => window.scrollTo({ top: 0 }));
+			void tick().then(() => window.scrollTo({ top: 0, behavior: 'instant' }));
 		} catch (cause) {
 			error = cause instanceof Error ? cause.message : 'Could not import transactions.';
 		} finally {
@@ -639,74 +688,53 @@
 		message = 'Import undone.';
 	}
 	function editCategory(transaction: Transaction, value: string) {
-		const beforeTransactions = $state.snapshot(transactions);
-		const beforeRules = $state.snapshot(learnedRules);
-		message = '';
-
-		if (value === UNCATEGORIZED_ID || isDeclaredTransfer(transaction)) {
-			transactions = applyRules(
-				setCategory(transactions, transaction.id, value, categories),
-				learnedRules,
-				categories
-			);
-			ruleToast = null;
-			return;
-		}
-
-		// Automatically save as a merchant rule by default, with an option for "Only this transaction" or "Undo"
-		const group = groupMerchantTransactions(
-			[transaction],
-			transactions,
+		if (!categories[value]) return;
+		const before = {
+			transactions: $state.snapshot(transactions),
+			rules: $state.snapshot(learnedRules)
+		};
+		transactions = applyRules(
+			setCategory(transactions, transaction.id, value, categories),
 			learnedRules,
 			categories
-		)[0];
-		const baseRule = group?.rule ?? {
+		);
+		const group = groupMerchantTransactions([transaction], transactions)[0];
+		const predicate = group?.rule ?? {
 			keyword: transaction.description,
 			match: 'exact' as const,
-			field: 'description' as const,
 			categoryId: value
 		};
-		const nextRule: Rule = {
-			...baseRule,
-			categoryId: value,
-			source: 'manual',
-			confidence: undefined
-		};
-		const nextRules = saveRule(learnedRules, nextRule, categories);
-		const clearedRowTransactions = transactions.map((row) =>
-			row.id === transaction.id
-				? { ...row, categoryOverride: null, categorySource: 'automatic' as const }
-				: row
-		);
-		const nextTransactions = applyRules(clearedRowTransactions, nextRules, categories);
-		const matchCount = nextTransactions.filter(
-			(row) =>
-				!isDeclaredTransfer(row) &&
-				matchingRule(row.description, [nextRule], categories, row.id, row)
-		).length;
-
-		learnedRules = nextRules;
-		transactions = nextTransactions;
 		ruleToast = {
-			before: { transactions: beforeTransactions, rules: beforeRules },
-			after: { transactions: nextTransactions, rules: nextRules },
+			before,
+			after: { transactions, rules: learnedRules },
 			transactionId: transaction.id,
 			categoryId: value,
-			keyword: nextRule.keyword,
-			matchCount
+			keyword: predicate.keyword,
+			matchCount: transactions.filter((row) =>
+				matchingRule(row.description, [predicate], categories, row.id, row)
+			).length
 		};
 	}
-	function applyRuleToastSingleOnly() {
+	function makeMerchantRule() {
 		if (!ruleToast) return;
-		const { before, transactionId, categoryId } = ruleToast;
-		ruleToast = null;
-		learnedRules = before.rules;
+		const toast = ruleToast;
+		const row = transactions.find((row) => row.id === toast.transactionId);
+		if (!row) return;
+		const group = groupMerchantTransactions([row], transactions)[0];
+		const draft: Rule = { ...group.rule, categoryId: ruleToast.categoryId, source: 'manual' };
+		// The explicit choice to make a reusable rule releases just this transaction's exception.
+		// Other exceptions are still preserved by the matcher and editor preview.
+		ruleEditorRequest = { id: nanoid(), rule: draft, transactionId: row.id };
+		selectView('categories');
+	}
+	function useRules(transaction: Transaction) {
 		transactions = applyRules(
-			setCategory(before.transactions, transactionId, categoryId, categories),
-			before.rules,
+			clearCategoryOverride(transactions, transaction.id),
+			learnedRules,
 			categories
 		);
-		message = 'Updated only this transaction.';
+		ruleToast = null;
+		message = 'Transaction exception removed.';
 	}
 	function undoRuleToast() {
 		if (!ruleToast) return;
@@ -715,22 +743,6 @@
 		learnedRules = before.rules;
 		transactions = before.transactions;
 		message = 'Category change undone.';
-	}
-	function saveMerchantGroup(rule: Rule, groups: MerchantGroup[]) {
-		validateTagIds(rule.tagIds ?? [], tags);
-		const preview = previewMerchantRule(transactions, learnedRules, categories, groups, rule);
-		learnedRules = preview.rules;
-		transactions = preview.transactions;
-	}
-
-	function saveMerchantTags(rule: Rule, ids: string[]) {
-		validateTagIds(ids, tags);
-		learnedRules = saveRule(
-			learnedRules,
-			{ ...rule, tagIds: ids, source: rule.source ?? 'manual' },
-			categories
-		);
-		transactions = applyRules(transactions, learnedRules, categories);
 	}
 	function changeTransactionTags(id: string, ids: string[]) {
 		transactions = editTransactionTags(transactions, id, rowTags.get(id) ?? [], ids, tags);
@@ -758,10 +770,6 @@
 		if (tagFilter === id) tagFilter = '';
 	}
 
-	function removeRule(target: Rule) {
-		learnedRules = learnedRules.filter((rule) => ruleKey(rule) !== ruleKey(target));
-		transactions = applyRules(transactions, rules, categories);
-	}
 	function exportCsv() {
 		const rows =
 			exportScope === 'all'
@@ -781,7 +789,6 @@
 		setTimeout(() => URL.revokeObjectURL(url), 1000);
 	}
 	function clearTransactions() {
-		localAi.unload();
 		transactions = [];
 		learnedRules = clearRuleScopes(learnedRules);
 		importedFiles = [];
@@ -816,7 +823,12 @@
 					>
 				</div>
 			{/if}
-			<button type="button" class="primary" disabled={loading} onclick={() => fileInput.click()}>
+			<button
+				type="button"
+				class="primary"
+				disabled={loading || !storageReady || ruleEditorActive}
+				onclick={requestImport}
+			>
 				{loading ? 'Reading…' : '+ Import CSV'}
 			</button>
 		</div>
@@ -837,9 +849,9 @@
 			aria-pressed={view === 'categories'}
 			onclick={() => selectView('categories')}
 		>
-			Merchants
-			{#if aiReviewActive}
-				<span class="nav-badge attention">review</span>
+			Merchants & rules
+			{#if ruleEditorActive}
+				<span class="nav-badge attention">editing</span>
 			{:else if unmatchedMerchantCount > 0}
 				<span class="nav-badge">{unmatchedMerchantCount}</span>
 			{/if}
@@ -881,16 +893,11 @@
 	{#if ruleToast}
 		<div class="notice toast-notice" role="status">
 			<span>
-				Categorized <strong>{ruleToast.keyword}</strong> as
+				Updated this transaction at <strong>{ruleToast.keyword}</strong> to
 				<strong>{categoryPath(categories, ruleToast.categoryId)}</strong>
-				{#if ruleToast.matchCount > 1}
-					({ruleToast.matchCount} matching transactions)
-				{/if}
 			</span>
 			<div class="actions">
-				{#if ruleToast.matchCount > 1}
-					<button type="button" onclick={applyRuleToastSingleOnly}>Only this transaction</button>
-				{/if}
+				<button type="button" onclick={makeMerchantRule}>Make merchant rule…</button>
 				<button type="button" class="quiet" onclick={undoRuleToast}>Undo</button>
 			</div>
 		</div>
@@ -899,7 +906,12 @@
 			<span>{message || importUndo?.label}</span>
 			{#if importUndo}
 				<div class="actions">
-					<button type="button" class="quiet" disabled={aiReviewActive} onclick={undoImport}>
+					<button
+						type="button"
+						class="quiet"
+						disabled={ruleEditorActive || !storageReady}
+						onclick={undoImport}
+					>
 						Undo
 					</button>
 					<button type="button" class="quiet" onclick={() => selectView('settings')}>
@@ -1161,16 +1173,30 @@
 											<CategoryPicker
 												{categories}
 												value={transaction.categoryId}
+												disabled={ruleEditorActive || !storageReady}
 												budgetOverride={transaction.budgetOverride ?? null}
 												label={`Category for ${transaction.description} on ${transaction.date}`}
 												onChange={(id) => editCategory(transaction, id)}
 												onBudgetChange={(flag) => applyBudgetFlags([transaction.id], flag)}
 											/>
+											<div class="assignment-info">
+												<small
+													class="assignment-reason"
+													title={assignmentReason(transaction, learnedRules, categories)}
+													>{assignmentReason(transaction, learnedRules, categories)}</small
+												>
+												{#if transactionOverride(transaction) && !isDeclaredTransfer(transaction)}<button
+														type="button"
+														class="quiet"
+														disabled={ruleEditorActive || !storageReady}
+														onclick={() => useRules(transaction)}>Use rules</button
+													>{/if}
+											</div>
 											<TagPicker
 												{tags}
 												ids={rowTags.get(transaction.id) ?? []}
 												label={`${transaction.description} on ${transaction.date}`}
-												disabled={aiReviewActive}
+												disabled={ruleEditorActive || !storageReady}
 												onChange={(ids) => changeTransactionTags(transaction.id, ids)}
 											/>
 										</div>
@@ -1228,7 +1254,12 @@
 					Import one or more bank or credit card CSVs.<br />Review the columns, then organize your
 					spending by month.
 				</p>
-				<button type="button" class="primary" disabled={loading} onclick={() => fileInput.click()}>
+				<button
+					type="button"
+					class="primary"
+					disabled={loading || !storageReady || ruleEditorActive}
+					onclick={requestImport}
+				>
 					{loading ? 'Reading…' : 'Import transactions'}
 				</button>
 				<small>Categories and imported transactions are saved in this browser.</small>
@@ -1256,7 +1287,7 @@
 						>
 					</div>
 				</div>
-				<fieldset disabled={loading || aiReviewActive || localAi.status === 'loading'}>
+				<fieldset disabled={loading || ruleEditorActive || !storageReady}>
 					{#if resetCategoriesOpen}
 						<section class="category-reset" aria-label="Reset categories preview">
 							<h3>Restore default categories</h3>
@@ -1269,7 +1300,7 @@
 							{#if transactions.length}
 								<label class="reset-option">
 									<input type="checkbox" bind:checked={resetAssignments} />
-									Clear all transaction assignments and saved rules for a fresh AI test
+									Clear all transaction exceptions and saved rules
 								</label>
 							{/if}
 							<p>
@@ -1301,14 +1332,18 @@
 						Track Needs vs. Wants and contexts like Work or Social independently of spending
 						categories.
 					</p>
-					<fieldset disabled={aiReviewActive}>
+					<fieldset disabled={ruleEditorActive || !storageReady}>
 						<TagEditor {tags} onChange={(value) => (tags = value)} onDelete={removeTag} />
 					</fieldset>
 				</section>
 
 				<section class="workspace-section">
-					<fieldset disabled={aiReviewActive}>
-						<AiConnectionSettings settings={aiSettings} onChange={updateAiSettings} />
+					<fieldset>
+						<WorkspaceData
+							{workspace}
+							disabled={ruleEditorActive || !storageReady}
+							onRestore={restoreLocalWorkspace}
+						/>
 					</fieldset>
 				</section>
 
@@ -1316,7 +1351,7 @@
 					<section class="workspace-section" aria-labelledby="sources-title">
 						<div class="section-heading">
 							<h2 id="sources-title">Imported statements</h2>
-							<button type="button" onclick={() => fileInput.click()}>Add CSV</button>
+							<button type="button" onclick={requestImport}>Add CSV</button>
 						</div>
 						<p class="card-sub">
 							Choose how each statement represents purchases. Changing this flips its imported
@@ -1361,24 +1396,31 @@
 
 	<section hidden={view !== 'categories'} aria-labelledby="categories-title">
 		<h2 id="categories-title" class="sr-only">Merchant rules & categorization</h2>
-		<AiCategorizer
-			{rules}
-			{categories}
-			{transactions}
-			settings={aiSettings}
-			onEnabled={() => (aiSettings = { enabled: true })}
-			onReviewChange={(value) => (aiReviewActive = value)}
-			onTagsApply={applyAiTags}
-			onGroupSave={saveMerchantGroup}
-			onGroupDelete={removeRule}
-			{tags}
-			{rowTags}
-			{recurring}
-			onGroupTagsChange={saveMerchantTags}
-		/>
+		{#key ruleEditorRequest?.id ?? 'default'}<RuleWorkspace
+				{rules}
+				{transactions}
+				{categories}
+				{tags}
+				{rowTags}
+				initialRule={ruleEditorRequest?.rule}
+				releaseExceptionId={ruleEditorRequest?.transactionId}
+				blocked={loading || !storageReady}
+				onEditingChange={(value) => (ruleEditorActive = value)}
+				onChange={applyRuleChanges}
+			/>{/key}
 	</section>
 
-	<p class="privacy">Saved on this device. AI categorization runs locally in your browser.</p>
+	<p class="privacy">
+		<span role="status"
+			>{!storageReady
+				? 'Loading local workspace…'
+				: saving
+					? 'Saving changes…'
+					: storageWarning
+						? 'Changes are only in this session.'
+						: 'Saved in this browser.'}</span
+		> Rules and transactions stay on this device.
+	</p>
 </section>
 
 <style>
@@ -1701,12 +1743,34 @@
 	}
 	.category-cell {
 		display: flex;
+		flex-wrap: wrap;
 		gap: 0.45rem;
 		align-items: center;
 		min-width: 220px;
 	}
+	.assignment-info {
+		display: flex;
+		align-items: baseline;
+		gap: 0.5rem;
+		flex: 1 0 100%;
+		order: 3;
+		color: var(--content-1);
+		max-width: 30rem;
+	}
+	.assignment-reason {
+		font-size: 0.7rem;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		max-width: 24rem;
+	}
+	.assignment-info button {
+		font-size: 0.7rem;
+		padding: 0;
+		white-space: nowrap;
+	}
 	.category-cell > :global(.combobox) {
-		flex: 1;
+		flex: 1 0 12rem;
 		max-width: 240px;
 	}
 	.number {

@@ -1,9 +1,8 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { budgetFlow } from './activity';
 import {
 	combinedMerchantRule,
 	merchantSpending,
-	merchantAiTargets,
 	previewMerchantRule,
 	workspaceMerchantGroups
 } from './merchant-workspace';
@@ -24,8 +23,6 @@ import {
 	persistWorkspace,
 	validateWorkspace
 } from './workspace-storage';
-import { categorizeWithAi, needsAiRule, type CategoryClassifier } from './ai';
-import { approveLearning, reviewLearningGroups } from './learning';
 import { patternError, regexMatches } from './rule-pattern';
 const categories = DEFAULT_CATEGORIES;
 function rows(
@@ -66,41 +63,6 @@ describe('merchant workspace', () => {
 			{ currency: 'USD', amountCents: 500 }
 		]);
 		expect(merchantSpending([], categories)).toEqual([]);
-	});
-	it('defaults to unmatched groups and allows explicit reconsideration of selected saved groups', () => {
-		const tx = rows(['MERCHANT A', 'MERCHANT B', 'MERCHANT C']);
-		const rules: Rule[] = [
-			{ keyword: 'MERCHANT A', match: 'exact', categoryId: CATEGORY_IDS.Business, source: 'ai' },
-			{
-				keyword: 'UNUSED MERCHANT',
-				match: 'exact',
-				categoryId: CATEGORY_IDS.Business,
-				source: 'manual'
-			}
-		];
-		const resolved = setCategory(applyRules(tx, rules), tx[1].id, CATEGORY_IDS.Shopping);
-		const groups = workspaceMerchantGroups(resolved, rules, categories);
-		expect(groups).toHaveLength(4);
-		const displayed = groups.filter((group) => group.transactions.length);
-		expect(displayed).toHaveLength(3);
-		expect(merchantAiTargets(displayed, rules, categories)).toEqual({
-			rows: [resolved[2]],
-			groupCount: 1
-		});
-		const saved = displayed.find((group) => group.rule.keyword === 'MERCHANT A')!;
-		expect(merchantAiTargets(displayed, rules, categories, [saved.id])).toEqual({
-			rows: [resolved[0]],
-			groupCount: 1
-		});
-		const filtered = displayed.filter((group) => group.rule.keyword === 'MERCHANT C');
-		expect(merchantAiTargets(filtered, rules, categories)).toEqual({
-			rows: [resolved[2]],
-			groupCount: 1
-		});
-		expect(merchantAiTargets(filtered, rules, categories, [saved.id])).toEqual({
-			rows: [],
-			groupCount: 0
-		});
 	});
 	it('combines unmatched merchants as one substring rule without changing transaction facts', () => {
 		const { tx, rule, result } = merge();
@@ -280,48 +242,6 @@ describe('merchant workspace', () => {
 		const result = previewMerchantRule(tx, [], categories, groups, rule);
 		expect(result.transactions[1].categoryId).toBe(CATEGORY_IDS.Business);
 		expect(budgetFlow(result.transactions[2], categories)).toBe('transfer');
-	});
-	it('allows grouping first, then classifies that predicate once and updates the same rule', async () => {
-		const { tx, groups, rule } = merge();
-		const draft = previewMerchantRule(tx, [], categories, groups, {
-			...rule,
-			categoryId: CATEGORY_IDS.Uncategorized
-		});
-		expect(needsAiRule(draft.transactions[0], draft.rules, categories)).toBe(true);
-		const classify: CategoryClassifier = vi.fn(
-			async (input: Parameters<CategoryClassifier>[0]) => ({
-				assignments: input.transactions.map((row) => ({
-					t: row.t,
-					c: 'Business',
-					confidence: { score: 0.8, margin: 0.3 }
-				}))
-			})
-		);
-		const requested = draft.transactions.slice(0, 3);
-		const proposal = await categorizeWithAi(
-			classify,
-			requested,
-			categories,
-			new AbortController().signal,
-			undefined,
-			'',
-			draft.transactions,
-			draft.rules
-		);
-		expect(vi.mocked(classify).mock.calls[0][0].transactions).toHaveLength(1);
-		expect(
-			reviewLearningGroups(requested, draft.transactions, proposal, draft.rules, categories)
-		).toHaveLength(1);
-		const saved = approveLearning(draft.transactions, proposal, requested, draft.rules, categories);
-		expect(saved.rules).toHaveLength(1);
-		expect(saved.rules[0]).toMatchObject({
-			keyword: rule.keyword,
-			match: 'contains',
-			categoryId: CATEGORY_IDS.Business
-		});
-		expect(
-			saved.transactions.slice(0, 3).every((row) => row.categoryId === CATEGORY_IDS.Business)
-		).toBe(true);
 	});
 });
 describe('merchant regex matching', () => {

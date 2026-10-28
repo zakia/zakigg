@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CATEGORY_IDS, DEFAULT_CATEGORIES, categoryPath } from './category-model';
+import { CATEGORY_IDS, DEFAULT_CATEGORIES } from './category-model';
 import {
 	applyRules,
 	defaultImportOptions,
@@ -18,9 +18,6 @@ import {
 } from './tags';
 import { detectRecurring } from './recurring';
 import { emptyWorkspace, loadWorkspace, persistWorkspace } from './workspace-storage';
-import { classifyHierarchy } from './hierarchical-classification';
-import type { CategoryClassifier } from './ai';
-import type { ClassificationInput } from './local-ai-contract';
 
 function transactions(body: string) {
 	const csv = readCsv('Date,Description,Amount\n' + body);
@@ -93,6 +90,18 @@ describe('independent spending and purpose tags', () => {
 });
 
 describe('recurring payment series', () => {
+	it('does not infer a recurring merchant from unrelated shops matched by one broad pattern', () => {
+		const data = readCsv(
+			'Date,Description,Amount\n2026-01-01,FIRST COFFEE,-10\n2026-02-01,SECOND COFFEE,-10\n2026-03-01,THIRD COFFEE,-10'
+		);
+		const rules: Rule[] = [{ keyword: 'coffee', match: 'words', categoryId: CATEGORY_IDS.Cafes }];
+		const rows = normalizeTransactions(
+			data,
+			defaultImportOptions(data.headers, 'synthetic.csv'),
+			rules
+		).transactions;
+		expect(detectRecurring(rows, rules, DEFAULT_CATEGORIES)).toEqual([]);
+	});
 	it('detects three calendar payments, including month ends, without tagging a one-off or refund', () => {
 		const rows = transactions(
 			'2026-01-31,SERVICE,-20\n2026-02-28,SERVICE,-21\n2026-03-31,SERVICE,-20\n2026-02-15,SERVICE,-80\n2026-03-15,SERVICE,20'
@@ -154,74 +163,5 @@ describe('recurring payment series', () => {
 				categories
 			)
 		).toEqual([]);
-	});
-});
-
-describe('classification with bounded category choices', () => {
-	const rows = transactions('2026-01-01,MARKET,-10');
-	const inputFor: Parameters<typeof classifyHierarchy>[4] = (batch, choices, parent) => ({
-		rules: [],
-		examples: [],
-		fallback: categoryPath(categories, parent ?? CATEGORY_IDS.Uncategorized),
-		categories: choices.map((choice) => ({
-			name: categoryPath(categories, choice.id),
-			purpose: choice.name
-		})),
-		transactions: batch.map((row, t) => ({ t, d: row.description, direction: 'out' }))
-	});
-	it('offers eight roots then only the chosen branch, combining the weaker score', async () => {
-		const inputs: ClassificationInput[] = [];
-		const model: CategoryClassifier = async (input) => {
-			inputs.push(input);
-			return {
-				assignments: [
-					{
-						t: 0,
-						c: inputs.length === 1 ? 'Household' : 'Household / Groceries',
-						confidence: { score: inputs.length === 1 ? 0.8 : 0.6, margin: 0.2 }
-					}
-				]
-			};
-		};
-		const result = await classifyHierarchy(
-			model,
-			rows,
-			categories,
-			new AbortController().signal,
-			inputFor
-		);
-		expect(inputs[0].categories.filter((c) => c.name !== 'Uncategorized')).toHaveLength(8);
-		expect(inputs[0].categories.some((c) => c.name.includes('/'))).toBe(false);
-		expect(inputs[1].categories.every((c) => c.name.startsWith('Household'))).toBe(true);
-		expect(result.get(rows[0].id)).toEqual({
-			categoryId: CATEGORY_IDS.Groceries,
-			confidence: { score: 0.6, margin: 0.2 }
-		});
-	});
-	it('retains the root when the child is uncertain and rejects foreign branch mappings', async () => {
-		let calls = 0;
-		const model: CategoryClassifier = async () => ({
-			assignments: [
-				{
-					t: 0,
-					c: ++calls === 1 ? 'Household' : 'Household / Groceries',
-					confidence: { score: calls === 1 ? 0.8 : 0.2, margin: 0.1 }
-				}
-			]
-		});
-		expect(
-			(
-				await classifyHierarchy(model, rows, categories, new AbortController().signal, inputFor)
-			).get(rows[0].id)?.categoryId
-		).toBe(CATEGORY_IDS.Household);
-		calls = 0;
-		const invalid: CategoryClassifier = async () => ({
-			assignments: [
-				{ t: 0, c: ++calls === 1 ? 'Household' : 'Dining', confidence: { score: 0.8, margin: 0.2 } }
-			]
-		});
-		await expect(
-			classifyHierarchy(invalid, rows, categories, new AbortController().signal, inputFor)
-		).rejects.toThrow('unknown');
 	});
 });

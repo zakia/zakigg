@@ -1,15 +1,12 @@
-import { describe, it, expect, vi } from 'vitest';
-import { merchantGroups } from './merchants';
+import { describe, it, expect } from 'vitest';
+import { merchantGroups, groupMerchantTransactions } from './merchants';
 import { consolidateMerchantRules } from './merchant-rules';
-import { categorizeWithAi, type CategoryClassifier, type TagProposal } from './ai';
-import { approveLearning, previewLearning } from './learning';
 import { DEFAULT_CATEGORIES, CATEGORY_IDS } from './category-model';
 import {
 	applyRules,
 	defaultImportOptions,
 	normalizeTransactions,
 	readCsv,
-	setCategory,
 	type Rule
 } from './processing';
 import { emptyWorkspace, persistWorkspace, loadWorkspace } from './workspace-storage';
@@ -29,7 +26,7 @@ function rows(names = descriptions) {
 		[]
 	).transactions;
 }
-const proposal = (tx: ReturnType<typeof rows>): TagProposal =>
+const proposal = (tx: ReturnType<typeof rows>) =>
 	tx.map((row, i) => ({
 		transactionId: row.id,
 		categoryId: i < 2 ? CATEGORY_IDS.Transport : CATEGORY_IDS.Shopping
@@ -80,39 +77,18 @@ describe('merchant grouping and deterministic rules', () => {
 			).size
 		).toBe(2);
 	});
-	it('classifies each merchant once and expands suggestions to all requested transactions', async () => {
-		const classify: CategoryClassifier = vi.fn(
-			async (input: Parameters<CategoryClassifier>[0]) => ({
-				assignments: input.transactions.map((row) => ({
-					t: row.t,
-					c: row.d === 'PRESTO FARE' ? 'Transport' : 'Shopping and Personal'
-				}))
-			})
-		);
-		const tx = rows();
-		expect(
-			await categorizeWithAi(
-				classify,
-				tx,
-				DEFAULT_CATEGORIES,
-				new AbortController().signal,
-				undefined,
-				'',
-				[],
-				[]
-			)
-		).toEqual(proposal(tx));
-		expect(vi.mocked(classify).mock.calls[0][0].transactions.map((row) => row.d)).toEqual([
-			'PRESTO FARE',
-			'AMZN MKTP CA'
-		]);
-	});
 	it('learns two reusable rules and tags unseen references with token boundaries', () => {
 		const tx = rows();
-		const result = approveLearning(tx, proposal(tx), tx, [], DEFAULT_CATEGORIES);
+		const rules = groupMerchantTransactions(tx).map((group) => ({
+			...group.rule,
+			categoryId:
+				group.rule.keyword === 'PRESTO FARE' ? CATEGORY_IDS.Transport : CATEGORY_IDS.Shopping,
+			source: 'manual' as const
+		}));
+		const result = { rules, transactions: applyRules(tx, rules) };
 		expect(result.rules.map((rule) => [rule.keyword, rule.match])).toEqual([
-			['AMZN MKTP CA', 'merchant'],
-			['PRESTO FARE', 'merchant']
+			['PRESTO FARE', 'merchant'],
+			['AMZN MKTP CA', 'merchant']
 		]);
 		const future = rows([
 			'PRESTO FARE/NEW987654 TORONTO',
@@ -132,40 +108,12 @@ describe('merchant grouping and deterministic rules', () => {
 	});
 	it('can learn a merchant rule from one selected row using other imported descriptions as evidence', () => {
 		const tx = rows();
-		const result = approveLearning(
-			tx,
-			proposal(tx).slice(0, 1),
-			tx.slice(0, 1),
-			[],
-			DEFAULT_CATEGORIES
-		);
+		const rule = groupMerchantTransactions(tx.slice(0, 1), tx)[0].rule;
+		const result = { rules: [{ ...rule, categoryId: CATEGORY_IDS.Transport }] };
 		expect(result.rules[0]).toMatchObject({ keyword: 'PRESTO FARE', match: 'merchant' });
-		expect(result.updatedCount).toBe(2);
-	});
-	it('protects manual exceptions and rejects conflicting group proposals or existing rules', () => {
-		const tx = rows();
-		const conflicting = proposal(tx);
-		conflicting[1].categoryId = CATEGORY_IDS.Business;
-		expect(previewLearning(tx, conflicting, [], DEFAULT_CATEGORIES).conflicts).toHaveLength(1);
-		const manual = setCategory(tx, tx[1].id, CATEGORY_IDS.Business);
-		const result = approveLearning(
-			manual,
-			proposal(manual).slice(0, 1),
-			manual.slice(0, 1),
-			[],
-			DEFAULT_CATEGORIES
-		);
-		expect(result.transactions[1].categoryId).toBe(CATEGORY_IDS.Business);
-		expect(result.transactions[1].categoryOverride?.source).toBe('manual');
-		const rules: Rule[] = [
-			{
-				keyword: tx[1].description,
-				categoryId: CATEGORY_IDS.Business,
-				match: 'exact',
-				source: 'manual'
-			}
-		];
-		expect(previewLearning(tx, proposal(tx), rules, DEFAULT_CATEGORIES).conflicts).toHaveLength(1);
+		expect(
+			applyRules(tx, result.rules).filter((row) => row.categoryId === CATEGORY_IDS.Transport)
+		).toHaveLength(2);
 	});
 	it('consolidates existing AI exact rules after reload while preserving user rules, scopes, IDs and amounts', () => {
 		const tx = rows();
@@ -195,12 +143,16 @@ describe('merchant grouping and deterministic rules', () => {
 				]
 			}
 		);
-		const loaded = loadWorkspace({ getItem: () => raw });
-		expect(loaded.rules).toHaveLength(3);
+		const legacy = JSON.parse(raw);
+		legacy.version = 4;
+		delete legacy.starterVersion;
+		legacy.ai = { enabled: true };
+		const loaded = loadWorkspace({ getItem: () => JSON.stringify(legacy) });
+		expect(loaded.rules.filter((rule) => !rule.starterId)).toHaveLength(3);
 		expect(loaded.rules).toContainEqual(manual);
 		expect(
 			loaded.rules
-				.filter((rule) => rule.match === 'merchant')
+				.filter((rule) => rule.match === 'merchant' && !rule.starterId)
 				.every((rule) => rule.direction === 'out')
 		).toBe(true);
 		expect(loaded.transactions.map((row) => [row.id, row.amountCents, row.description])).toEqual(
@@ -231,18 +183,5 @@ describe('merchant grouping and deterministic rules', () => {
 		]) {
 			expect(consolidateMerchantRules(tx, changed, DEFAULT_CATEGORIES)).toEqual(changed);
 		}
-	});
-	it('does not relearn a saved merchant rule', () => {
-		const tx = rows();
-		const result = approveLearning(tx, proposal(tx), tx, [], DEFAULT_CATEGORIES);
-		expect(
-			approveLearning(
-				result.transactions,
-				proposal(result.transactions),
-				result.transactions,
-				result.rules,
-				DEFAULT_CATEGORIES
-			).savedCount
-		).toBe(0);
 	});
 });

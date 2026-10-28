@@ -1,5 +1,5 @@
 import Papa from 'papaparse';
-import { patternError, regexMatches } from './rule-pattern';
+import { patternError, regexMatches, wordsMatch } from './rule-pattern';
 import { DEFAULT_TAGS, type TagDictionary, type TagOverride } from './tags';
 import type { ClassificationConfidence } from './confidence';
 import {
@@ -24,13 +24,16 @@ import {
 	type CategoryDictionary
 } from './category-model';
 export type Rule = {
+	enabled?: boolean;
+	starterId?: string;
+	spendingOnly?: boolean;
 	tagIds?: string[];
 	confidence?: ClassificationConfidence;
 	direction?: 'out' | 'in';
 	accountType?: AccountType;
 	keyword: string;
 	categoryId: string;
-	match?: 'exact' | 'contains' | 'merchant' | 'regex';
+	match?: 'exact' | 'contains' | 'merchant' | 'regex' | 'words';
 	source?: 'manual' | 'ai' | 'starter' | 'import';
 	field?: 'description' | 'sourceCategory';
 	// A reviewed rule can cover the selected rows and future imports only.
@@ -271,7 +274,6 @@ export function matchingRule(
 	metadata?: Partial<Pick<Transaction, 'sourceCategory' | 'accountType' | 'amountCents'>>
 ): Rule | undefined {
 	const text = normalizeDescription(description);
-	const rank = (rule: Rule) => (rule.source === 'import' ? 1 : rule.source === 'ai' ? 2 : 3);
 	return rules
 		.filter((rule) => {
 			const keyword = normalizeDescription(rule.keyword);
@@ -280,8 +282,12 @@ export function matchingRule(
 					? normalizeDescription(metadata?.sourceCategory || '')
 					: text;
 			return (
+				rule.enabled !== false &&
 				categories[rule.categoryId] &&
 				keyword &&
+				(!rule.spendingOnly ||
+					(metadata?.amountCents !== undefined &&
+						(metadata.amountCents < 0 || metadata.accountType === 'credit'))) &&
 				(!rule.accountType || rule.accountType === metadata?.accountType) &&
 				(!rule.direction ||
 					(metadata?.amountCents !== undefined &&
@@ -289,23 +295,24 @@ export function matchingRule(
 				(!transactionId || !rule.excludedTransactionIds?.includes(transactionId)) &&
 				(rule.match === 'regex'
 					? regexMatches(rule.keyword, candidate)
-					: rule.match === 'exact'
-						? candidate === keyword
-						: rule.match === 'merchant'
-							? candidate.startsWith(keyword) &&
-								!/[\p{L}\p{N}]/u.test(candidate.charAt(keyword.length))
-							: candidate.includes(keyword))
+					: rule.match === 'words'
+						? wordsMatch(rule.keyword, candidate)
+						: rule.match === 'exact'
+							? candidate === keyword
+							: rule.match === 'merchant'
+								? candidate.startsWith(keyword) &&
+									!/[\p{L}\p{N}]/u.test(candidate.charAt(keyword.length))
+								: candidate.includes(keyword))
 			);
 		})
-		.sort(
-			(a, b) =>
-				rank(b) - rank(a) ||
-				Number(b.match === 'exact') - Number(a.match === 'exact') ||
-				Number(b.match === 'merchant') - Number(a.match === 'merchant') ||
-				Number(!!b.accountType) - Number(!!a.accountType) ||
-				Number(!!b.direction) - Number(!!a.direction) ||
-				b.keyword.length - a.keyword.length
-		)[0];
+		.sort((a, b) => ruleSpecificity(b) - ruleSpecificity(a))[0];
+}
+
+/** Bank category labels are general patterns, even when their label matches exactly. */
+export function ruleSpecificity(rule: Rule): number {
+	return rule.field !== 'sourceCategory' && (rule.match === 'exact' || rule.match === 'merchant')
+		? 1
+		: 0;
 }
 
 export function categorize(
@@ -332,7 +339,8 @@ export function ruleKey(rule: Rule): string {
 		rule.match ?? 'contains',
 		rule.match === 'regex' ? rule.keyword.trim() : normalizeDescription(rule.keyword),
 		rule.accountType ?? '',
-		rule.direction ?? ''
+		rule.direction ?? '',
+		rule.spendingOnly ? 'spending' : ''
 	]);
 }
 export function sourceCategoryLabels(
@@ -393,7 +401,15 @@ export function mergeCategoryMappings(
 		if (categoryId === UNCATEGORIZED_ID) {
 			next = next.filter((rule) => ruleKey(rule) !== ruleKey(mapping));
 		} else if (prior?.categoryId !== categoryId) {
-			next = saveRule(next, { ...mapping, source: prior?.source ?? 'import' }, categories);
+			const [normalized] = saveRule(
+				[],
+				{ ...mapping, source: prior?.source ?? 'import' },
+				categories
+			);
+			// Imported bank hints are fallbacks; later imports retain the user's visible order.
+			next = prior
+				? next.map((rule) => (ruleKey(rule) === ruleKey(prior) ? { ...prior, categoryId } : rule))
+				: [...next, normalized];
 		}
 	}
 	return next;
@@ -613,6 +629,15 @@ export function clearRuleScopes(rules: readonly Rule[]): Rule[] {
 }
 
 // Categories are a projection of rules plus explicit per-transaction overrides.
+export function clearCategoryOverride(
+	transactions: readonly Transaction[],
+	id: string
+): Transaction[] {
+	return transactions.map((row) =>
+		row.id === id ? { ...row, categoryOverride: null, categorySource: 'automatic' } : row
+	);
+}
+
 export function applyRules(
 	transactions: readonly Transaction[],
 	rules: readonly Rule[],

@@ -1,7 +1,7 @@
 import { budgetFlow } from './activity';
 import { groupMerchantTransactions } from './merchants';
 import type { CategoryDictionary } from './category-model';
-import type { Rule, Transaction } from './processing';
+import { ruleSpecificity, type Rule, type Transaction } from './processing';
 import { parseDate } from '#lib/utils/date.js';
 
 export type RecurringSeries = {
@@ -32,7 +32,7 @@ export function detectRecurring(
 	for (const group of groupMerchantTransactions(
 		spending,
 		rows,
-		rules.filter((rule) => rule.field !== 'sourceCategory'),
+		rules.filter((rule) => ruleSpecificity(rule) === 1),
 		categories
 	)) {
 		const partitions = new Map<string, Transaction[]>();

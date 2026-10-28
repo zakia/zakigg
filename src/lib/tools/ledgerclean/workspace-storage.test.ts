@@ -4,9 +4,11 @@ import {
 	loadWorkspace,
 	persistWorkspace,
 	validateWorkspace,
-	WORKSPACE_KEY
+	WORKSPACE_KEY,
+	serializeWorkspace
 } from './workspace-storage';
 import { CATEGORY_IDS } from './category-model';
+import { TAG_IDS, transactionTagMap } from './tags';
 import { applyRules, defaultImportOptions, normalizeTransactions, readCsv } from './processing';
 function populated() {
 	const workspace = emptyWorkspace();
@@ -19,6 +21,77 @@ function populated() {
 	return workspace;
 }
 describe('workspace storage', () => {
+	it('preserves effective legacy tags even when the new winner assigns the same category', () => {
+		for (const categoryId of [CATEGORY_IDS.Cafes, CATEGORY_IDS.Business]) {
+			const current = populated();
+			current.transactions[0].description = 'COFFEE BAR #123';
+			current.transactions[0].tagOverride = { add: [TAG_IDS.Needs], remove: [] };
+			const raw = {
+				...serializeWorkspace(current),
+				version: 4,
+				ai: { enabled: true },
+				rules: [
+					{
+						keyword: 'COFFEE',
+						match: 'contains',
+						source: 'manual',
+						categoryId: CATEGORY_IDS.Business,
+						tagIds: [TAG_IDS.Work]
+					},
+					{
+						keyword: 'COFFEE BAR #123',
+						match: 'exact',
+						source: 'ai',
+						categoryId,
+						tagIds: [TAG_IDS.Social]
+					}
+				]
+			};
+			delete (raw as Partial<typeof raw>).starterVersion;
+			const loaded = validateWorkspace(raw);
+			expect(
+				transactionTagMap(loaded.transactions, loaded.rules, loaded.categories, loaded.tags)
+					.get(loaded.transactions[0].id)
+					?.sort()
+			).toEqual([TAG_IDS.Needs, TAG_IDS.Work].sort());
+			expect(validateWorkspace(serializeWorkspace(loaded)).transactions[0].tagOverride).toEqual(
+				loaded.transactions[0].tagOverride
+			);
+		}
+	});
+	it('preserves legacy winners when retired source precedence differs from the new visible order', () => {
+		const current = populated();
+		current.transactions[0].description = 'COFFEE BAR #123';
+		const raw = {
+			...serializeWorkspace(current),
+			version: 4,
+			ai: { enabled: true },
+			rules: [
+				{ keyword: 'COFFEE BAR', match: 'merchant', source: 'ai', categoryId: CATEGORY_IDS.Cafes },
+				{
+					keyword: 'COFFEE BAR #123',
+					match: 'exact',
+					source: 'manual',
+					categoryId: CATEGORY_IDS.Business
+				}
+			]
+		};
+		delete (raw as Partial<typeof raw>).starterVersion;
+		expect(validateWorkspace(raw).transactions[0].categoryId).toBe(CATEGORY_IDS.Business);
+		raw.rules = [
+			{ keyword: 'COFFEE BAR #123', match: 'exact', source: 'ai', categoryId: CATEGORY_IDS.Cafes },
+			{ keyword: 'COFFEE', match: 'contains', source: 'manual', categoryId: CATEGORY_IDS.Business }
+		];
+		const loaded = validateWorkspace(raw);
+		expect(loaded.transactions[0].categoryId).toBe(CATEGORY_IDS.Business);
+		expect(loaded.transactions[0].categoryOverride).toEqual({
+			categoryId: CATEGORY_IDS.Business,
+			source: 'manual'
+		});
+		expect(validateWorkspace(serializeWorkspace(loaded)).transactions[0].categoryId).toBe(
+			CATEGORY_IDS.Business
+		);
+	});
 	it('adopts the hierarchy from flat defaults while preserving user names, colors, and rules', () => {
 		const workspace = populated();
 		workspace.rules = [{ keyword: 'OPENAI', categoryId: CATEGORY_IDS.Business }];
@@ -26,6 +99,7 @@ describe('workspace storage', () => {
 		persistWorkspace({ setItem: (_key, value) => (saved = value) }, workspace);
 		const flat = JSON.parse(saved);
 		flat.version = 3;
+		delete flat.starterVersion;
 		delete flat.tags;
 		for (const [id, category] of Object.entries(workspace.categories)) {
 			if (category.parentId && id !== CATEGORY_IDS.Groceries) delete flat.categories[id];
@@ -37,7 +111,7 @@ describe('workspace storage', () => {
 		flat.categories[CATEGORY_IDS.Business].name = 'My work';
 		flat.categories[CATEGORY_IDS.Business].color = '#abcdef';
 		const loaded = loadWorkspace({ getItem: () => JSON.stringify(flat) });
-		expect(loaded.version).toBe(4);
+		expect(loaded.version).toBe(5);
 		expect(loaded.categories[CATEGORY_IDS.Groceries].parentId).toBe(CATEGORY_IDS.Household);
 		expect(loaded.categories[CATEGORY_IDS.Dining].name).toBe('Dining');
 		expect(loaded.categories[CATEGORY_IDS.Medical].parentId).toBe(CATEGORY_IDS.Health);
@@ -45,30 +119,31 @@ describe('workspace storage', () => {
 			name: 'My work',
 			color: '#abcdef'
 		});
-		expect(loaded.rules).toEqual(workspace.rules);
+		expect(loaded.rules.filter((rule) => !rule.starterId)).toEqual(workspace.rules);
 		expect(loaded.transactions[0].id).toBe(workspace.transactions[0].id);
 	});
-	it('starts with categories and zero merchant rules, including after a storage reset', () => {
+	it('starts with enabled conservative rules, including after a storage reset', () => {
 		const fresh = loadWorkspace({ getItem: () => null });
-		expect(fresh.rules).toEqual([]);
+		expect(fresh.rules.some((rule) => rule.starterId === 'cafes' && rule.enabled)).toBe(true);
 		expect(fresh.categories[CATEGORY_IDS.Business].name).toBe('Business');
 		const csv = readCsv(
 			'Date,Description,Amount\n2026-10-01,OPENAI,-10\n2026-10-02,DIGITALOCEAN,-12\n2026-10-03,DOORDASH,-14\n2026-10-04,PAYROLL,3000\n2026-10-05,PAYMENT RECEIVED - THANK YOU,100'
 		);
 		const tx = normalizeTransactions(
 			csv,
-			defaultImportOptions(csv.headers, 'test.csv')
+			defaultImportOptions(csv.headers, 'test.csv'),
+			fresh.rules
 		).transactions;
 		expect(tx.map((row) => row.categoryId)).toEqual([
-			CATEGORY_IDS.Uncategorized,
-			CATEGORY_IDS.Uncategorized,
-			CATEGORY_IDS.Uncategorized,
+			CATEGORY_IDS.Business,
+			CATEGORY_IDS.Business,
+			CATEGORY_IDS.Takeaway,
 			CATEGORY_IDS.Income,
 			CATEGORY_IDS.Savings
 		]);
-		expect(loadWorkspace({ getItem: () => null }).rules).toEqual([]);
+		expect(loadWorkspace({ getItem: () => null }).rules).toEqual(fresh.rules);
 	});
-	it('removes all shipped starter rules while preserving user rules', () => {
+	it('replaces legacy shipped presets once while preserving user rules', () => {
 		const workspace = populated();
 		workspace.rules = [
 			{ keyword: 'PAYMENT RECEIVED', categoryId: CATEGORY_IDS.Savings, source: 'starter' },
@@ -82,8 +157,12 @@ describe('workspace storage', () => {
 		];
 		let raw = '';
 		persistWorkspace({ setItem: (_key, value) => (raw = value) }, workspace);
-		const loaded = loadWorkspace({ getItem: () => raw });
-		expect(loaded.rules).toEqual([
+		const legacy = JSON.parse(raw);
+		legacy.version = 4;
+		delete legacy.starterVersion;
+		legacy.ai = { enabled: true };
+		const loaded = loadWorkspace({ getItem: () => JSON.stringify(legacy) });
+		expect(loaded.rules.filter((rule) => !rule.starterId)).toEqual([
 			{ keyword: 'Savings transfer', categoryId: CATEGORY_IDS.Savings, source: 'manual' },
 			{ keyword: 'OPENAI', categoryId: CATEGORY_IDS.Shopping, source: 'manual' },
 			{ keyword: 'DOORDASH', categoryId: CATEGORY_IDS.Dining, source: 'ai' },
@@ -96,9 +175,8 @@ describe('workspace storage', () => {
 		const workspace = populated();
 		workspace.rules = [{ keyword: 'OPENAI', categoryId: CATEGORY_IDS.Business }];
 		workspace.transactions = applyRules(workspace.transactions, workspace.rules);
-		workspace.ai.enabled = true;
 		let saved = '';
-		const settingsWithKey = { ...workspace.ai, apiKey: 'SECRET' };
+		const withLegacySettings = { ...workspace, ai: { enabled: true, apiKey: 'SECRET' } };
 		persistWorkspace(
 			{
 				setItem: (key, value) => {
@@ -106,7 +184,7 @@ describe('workspace storage', () => {
 					saved = value;
 				}
 			},
-			{ ...workspace, ai: settingsWithKey }
+			withLegacySettings
 		);
 		expect(saved).not.toContain('SECRET');
 		expect(saved).not.toContain('apiKey');
@@ -159,10 +237,11 @@ describe('workspace storage', () => {
 				{ ...facts, id: 'legacy-ai', categoryId: CATEGORY_IDS.Business, categorySource: 'ai' }
 			]
 		};
+		delete (legacy as Partial<typeof legacy>).starterVersion;
 		const loaded = loadWorkspace({
 			getItem: (key) => (key === WORKSPACE_KEY ? JSON.stringify(legacy) : null)
 		});
-		expect(loaded.version).toBe(4);
+		expect(loaded.version).toBe(5);
 		expect(loaded.categories).toEqual(current.categories);
 		expect(loaded.transactions.map((row) => row.id)).toEqual([
 			facts.id,
@@ -214,6 +293,8 @@ describe('saved category relationships', () => {
 		let raw = '';
 		persistWorkspace({ setItem: (_key, value) => (raw = value) }, workspace);
 		const old = JSON.parse(raw);
+		old.version = 4;
+		delete old.starterVersion;
 		old.ai = {
 			baseUrl: 'https://api.deepinfra.com/v1/openai',
 			model: 'old-model',
@@ -228,7 +309,7 @@ describe('saved category relationships', () => {
 			categoryOverride: { categoryId: child, source: 'manual' }
 		});
 		expect(loaded.rules[0].categoryId).toBe(child);
-		expect(loaded.ai).toEqual({ enabled: false });
+		expect(loaded).not.toHaveProperty('ai');
 		expect(loaded.categories[child].parentId).toBe(CATEGORY_IDS.Business);
 	});
 });

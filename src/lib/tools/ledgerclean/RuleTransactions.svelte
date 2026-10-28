@@ -21,6 +21,7 @@
 		matchedRows?: readonly Transaction[];
 	} = $props();
 	let limit = $state(20);
+	let open = $state(false);
 	const matches = $derived(
 		matchedRows ??
 			transactions.filter((row) => matchingRule(row.description, [rule], categories, row.id, row))
@@ -32,43 +33,43 @@
 	}
 </script>
 
-<details class="matches" open={expanded}>
+<details class="matches" open={expanded} ontoggle={(event) => (open = event.currentTarget.open)}>
 	<summary aria-label={`View ${matches.length} transactions matching ${rule.keyword}`}
 		>{matches.length} transaction{matches.length === 1 ? '' : 's'}</summary
 	>
-	<div class="scroll">
-		<table aria-label={`Transactions matching ${rule.keyword}`}>
-			<thead
-				><tr
-					><th>Date</th><th>Description</th><th>Current category</th><th>Tags</th><th class="amount"
-						>Amount</th
-					></tr
-				></thead
-			>
-			<tbody
-				>{#each matches.slice(0, limit) as row (row.id)}<tr>
-						<td>{formatDate(row.date, { month: 'short', day: 'numeric', year: 'numeric' })}</td>
-						<td>{row.description}</td><td
-							>{categoryPath(
-								categories,
-								row.categoryId
-							)}{#if row.categoryOverride?.source === 'manual'}<small>Manual assignment</small
-								>{/if}</td
-						>
-						<td
-							>{(rowTags.get(row.id) ?? [])
-								.map((id) => tags[id]?.name)
-								.filter(Boolean)
-								.join(', ') || '—'}</td
-						>
-						<td class="amount">{money(row)}</td>
-					</tr>{/each}</tbody
-			>
-		</table>
-		{#if limit < matches.length}<button type="button" onclick={() => (limit += 20)}
-				>Show more transactions</button
-			>{/if}
-	</div>
+	{#if open}<div class="scroll">
+			<table aria-label={`Transactions matching ${rule.keyword}`}>
+				<thead
+					><tr
+						><th>Date</th><th>Description</th><th>Current category</th><th>Tags</th><th
+							class="amount">Amount</th
+						></tr
+					></thead
+				>
+				<tbody
+					>{#each matches.slice(0, limit) as row (row.id)}<tr>
+							<td>{formatDate(row.date, { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+							<td>{row.description}</td><td
+								>{categoryPath(
+									categories,
+									row.categoryId
+								)}{#if row.categoryOverride?.source === 'manual'}<small>Manual assignment</small
+									>{/if}</td
+							>
+							<td
+								>{(rowTags.get(row.id) ?? [])
+									.map((id) => tags[id]?.name)
+									.filter(Boolean)
+									.join(', ') || '—'}</td
+							>
+							<td class="amount">{money(row)}</td>
+						</tr>{/each}</tbody
+				>
+			</table>
+			{#if limit < matches.length}<button type="button" onclick={() => (limit += 20)}
+					>Show more transactions</button
+				>{/if}
+		</div>{/if}
 </details>
 
 <style>

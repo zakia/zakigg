@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { BUDGET_LABELS, budgetFlow, detectedAccountType, setBudgetOverrides } from './activity';
 import { CATEGORY_IDS, DEFAULT_CATEGORIES } from './category-model';
 import { identifyTransactions, planImport } from './identity';
-import { approveLearning } from './learning';
 import { emptyWorkspace, loadWorkspace, persistWorkspace } from './workspace-storage';
 import {
 	applyRules,
@@ -218,19 +217,6 @@ describe('account activity and budget treatment', () => {
 		expect(flows(tx)).toEqual(['expense', 'income']);
 		expect(parse(card, { accountType: 'unknown' }).transactions[0].accountType).toBeUndefined();
 	});
-	it('prevents AI and category edits from converting declared repayments into spending or teaching a repayment spending rule', () => {
-		const repayment = parse(card).transactions[2];
-		const result = approveLearning(
-			[repayment],
-			[{ transactionId: repayment.id, categoryId: CATEGORY_IDS.Dining }],
-			[repayment],
-			[],
-			DEFAULT_CATEGORIES
-		);
-		expect(result.rules).toHaveLength(0);
-		expect(result.transactions[0].categoryId).toBe(CATEGORY_IDS.Savings);
-		expect(budgetFlow(result.transactions[0], DEFAULT_CATEGORIES)).toBe('transfer');
-	});
 	it('preserves bank labels and maps exact names into reusable rules without inventing category roots', () => {
 		const parsed = parse(card);
 		expect(parsed.transactions[0].sourceCategory).toBe('Groceries');
@@ -288,29 +274,6 @@ describe('account activity and budget treatment', () => {
 				DEFAULT_CATEGORIES
 			).filter((rule) => rule.keyword === 'MEDICAL')
 		).toHaveLength(1);
-	});
-	it('keeps manual bank-mapping rules protected during AI learning', () => {
-		const tx = parse(card, { categoryMappings: { Groceries: CATEGORY_IDS.Dining } })
-			.transactions[0];
-		const rules: Rule[] = [
-			{
-				keyword: 'Groceries',
-				categoryId: CATEGORY_IDS.Dining,
-				source: 'manual',
-				field: 'sourceCategory',
-				match: 'exact'
-			}
-		];
-		expect(() =>
-			approveLearning(
-				[tx],
-				[{ transactionId: tx.id, categoryId: CATEGORY_IDS.Business }],
-				[tx],
-				rules,
-				DEFAULT_CATEGORIES
-			)
-		).toThrow('conflicting');
-		expect(tx.categoryOverride).toBeNull();
 	});
 	it('ignores changing CSV status during dedupe and preserves IDs, flags, and edits', async () => {
 		const original = { ...parse(card).transactions[3], budgetOverride: 'exclude' as const };
@@ -388,8 +351,9 @@ describe('account activity and budget treatment', () => {
 		persistWorkspace({ setItem: (_key, value) => (json = value) }, workspace);
 		const old = JSON.parse(json);
 		old.version = 2;
+		delete old.starterVersion;
 		const loaded = loadWorkspace({ getItem: () => JSON.stringify(old) });
-		expect(loaded.version).toBe(4);
+		expect(loaded.version).toBe(5);
 		expect(loaded.transactions).toEqual(workspace.transactions);
 		expect(BUDGET_LABELS[budgetFlow(loaded.transactions[0], DEFAULT_CATEGORIES)]).toBe(
 			'Spending / refund'

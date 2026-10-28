@@ -5,14 +5,13 @@
 	import ProjectCard from './ProjectCard.svelte';
 
 	const contactLinks = [
-		{ href: 'mailto:azakica@gmail.com', icon: 'mdi:email', text: 'azakica@gmail.com' },
+		{ href: 'mailto:adham@zaki.gg', icon: 'mdi:email', text: 'adham@zaki.gg' },
 		{ href: 'https://github.com/zakia', icon: 'mdi:github', text: 'zakia' },
 		{ href: 'https://www.linkedin.com/in/adhamzaki/', icon: 'mdi:linkedin', text: 'adhamzaki' },
-		{ href: 'https://zaki.gg', icon: 'mdi:web', text: 'zaki.gg' }
 	];
 </script>
 
-<div class="gap-s0 mx-auto flex flex-col px-6 py-16 text-sm not-print:max-w-3xl print:p-3">
+<div class="gap-s0 px-s0 py-s3 mx-auto flex flex-col text-sm not-print:max-w-3xl print:p-3">
 	<header>
 		<div class="gap-s0 flex flex-wrap items-center justify-between">
 			<h1 class="text-s3 trim">

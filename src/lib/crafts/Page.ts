@@ -52,7 +52,7 @@ export function readPage(markdown: string, previous?: Partial<Page> & Pick<Page,
 	const fallbackTitle = parsed.error ? previous?.title : getFirstMarkdownHeading(body);
 	const title = normalizePageTitle(Object.hasOwn(values, 'title') ? values.title : fallbackTitle);
 	const id = validId(previous?.id) || validId(values.id) || createPageId();
-	const slug = normalizePageSlug(values.slug || previous?.slug || title);
+	const slug = normalizePageSlug(text(values.slug) || previous?.slug || title);
 	const tags = normalizePageTags(values.tags);
 	const createdAt = date(values.date) || previous?.createdAt || new Date().toISOString();
 	return {
@@ -63,7 +63,16 @@ export function readPage(markdown: string, previous?: Partial<Page> & Pick<Page,
 		tags,
 		createdAt,
 		updatedAt: previous?.updatedAt || createdAt,
-		frontmatter: { ...values, published: isPublished(values) }
+		frontmatter: {
+			...values,
+			id: text(values.id),
+			title: text(values.title),
+			slug: text(values.slug),
+			description: text(values.description),
+			date: text(values.date),
+			tags,
+			published: isPublished(values)
+		}
 	};
 }
 export function createPageId() {
@@ -73,7 +82,7 @@ export function normalizePageTitle(value: unknown) {
 	return typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') || 'Untitled' : 'Untitled';
 }
 export function normalizePageSlug(value: unknown) {
-	return normalizeDocumentSlug(value);
+	return normalizeDocumentSlug(text(value));
 }
 export function normalizePageTags(value: unknown) {
 	const tags = Array.isArray(value) ? value : typeof value === 'string' ? value.split(',') : [];
@@ -94,6 +103,9 @@ export function toStoredPage(page: Document): StoredPage {
 }
 function validId(value: unknown) {
 	return typeof value === 'string' && /^[A-Za-z0-9_-]{1,180}$/.test(value) ? value : '';
+}
+function text(value: unknown) {
+	return typeof value === 'string' ? value : '';
 }
 function date(value: unknown) {
 	if (typeof value !== 'string' || !value.trim()) return '';

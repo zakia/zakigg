@@ -53,16 +53,14 @@ export function createGcsAttachmentStore(bucket: Bucket): AttachmentStore {
 		},
 		async write(id, asset) {
 			assertAssetId(id);
-			await bucket
-				.file(`assets/${id}`)
-				.save(Buffer.from(asset.data), {
-					resumable: false,
-					contentType: asset.contentType,
-					metadata: {
-						cacheControl: 'public, max-age=31536000, immutable',
-						metadata: { fileName: asset.fileName }
-					}
-				});
+			await bucket.file(`assets/${id}`).save(Buffer.from(asset.data), {
+				resumable: false,
+				contentType: asset.contentType,
+				metadata: {
+					cacheControl: 'public, max-age=31536000, immutable',
+					metadata: { fileName: asset.fileName }
+				}
+			});
 		}
 	};
 }

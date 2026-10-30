@@ -170,7 +170,7 @@ sequence of ownership changes, not permission for a broad rewrite.
 - Switching storage leaves existing keys, Markdown, and logical media references
   usable. No silent normalization rewrites authored content on ordinary reads.
 
-## Current implementation evidence
+## Prior architecture evidence
 
 - `Page.ts` carries overlapping Markdown, frontmatter, properties, and summary
   fields with precedence rules.
@@ -193,7 +193,7 @@ sequence of ownership changes, not permission for a broad rewrite.
 
 ## Verification evidence
 
-- Full suite: 309 tests across 41 files passed before the final review.
+- Full suite: 311 tests across 41 files passed after review fixes.
 - Svelte/TypeScript: zero errors and zero warnings. Production build passed.
 - Existing browser checks: 26 caret/typing cases and 36 selection/replacement
   cases across 1440px and 390px viewports. Original source was restored.
@@ -207,3 +207,6 @@ sequence of ownership changes, not permission for a broad rewrite.
   404 assertion passed, although the CLI returned exit 1 for the non-2xx response.
 - GCS adapter contract cases use an in-process Bucket stand-in. Live GCS HTTP,
   authentication, and production deployment are not verified by these checks.
+- Standards and spec reviews found unsafe coercion of malformed craft properties
+  and frontmatter tags. Regression tests now cover these cases, including recursive
+  YAML values, while preserving exact source and reporting invalid craft values on Save.

@@ -32,6 +32,20 @@ function widgets(state: EditorState, field: StateField<DecorationSet>) {
 }
 
 describe('feature source contract', () => {
+	it('summarizes unusual and recursive YAML values without interrupting editing', () => {
+		for (const properties of [
+			'tags:\n  - toString: broken',
+			'title: {toString: broken}\nslug: {toString: broken}',
+			'tags: &tags [*tags]\ncustom: &custom {nested: *custom}'
+		]) {
+			const doc = `---\n${properties}\n---\n\nBody`;
+			let state = stateFor(doc, doc.indexOf(properties));
+			state = state.update({ selection: { anchor: doc.length } }).state;
+			expect(widgets(state, frontmatter)).toHaveLength(1);
+			expect(state.doc.toString()).toBe(doc);
+		}
+	});
+
 	it('leaves the body and its separator outside the frontmatter summary', () => {
 		for (const body of ['\n', '\n\n', '\nBody', '\n\nBody']) {
 			const doc = `---\ntitle: Test\n---${body}`;

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { createPage } from '#lib/crafts/Page.js';
+import { createPage, readPage } from '#lib/crafts/Page.js';
+import { validateCraftSource } from './validation';
 import {
 	createPublishedCraftDocument,
 	createPublishedCraftSummary,
@@ -9,6 +10,16 @@ import {
 } from './publication';
 
 describe('published craft snapshots', () => {
+	it('keeps malformed craft properties readable until Save reports them', () => {
+		for (const property of ['description: 42', 'date: 42', 'slug: {toString: broken}']) {
+			const source = `---\nid: page_test\n${property}\n---\n\nBody`;
+			const page = readPage(source);
+			expect(page.markdown).toBe(source);
+			expect(() => createPublishedCraftSummary(page)).not.toThrow();
+			expect(validateCraftSource(source)).toBeTruthy();
+		}
+	});
+
 	it('derives metadata and publishes body Markdown without editor frontmatter', () => {
 		const page = createPage(
 			{

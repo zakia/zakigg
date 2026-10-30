@@ -191,7 +191,9 @@ function render(state: EditorState, source: Frontmatter) {
 			widget: new FrontmatterSummary(
 				propertyText(source.values?.title) || 'Untitled',
 				formatDate(propertyText(source.values?.date)),
-				Array.isArray(source.values?.tags) ? source.values.tags.map(String).filter(Boolean) : [],
+				Array.isArray(source.values?.tags)
+					? source.values.tags.map(propertyText).filter(Boolean)
+					: [],
 				Object.entries(source.values ?? {})
 					.filter(([key]) => !['title', 'date', 'tags'].includes(key))
 					.map(([key, value]) => `${key}: ${propertyText(value)}`)

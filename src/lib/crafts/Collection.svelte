@@ -16,7 +16,7 @@
 		readPage,
 		type Page,
 		type StoredPage
-	} from '#lib/editor/Page.js';
+	} from '#lib/crafts/Page.js';
 	import { commitRepositoryCraft } from './repository.client';
 	import { deleteRepositoryCraft, listRepositoryCrafts } from './repository.remote';
 	import type { CraftListItem } from './types';
@@ -120,7 +120,7 @@
 
 		try {
 			const page = withAvailableSlug(createPage({ published: false }));
-			await commitRepositoryCraft(page, null);
+			await commitRepositoryCraft(page);
 			await goto(craftHref(page.slug, true));
 		} finally {
 			busy = '';
@@ -186,7 +186,7 @@
 			const savedPages: Page[] = [];
 			for (const importedPage of result.pages) {
 				const page = withAvailableSlug(importedPage);
-				await commitRepositoryCraft(page, null);
+				await commitRepositoryCraft(page);
 				savedPages.push(page);
 			}
 

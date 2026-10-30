@@ -12,16 +12,8 @@
 		onSetPublished: (value: boolean) => void;
 	};
 
-	let {
-		status,
-		saving,
-		dirty,
-		published,
-		mode,
-		onToggleMode,
-		onSave,
-		onSetPublished
-	}: Props = $props();
+	let { status, saving, dirty, published, mode, onToggleMode, onSave, onSetPublished }: Props =
+		$props();
 
 	let justSaved = $state(false);
 	let saveTimeout: ReturnType<typeof setTimeout> | undefined;
@@ -93,7 +85,7 @@
 			{:else}
 				<div
 					class="capsule-btn save-btn saved"
-					title="All changes saved in Git"
+					title="All changes saved"
 					aria-label="All changes saved"
 				>
 					<Icon icon="mdi:check" />

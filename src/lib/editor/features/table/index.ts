@@ -1,5 +1,5 @@
 import { Decoration, WidgetType, EditorView } from '@codemirror/view';
-import { renderCraftMarkdown } from '#lib/editor/document/markdown-renderer.js';
+import { renderMarkdown } from '#lib/editor/document/markdown-renderer.js';
 import { feature } from '../feature';
 import { nodes, focusSource, revealSource } from '../source';
 
@@ -40,7 +40,7 @@ class Widget extends WidgetType {
 				focusSource(view, this.from + 1);
 			}
 		});
-		const block = renderCraftMarkdown(this.markdown).find((item) => item.kind === 'html');
+		const block = renderMarkdown(this.markdown).find((item) => item.kind === 'html');
 		if (block?.kind === 'html') wrapper.innerHTML = block.html;
 		return wrapper;
 	}

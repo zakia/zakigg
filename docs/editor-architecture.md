@@ -1,96 +1,54 @@
 # Editor architecture
 
-Canonical Markdown is the only persisted document format. CodeMirror owns both editing modes:
-Source mode shows the Markdown directly; Live Preview decorates the same text and reveals syntax
-when the caret enters it. The public renderer reads that Markdown for published pages.
+The persisted document is a key and its complete Markdown source, including
+optional YAML frontmatter. The editor uses the same CodeMirror text in Live Preview
+and Source mode; reading produces a separate presentation of that text.
 
-The CodeMirror document contains the entire file, including YAML frontmatter. `title:` supplies
-the single visible document heading. Page title, date, tags, slug, and publication status are projections
-of that source; they are not parallel editable state. Moving above the body or clicking the heading
-reveals the YAML in CodeMirror for direct editing. Invalid frontmatter remains editable and autosaves
-locally, with a visible error; explicit Git Save waits for valid frontmatter.
+See `src/lib/editor/README.md` for code ownership and `editor-architecture-plan.md`
+for the agreed product contract and verification criteria.
 
-```text
-public build                     private editor
-content/crafts/*.md              /admin/crafts/*
-        ↓                               ↓
-Markdown parser                     CodeMirror
-        ↓                               ↓
-static craft pages               IndexedDB draft
-                                        ↓ explicit Save
-                                  Git repository adapter
-```
+## Seams
 
-## Ownership
+- Markdown interpretation owns generic properties, embed meaning, and diagnostics.
+  It does not know craft URLs, publication requirements, rendering implementations,
+  or storage providers.
+- Editor features own source positions, selection, decorations, keyboard behavior,
+  and widget lifecycle. Host configuration supplies link and attachment resolution,
+  file insertion, embed presentation, and tag presentation.
+- A small editing session tracks current source, explicit Save, errors, and the
+  saved baseline. Properties and widget edits share CodeMirror's undo history.
+- The craft host projects title, tags, date, slug, and publication from Markdown.
+  Those projections are not parallel editable or persisted document state.
+- Text and binary attachment stores have GCS and filesystem adapters. Provider
+  selection happens in `src/lib/server/storage/index.ts`. Shared craft policy sits
+  above them, in the content repository.
 
-- `src/lib/editor/Editor.svelte` and `src/lib/editor/features` own source editing, Live Preview,
-  and file insertion. `Page.ts`, `Session.svelte.ts`, and `document` own the canonical document
-  model, Markdown rendering, frontmatter, browser backups, and import/export.
-- `src/lib/crafts` owns craft collection and detail UI, publication behavior, and repository calls.
-- `src/lib/embeds` owns the custom components used by published Markdown and their shared media UI.
-- `src/lib/server/content` owns bundled content reads and explicit Git repository operations.
-- `content/crafts` is the public build input and remote source of truth.
-- GCS stores binary assets only.
+## Save and errors
 
-The editor layer does not import application routes or GitHub. The craft edit page supplies the
-editing session with a save callback that commits a complete Markdown document.
+Only Save or Cmd/Ctrl+S writes documents. Validate captured source, persist referenced
+new attachments, then write Markdown. Mark that exact source saved; later typing
+remains dirty. Invalid YAML and configured embed props produce source diagnostics.
+Ordinary unfinished Markdown is valid. Preview failures preserve visible source.
 
-The keyboard contract for nested, ordered, and task lists is in
-[`editor-list-behavior.md`](./editor-list-behavior.md).
+Failures keep current text available for retry. Unsaved navigation warns. There is
+no autosave, document recovery, sync queue, optimistic conflict check, merge engine,
+or Git Save. The current single-editor workflow uses last-save-wins behavior.
 
-CodeMirror features are composed as extensions. Frontmatter uses a state-owned block replacement
-for its collapsed heading and reveals its original YAML when selected. Code blocks keep their code
-text in the main editor. Decorations render a compact header, language selector, and copy button
-when the cursor is outside the block; moving into the block reveals the original fence lines.
-List commands edit Markdown directly and compose structural changes into one transaction for undo.
+## Local and cloud storage
 
-## Document contract
+Local Markdown files retain `content/crafts/<id>.md`. Tag assignments retain their
+existing registry file. Local attachments live under `.data/assets` and are served
+through the same `/media/` routes as cloud attachments. Local mode requires no GCS
+credentials.
 
-Every file is self-contained:
+GCS retains `content/crafts/` and `assets/` paths, bundled seed fallback, and deletion
+records for removed seeds. A content hash supports compiled-content caching only.
+The generic storage seam does not claim transactional or globally ordered writes
+for every possible future KV provider.
 
-```md
----
-id: page_...
-title: Example
-slug: example
-description: Optional summary
-date: 2026-09-16
-tags:
-  - notes
-published: false
----
+## Interaction requirements
 
-Markdown and allowed custom components.
-```
-
-`id` is stable and determines the repository filename. `slug` may change without renaming the
-file. `published: false` excludes the document from public builds. Publishing changes that field and
-commits the same file.
-
-## Saving
-
-Typing autosaves to IndexedDB after a short debounce. It does not create remote writes. Save or
-Cmd/Ctrl+S uploads referenced local assets to GCS and commits the complete Markdown file to Git.
-Delete creates a normal Git deletion commit. Git history supplies revisions and recovery; there
-are no mutation records, checkpoints, publication snapshots, or tombstones.
-
-The shared `/crafts` collection uses the build snapshot for visitors. Signed-in users also see
-repository and local-only pages. Opening a repository page reads its latest Git version and offers
-any differing browser copy as recoverable local changes. Refreshing the collection does not clear
-local drafts or assets.
-
-## Public rendering and offline behavior
-
-Public craft detail pages read the build snapshot without querying authentication or GitHub. Vite
-imports Markdown under `content/crafts` during the build, and SvelteKit prerenders known craft routes.
-The service worker precaches the craft collection and caches visited craft pages and media.
-
-Document text, UI, and previously visited media therefore remain available offline. Large videos
-are cached only after they are requested.
-
-## Custom components
-
-Custom components use the MDX-like syntax supported by the public Markdown parser. Component
-definitions own validation and public rendering. Live Preview shows compact placeholders for
-single-line components and keeps multiline components editable as source. Source mode remains
-available for precise editing and recovery.
+Preserve code title/language/highlighting/copy controls, source reveal, list nesting
+and selection, tables, media, and custom embeds. Mode switches preserve source,
+selection, and undo. The detailed list contract is in `editor-list-behavior.md`.
+Obsidian guides interaction behavior; full vault interoperability is deferred.

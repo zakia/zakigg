@@ -1,5 +1,5 @@
 import { error, type RequestHandler } from '@sveltejs/kit';
-import { readAssetBlob } from '#lib/server/assets/gcs.js';
+import { getStorage } from '#lib/server/storage/index.js';
 
 export const GET: RequestHandler = async ({ params, url, request }) => {
 	const id = stripAssetExtension(params.id ?? '');
@@ -14,7 +14,7 @@ export const GET: RequestHandler = async ({ params, url, request }) => {
 		throw error(403, 'Hotlinking is not allowed');
 	}
 
-	const asset = await readAssetBlob(id);
+	const asset = await getStorage().attachments.read(id);
 	if (!asset) throw error(404, 'Asset not found');
 
 	return new Response(new Uint8Array(asset.data), {

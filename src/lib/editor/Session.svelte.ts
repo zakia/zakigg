@@ -1,132 +1,98 @@
-import { createTimer } from './timers';
-import { readPage, type Page } from './Page';
-import { readFrontmatter } from './features/frontmatter/source';
+import type { Document as StoredPage } from './Document';
+import { validateMarkdown, type Diagnostic } from './document/validation';
 
 type SessionOptions = {
-	page: Page;
-	/** Whether the initial source was read from the repository. */
+	page: StoredPage;
 	saved: boolean;
-	backup: (page: Page) => Promise<Page>;
-	save?: (page: Page) => Promise<unknown>;
-	onSaved?: (page: Page) => void;
+	save?: (page: StoredPage) => Promise<unknown>;
+	validate?: (source: string) => Diagnostic[];
 };
 
-/** One editing session. Source, browser backup, and repository baseline have separate ownership. */
+/** Explicit saves only. CodeMirror owns editing; this module owns the saved baseline. */
 export class Session {
 	markdown = $state('');
 	saving = $state(false);
 	error = $state('');
-	backupError = $state(false);
+	errorPosition = $state<number | null>(null);
 	#savedMarkdown = $state<string | null>(null);
-	#backedUpMarkdown = $state<string | null>(null);
 	#options: SessionOptions;
-	#timer = createTimer();
-	#backups: Promise<Page | null> = Promise.resolve(null);
-	#savePromise: Promise<Page | null> | null = null;
+	#savePromise: Promise<StoredPage | null> | null = null;
+	#requested: StoredPage | null = null;
 	#destroyed = false;
-
 	constructor(options: SessionOptions) {
 		this.#options = options;
 		this.markdown = options.page.markdown;
 		this.#savedMarkdown = options.saved ? this.markdown : null;
-		// Loading is read-only: existing recoverable text isn't overwritten here.
-		this.#backedUpMarkdown = this.markdown;
 	}
-
-	get page() {
-		return readPage(this.markdown, this.#options.page);
+	get document() {
+		return { id: this.#options.page.id, markdown: this.markdown };
 	}
-
 	get dirty() {
 		return this.markdown !== this.#savedMarkdown;
 	}
-
-	get backupPending() {
-		return this.markdown !== this.#backedUpMarkdown;
-	}
-
 	get status() {
 		if (this.error) return { state: 'error', label: this.error };
-		if (!this.#options.save) {
-			if (this.backupError)
-				return { state: 'error', label: 'Browser backup failed. Download Markdown to keep changes.' };
-			if (this.backupPending) return { state: 'dirty', label: 'Saving in browser…' };
-			return {
-				state: 'clean',
-				label: this.dirty ? 'Saved in browser' : 'Interactive preview · edits stay in your browser'
-			};
-		}
 		if (this.saving) return { state: 'saving', label: 'Saving…' };
-		if (!this.dirty) return { state: 'clean', label: 'Saved' };
-		if (this.backupError)
-			return { state: 'error', label: 'Browser backup failed. Save or download Markdown.' };
-		if (this.backupPending) return { state: 'dirty', label: 'Backing up in this browser…' };
-		return { state: 'dirty', label: 'Unsaved local changes' };
+		if (!this.#options.save) return { state: 'dirty', label: 'Preview · changes are not saved' };
+		return this.dirty
+			? { state: 'dirty', label: 'Unsaved changes' }
+			: { state: 'saved', label: 'Saved' };
 	}
-
 	update(markdown: string) {
 		if (markdown === this.markdown) return;
 		this.markdown = markdown;
 		this.error = '';
-		this.#timer.schedule(() => void this.backup(), 350);
+		this.errorPosition = null;
 	}
-
-	backup(): Promise<Page | null> {
-		this.#timer.cancel();
-		const page = this.page;
-		// Serialize writes so an older autosave cannot finish after a newer one.
-		this.#backups = this.#backups.then(async () => {
-			try {
-				const saved = await this.#options.backup(page);
-				this.#backedUpMarkdown = page.markdown;
-				this.backupError = false;
-				if (!this.#destroyed && page.markdown === this.markdown) this.#options.onSaved?.(saved);
-				return saved;
-			} catch {
-				this.backupError = true;
-				return null;
-			}
-		});
-		return this.#backups;
-	}
-
-	save(): Promise<Page | null> {
-		if (this.#savePromise) return this.#savePromise;
-		if (!this.#options.save || !this.dirty) return Promise.resolve(null);
-		const page = this.page;
-		const parsed = readFrontmatter(page.markdown);
-		const error =
-			parsed.error ||
-			(parsed.values?.id !== page.id ? 'Frontmatter id must match this document.' : null);
-		if (error) {
-			this.error = error;
-			return Promise.resolve(null);
+	save(): Promise<StoredPage | null> {
+		if (this.#destroyed || !this.#options.save) return Promise.resolve(null);
+		if (this.#savePromise) {
+			this.#requested = { id: this.#options.page.id, markdown: this.markdown };
+			return this.#savePromise;
 		}
+		if (!this.dirty) return Promise.resolve(null);
+		const page = { id: this.#options.page.id, markdown: this.markdown };
+		this.#requested = null;
 		this.saving = true;
 		this.error = '';
-		this.#savePromise = this.#commit(page);
+		// Reserve the operation before invoking host callbacks, including synchronous ones.
+		this.#savePromise = Promise.resolve().then(() => this.#commit(page));
 		return this.#savePromise;
 	}
-
-	async #commit(page: Page) {
+	async #commit(initial: StoredPage): Promise<StoredPage | null> {
+		let page: StoredPage | null = initial;
+		let saved: StoredPage | null = null;
 		try {
-			// A failed local backup doesn't prevent saving recoverable text to Git.
-			await this.backup();
-			await this.#options.save!(page);
-			this.#savedMarkdown = page.markdown;
-			return page;
+			while (page && !this.#destroyed) {
+				const diagnostic = (this.#options.validate ?? validateMarkdown)(page.markdown)[0];
+				if (diagnostic) {
+					this.errorPosition = diagnostic.from;
+					const line = page.markdown.slice(0, diagnostic.from).split('\n').length;
+					this.error = `Line ${line}: ${diagnostic.message}`;
+					return null;
+				}
+				await this.#options.save!(page);
+				this.#savedMarkdown = page.markdown;
+				saved = page;
+				page = this.#takeRequested();
+				this.#requested = null;
+				if (page?.markdown === this.#savedMarkdown) page = null;
+			}
+			return saved;
 		} catch (cause) {
 			this.error = cause instanceof Error ? cause.message : 'Save failed. Try again.';
 			return null;
 		} finally {
 			this.saving = false;
 			this.#savePromise = null;
+			this.#requested = null;
 		}
 	}
-
+	#takeRequested(): StoredPage | null {
+		return this.#requested;
+	}
 	destroy() {
 		this.#destroyed = true;
-		this.#timer.cancel();
-		if (this.backupPending) void this.backup();
+		this.#requested = null;
 	}
 }

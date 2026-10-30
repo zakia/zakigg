@@ -1,4 +1,4 @@
-import { getReferencedAssetIds, toStoredPage, type Page } from '../../Page';
+import { getReferencedAssetIds, toStoredPage, type Page } from '#lib/crafts/Page.js';
 import { serializePageMarkdown } from '../markdown';
 import { loadNoteAsset, type NotesAssetV1 } from './storage';
 import { createZipBlob, downloadBlob, type ZipEntryInput } from './zip';

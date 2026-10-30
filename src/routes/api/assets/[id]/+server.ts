@@ -1,6 +1,6 @@
 import { error, type RequestHandler } from '@sveltejs/kit';
 import { auth } from '#lib/server/auth/index.js';
-import { saveAssetBlob } from '#lib/server/assets/gcs.js';
+import { getStorage } from '#lib/server/storage/index.js';
 
 const MAX_ASSET_BYTES = 20_000_000;
 
@@ -16,12 +16,11 @@ export const PUT: RequestHandler = async ({ params, request }) => {
 	if (!data.length) throw error(400, 'Empty asset body');
 	if (data.length > MAX_ASSET_BYTES) throw error(413, 'Asset exceeds the 20 MB upload limit');
 
-	await saveAssetBlob(
-		id,
-		data,
-		request.headers.get('content-type') || 'application/octet-stream',
-		decodeFileName(request.headers.get('x-file-name') || '')
-	);
+	await getStorage().attachments.write(id, {
+		data: new Uint8Array(data),
+		contentType: request.headers.get('content-type') || 'application/octet-stream',
+		fileName: decodeFileName(request.headers.get('x-file-name') || '')
+	});
 	return new Response(null, { status: 204 });
 };
 

@@ -1,21 +1,23 @@
 <script lang="ts">
 	import { onDestroy, onMount, untrack } from 'svelte';
 	import type { EditorView } from '@codemirror/view';
-	import { goto } from '$app/navigation';
+	import { beforeNavigate, goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import Icon from '#lib/components/Icon.svelte';
 	import BackLink from '#lib/components/BackLink.svelte';
 	import {
 		Editor,
-		Actions,
 		Layout,
 		Session,
-		createPage,
-		titleFromSlug,
 		updateFrontmatterValue,
-		type FrontmatterValue,
-		type Page
+		type FrontmatterValue
 	} from '#lib/editor/index.js';
+	import { validateMarkdown } from '#lib/editor/document/validation.js';
+	import { componentEmbeds } from '#lib/embeds/index.js';
+	import { validateCraftSource } from './validation';
+	import Actions from './Actions.svelte';
+	import { createPage, titleFromSlug, readPage, type Page, type StoredPage } from './Page';
+	import { craftEditorOptions } from './editor';
 	import { commitRepositoryCraft } from './repository.client';
 
 	let {
@@ -51,7 +53,11 @@
 			session = new Session({
 				page: targetCraft,
 				saved: Boolean(currentSha) || !editable,
-				backup: async (nextPage) => nextPage,
+				validate: (source) => {
+					const diagnostics = validateMarkdown(source, componentEmbeds);
+					const message = validateCraftSource(source);
+					return diagnostics.length ? diagnostics : message ? [{ message, from: 0, to: 0 }] : [];
+				},
 				save
 			});
 		} else if (!targetCraft) {
@@ -62,6 +68,10 @@
 	});
 
 	onDestroy(() => session?.destroy());
+	beforeNavigate((navigation) => {
+		if (session?.dirty && !navigation.willUnload && !confirm('Discard unsaved changes?'))
+			navigation.cancel();
+	});
 
 	onMount(() => {
 		function handleSaveShortcut(event: KeyboardEvent) {
@@ -84,7 +94,12 @@
 
 	function updateSourceProperty(key: string, value: FrontmatterValue) {
 		if (!editorView) return;
-		const change = updateFrontmatterValue(editorView.state.doc.toString(), key, value);
+		const change = updateFrontmatterValue(
+			editorView.state.doc.toString(),
+			key,
+			value,
+			key === 'published' ? ['draft'] : []
+		);
 		if (change) editorView.dispatch({ changes: change, userEvent: 'input' });
 	}
 
@@ -96,10 +111,10 @@
 
 	const save = $derived(
 		editable
-			? async (page: Page) => {
-					const result = await commitRepositoryCraft(page, currentSha);
+			? async (page: StoredPage) => {
+					const result = await commitRepositoryCraft(page);
 					currentSha = result.sha;
-					handleSaved(page);
+					handleSaved(readPage(page.markdown, { id: page.id }));
 					return result;
 				}
 			: undefined
@@ -123,7 +138,7 @@
 	function handleSaved(page: Page) {
 		craft = page;
 
-		if (page.slug !== slug) {
+		if (page.slug !== slug && session?.markdown === page.markdown) {
 			void navigateToEditCraft(page.slug, {
 				replaceState: true,
 				reset: false
@@ -144,7 +159,7 @@
 			});
 
 			if (editable) {
-				const result = await commitRepositoryCraft(page, null);
+				const result = await commitRepositoryCraft(page);
 				currentSha = result.sha;
 			}
 
@@ -220,7 +235,8 @@
 						status={currentSession.status}
 						saving={currentSession.saving}
 						dirty={currentSession.dirty}
-						published={currentSession.page.frontmatter?.published === true}
+						published={readPage(currentSession.markdown, { id: currentSession.document.id })
+							.frontmatter?.published === true}
 						mode={editorMode}
 						onToggleMode={() => (editorMode = editorMode === 'live' ? 'source' : 'live')}
 						onSave={save ? () => void currentSession.save() : undefined}
@@ -229,6 +245,7 @@
 				{/snippet}
 				<Editor
 					initialMarkdown={currentSession.markdown}
+					options={craftEditorOptions}
 					mode={editorMode}
 					ariaLabel={`${craft.title} editor`}
 					autofocus

@@ -34,13 +34,22 @@ export function parseMarkdownAst(markdown: string): Root {
 }
 
 export function getMarkdownText(markdown: string) {
-	return nodeText(parseMarkdownAst(markdown) as MarkdownNode)
-		.replace(/\s+/g, ' ')
-		.trim();
+	try {
+		return nodeText(parseMarkdownAst(markdown) as MarkdownNode)
+			.replace(/\s+/g, ' ')
+			.trim();
+	} catch {
+		return markdown.trim();
+	}
 }
 
 export function getFirstMarkdownHeading(markdown: string) {
-	const root = parseMarkdownAst(markdown) as MarkdownNode;
+	let root: MarkdownNode;
+	try {
+		root = parseMarkdownAst(markdown) as MarkdownNode;
+	} catch {
+		return /^# +(.+)$/m.exec(markdown)?.[1]?.trim() ?? '';
+	}
 	const heading = root.children?.find((node) => node.type === 'heading' && node.depth === 1);
 	if (!heading) return '';
 

@@ -1,8 +1,7 @@
 # Markdown editor architecture plan
 
-Status: consolidated design for review. Planning only; application implementation
-has not started. Confirmed product decisions and proposed engineering choices are
-distinguished below.
+Status: implemented; verification and review evidence are recorded below. The
+product contract was agreed before implementation.
 
 ## Confirmed product contract
 
@@ -58,13 +57,13 @@ Markdown records or expose bucket paths in authored Markdown.
 
 ### Ownership
 
-| Module | Owns | Does not own |
-| --- | --- | --- |
-| Markdown | Frontmatter reading and source edits, shared embed interpretation and validation, derived properties and diagnostics | Svelte, CodeMirror state, network calls, craft publication policy |
-| Editor | CodeMirror source, selection, undo, preview decorations, commands and widget lifecycle | Storage providers, craft routes, tag allocation, a second editable text model |
-| Save state | Captured source, last successful save, progress, failure and retry | Autosave, recovery queues, merge state |
-| Storage adapters | Key-based document reads/writes/listing/deletion and separate attachment reads/writes | Frontmatter validation, rendering, tag colors, slug allocation |
-| Craft host | Loading, composing editor and reader, explicit Save, craft validation, URL resolution, publication, tag presentation and extension configuration | Provider-specific persistence details or duplicate Markdown interpretation |
+| Module           | Owns                                                                                                                                             | Does not own                                                                  |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
+| Markdown         | Frontmatter reading and source edits, shared embed interpretation and validation, derived properties and diagnostics                             | Svelte, CodeMirror state, network calls, craft publication policy             |
+| Editor           | CodeMirror source, selection, undo, preview decorations, commands and widget lifecycle                                                           | Storage providers, craft routes, tag allocation, a second editable text model |
+| Save state       | Captured source, last successful save, progress, failure and retry                                                                               | Autosave, recovery queues, merge state                                        |
+| Storage adapters | Key-based document reads/writes/listing/deletion and separate attachment reads/writes                                                            | Frontmatter validation, rendering, tag colors, slug allocation                |
+| Craft host       | Loading, composing editor and reader, explicit Save, craft validation, URL resolution, publication, tag presentation and extension configuration | Provider-specific persistence details or duplicate Markdown interpretation    |
 
 These are ownership responsibilities, not a requirement to introduce five new
 packages. Keep save state in the existing session module if that retains useful
@@ -135,7 +134,7 @@ Adapter implementations must not add conflict rejection to the agreed
 last-save-wins workflow. This describes the application's single-editor behavior;
 it does not promise global write ordering from every possible future KV provider.
 
-## Build sequence, once implementation is authorized
+## Implementation sequence
 
 1. Shape the Markdown model: key plus source; pure frontmatter handling and shared
    embed interpretation; move craft policy out while preserving stored content.
@@ -191,3 +190,20 @@ sequence of ownership changes, not permission for a broad rewrite.
 - [Obsidian data storage](https://obsidian.md/help/data-storage)
 - [Obsidian editing modes](https://obsidian.md/help/edit-and-read)
 - [Cloudflare KV consistency](https://developers.cloudflare.com/kv/concepts/how-kv-works/)
+
+## Verification evidence
+
+- Full suite: 309 tests across 41 files passed before the final review.
+- Svelte/TypeScript: zero errors and zero warnings. Production build passed.
+- Existing browser checks: 26 caret/typing cases and 36 selection/replacement
+  cases across 1440px and 390px viewports. Original source was restored.
+- Disposable craft: explicit Save/reload preserved exact source; invalid YAML
+  produced a line diagnostic and retained editable text; mode switches preserved
+  source/selection; a publication property edit was undoable.
+- A pasted PNG survived explicit Save and reload through local attachment storage.
+  The mobile document width stayed within the 390px viewport.
+- Local Postman assertions verified attachment upload (204), exact bytes and
+  filename on read (200), and missing attachment response (404). The expected
+  404 assertion passed, although the CLI returned exit 1 for the non-2xx response.
+- GCS adapter contract cases use an in-process Bucket stand-in. Live GCS HTTP,
+  authentication, and production deployment are not verified by these checks.

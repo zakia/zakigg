@@ -2,9 +2,11 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { createPage, readPage } from '#lib/editor/Page.js';
-import { parseRepositoryMarkdown, repositoryPath } from './repository';
-import { createLocalContentRepository } from './repository.local';
+import { createPage, readPage } from '#lib/crafts/Page.js';
+import { createContentRepository, parseRepositoryMarkdown, repositoryPath } from './repository';
+import { createFileTextStore } from '../storage/files';
+const createLocalContentRepository = (root: string, tagsPath: string) =>
+	createContentRepository(createFileTextStore(), { prefix: root + '/', tagsKey: tagsPath });
 
 const temporaryDirectories: string[] = [];
 
@@ -12,7 +14,7 @@ afterEach(async () => {
 	await Promise.all(temporaryDirectories.splice(0).map((path) => rm(path, { recursive: true })));
 });
 
-describe('Git Markdown repository documents', () => {
+describe('Craft document repository', () => {
 	it('round-trips every identity and publication field through Markdown', () => {
 		const original = createPage(
 			{
@@ -61,7 +63,7 @@ describe('Git Markdown repository documents', () => {
 			'Stored in Git.'
 		);
 
-		await repository.save(page, null);
+		await repository.save(page);
 		expect((await repository.list()).map(({ page }) => page.id)).toEqual(['page_local']);
 		expect((await repository.readBySlug('local-repository'))?.page.markdown).toBe(page.markdown);
 
@@ -70,17 +72,17 @@ describe('Git Markdown repository documents', () => {
 	});
 });
 
-it('rejects stale updates and accidental recreation without losing repository content', async () => {
-	const root = await mkdtemp(join(tmpdir(), 'zakigg-conflict-'));
+it('lets the last explicit save replace the stored source', async () => {
+	const root = await mkdtemp(join(tmpdir(), 'zakigg-save-'));
 	temporaryDirectories.push(root);
 	const repository = createLocalContentRepository(root, join(root, 'tags.json'));
-	const original = createPage({ id: 'page_conflict' }, 'Original');
-	const first = await repository.save(original, null);
+	const original = createPage({ id: 'page_save' }, 'Original');
+	await repository.save(original);
 	const newer = readPage(original.markdown + 'Newer', original);
-	const second = await repository.save(newer, first.sha);
-	await expect(repository.save(original, first.sha)).rejects.toThrow('This document changed');
-	await expect(repository.save(original, null)).rejects.toThrow('This document changed');
-	expect((await repository.readBySlug(newer.slug))?.sha).toBe(second.sha);
+	await repository.save(newer);
+	expect((await repository.readBySlug(newer.slug))?.page.markdown).toBe(newer.markdown);
+	await repository.save(original);
+	expect((await repository.readBySlug(original.slug))?.page.markdown).toBe(original.markdown);
 });
 
 it('persists new colors and retains them when tags and documents are removed', async () => {
@@ -88,10 +90,10 @@ it('persists new colors and retains them when tags and documents are removed', a
 	temporaryDirectories.push(root);
 	const repository = createLocalContentRepository(root, join(root, 'tags.json'));
 	const page = createPage({ id: 'page_tags', tags: ['one', 'two'] });
-	const saved = await repository.save(page, null);
+	const saved = await repository.save(page);
 	expect(new Set(Object.values(saved.tags)).size).toBe(2);
 	const withoutTags = readPage(page.markdown.replace(/tags:[\s\S]*?(?=\n\S)/, 'tags: []'), page);
-	await repository.save(withoutTags, saved.sha);
+	await repository.save(withoutTags);
 	await repository.delete(page.id);
 	expect(await repository.tags()).toEqual(saved.tags);
 });
@@ -101,8 +103,8 @@ it('serializes local saves so concurrent new tags do not lose assignments', asyn
 	temporaryDirectories.push(root);
 	const repository = createLocalContentRepository(root, join(root, 'tags.json'));
 	await Promise.all([
-		repository.save(createPage({ id: 'page_a', tags: ['a'] }), null),
-		repository.save(createPage({ id: 'page_b', tags: ['b'] }), null)
+		repository.save(createPage({ id: 'page_a', tags: ['a'] })),
+		repository.save(createPage({ id: 'page_b', tags: ['b'] }))
 	]);
 	expect(await repository.tags()).toEqual({ a: 'blue', b: 'violet' });
 });

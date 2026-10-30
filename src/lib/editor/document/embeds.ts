@@ -1,0 +1,123 @@
+import type { Root } from 'mdast';
+import { gfmToMarkdown } from 'mdast-util-gfm';
+import { mdxJsxToMarkdown } from 'mdast-util-mdx-jsx';
+import { toMarkdown } from 'mdast-util-to-markdown';
+import type { ComponentEmbedAttrs } from '../components/registry';
+import { parseMarkdownAst } from './markdown-ast';
+const EVENT_PROP_RE = /^on[A-Z]/;
+type AstAttribute =
+	| { type: 'mdxJsxAttribute'; name: string; value?: string | null | { value?: string } }
+	| { type: 'mdxJsxExpressionAttribute'; value?: string };
+
+export type AstNode = {
+	type: string;
+	value?: string;
+	lang?: string | null;
+	meta?: string | null;
+	name?: string | null;
+	url?: string;
+	attributes?: AstAttribute[];
+	children?: AstNode[];
+	position?: { start: { offset?: number }; end: { offset?: number } };
+};
+
+export function readComponent(node: AstNode): ComponentEmbedAttrs | null {
+	const callout = readCallout(node);
+	if (callout) return callout;
+	if (node.type !== 'mdxJsxFlowElement') return null;
+
+	const name = node.name?.trim() ?? '';
+	if (!/^[A-Z][A-Za-z0-9]*$/.test(name)) return null;
+	if (name === 'Column') throw new Error('<Column> can only be used directly inside <Columns>.');
+
+	const props = readProps(name, node.attributes ?? []);
+	if (name === 'Columns') {
+		const columns = (node.children ?? []).map((child) => {
+			if (
+				!['mdxJsxFlowElement', 'mdxJsxTextElement'].includes(child.type) ||
+				child.name !== 'Column'
+			) {
+				throw new Error('<Columns> may only contain <Column> children.');
+			}
+			const columnProps = readProps('Column', child.attributes ?? []);
+			return {
+				markdown: serializeNodes(child.children ?? []).trim(),
+				...(typeof columnProps.width === 'number' || typeof columnProps.width === 'string'
+					? { width: columnProps.width }
+					: {})
+			};
+		});
+		return { component: name, markdownName: name, props: { ...props, columns } };
+	}
+
+	const childrenMarkdown = serializeNodes(node.children ?? []).trim();
+	return {
+		component: name,
+		markdownName: name,
+		props,
+		...(childrenMarkdown ? { childrenMarkdown } : {})
+	};
+}
+
+function readCallout(node: AstNode): ComponentEmbedAttrs | null {
+	if (node.type !== 'blockquote') return null;
+	const children = node.children ?? [];
+	const first = children[0];
+	const firstText = first?.type === 'paragraph' ? first.children?.[0] : undefined;
+	if (firstText?.type !== 'text') return null;
+
+	const match = firstText.value?.match(/^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)]\s*/i);
+	if (!match) return null;
+
+	const nextChildren = structuredClone(children);
+	const nextText = nextChildren[0]?.children?.[0];
+	if (nextText) nextText.value = (nextText.value ?? '').slice(match[0].length);
+
+	return {
+		component: 'Callout',
+		markdownName: 'Callout',
+		props: {
+			kind: match[1].toLowerCase(),
+			markdown: serializeNodes(nextChildren).trim()
+		}
+	};
+}
+
+function readProps(name: string, attributes: AstAttribute[]) {
+	const props: Record<string, unknown> = {};
+	for (const attribute of attributes) {
+		if (attribute.type !== 'mdxJsxAttribute') {
+			throw new Error(`Spread attributes are not allowed on <${name}>.`);
+		}
+		if (EVENT_PROP_RE.test(attribute.name)) {
+			throw new Error(`Event handler prop “${attribute.name}” is not allowed.`);
+		}
+
+		if (attribute.value == null) props[attribute.name] = true;
+		else if (typeof attribute.value === 'string') props[attribute.name] = attribute.value;
+		else {
+			try {
+				props[attribute.name] = JSON.parse(attribute.value.value ?? '');
+			} catch {
+				throw new Error(`Prop “${attribute.name}” on <${name}> must be a JSON literal.`);
+			}
+		}
+	}
+	return props;
+}
+
+export function serializeNodes(nodes: AstNode[]) {
+	if (!nodes.length) return '';
+	return toMarkdown({ type: 'root', children: nodes } as Root, {
+		extensions: [gfmToMarkdown(), mdxJsxToMarkdown({ quote: '"' })]
+	});
+}
+
+export function readEmbedSource(source: string) {
+	const tree = parseMarkdownAst(source) as AstNode;
+	for (const node of tree.children ?? []) {
+		const attrs = readComponent(node);
+		if (attrs) return attrs;
+	}
+	return null;
+}

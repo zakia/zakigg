@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { serializePageMarkdown } from './markdown';
-import { createPage, getReferencedAssetIds, parseStoredPage, toStoredPage } from '../Page';
+import {
+	createPage,
+	readPage,
+	getReferencedAssetIds,
+	parseStoredPage,
+	toStoredPage
+} from '#lib/crafts/Page.js';
 
 describe('Markdown page model', () => {
 	it('stores one canonical Markdown source with frontmatter', () => {
@@ -14,7 +20,7 @@ describe('Markdown page model', () => {
 		);
 		const stored = toStoredPage(page);
 
-		expect(stored).toMatchObject({ version: 3, format: 'markdown' });
+		expect(Object.keys(stored).sort()).toEqual(['id', 'markdown']);
 		expect(stored).not.toHaveProperty('content');
 		expect(stored).not.toHaveProperty('editor');
 		expect(stored.markdown).toContain('title: Canonical');
@@ -43,4 +49,17 @@ describe('Markdown page model', () => {
 			)
 		).toEqual(['one', 'two']);
 	});
+});
+
+it('reads incomplete embed text without crashing or rewriting the source', () => {
+	const source = '---\ntitle: Editing\n---\n\n<Timer value={';
+	const page = readPage(source);
+	expect(page.markdown).toBe(source);
+	expect(page.title).toBe('Editing');
+	expect(readPage('<Timer value={').markdown).toBe('<Timer value={');
+});
+it('derives changed slug from source rather than a previous projection', () => {
+	const page = createPage({ id: 'page_slug', slug: 'before' });
+	const source = page.markdown.replace('slug: before', 'slug: after');
+	expect(readPage(source, page).slug).toBe('after');
 });

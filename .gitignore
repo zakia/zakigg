@@ -32,3 +32,6 @@ infra/terraform.tfvars
 
 # Playwright browser session snapshots
 .playwright-cli/
+
+# Local attachment storage
+.data/

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createPage, readPage } from '../../Page';
+import { createPage, readPage } from '#lib/crafts/Page.js';
 import { frontmatterRange, readFrontmatter, updateFrontmatterValue } from './source';
 
 function apply(source: string, change: { from: number; to: number; insert: string } | null) {
@@ -59,16 +59,14 @@ describe('frontmatter source edits', () => {
 		const initial = createPage({ id: 'page_test', title: 'Before' }, 'Body');
 		const draft = readPage('Body without frontmatter', initial);
 		expect(draft.markdown).toBe('Body without frontmatter');
-		expect(readFrontmatter(draft.markdown).error).toBe('Frontmatter is missing.');
+		expect(readFrontmatter(draft.markdown).error).toBeNull();
 	});
 
-	it('shows a typed-property error without coercing an invalid value', () => {
-		const source = '---\ntitle: Note\ntags: [one, 2]\n---\n\nBody';
-		expect(readFrontmatter(source).error).toBe('tags must be a list of text values.');
-		expect(updateFrontmatterValue(source, 'title', 'Other')).toBeNull();
-		expect(readPage(source, createPage({ id: 'page_test', title: 'Fallback' })).markdown).toBe(
-			source
-		);
+	it('accepts arbitrary YAML properties without applying craft field rules', () => {
+		const source = '---\ntitle: 42\ntags: [one, 2]\npublished: someday\n---\n\nBody';
+		expect(readFrontmatter(source).error).toBeNull();
+		expect(readFrontmatter(source).values).toMatchObject({ title: 42, published: 'someday' });
+		expect(updateFrontmatterValue(source, 'rating', 5)).not.toBeNull();
 	});
 
 	it('uses frontmatter title as the page title and keeps the original source', () => {
@@ -126,13 +124,11 @@ it('uses published for new documents and preserves legacy visibility when readin
 
 it('replaces legacy draft when publication is explicitly changed without losing comments or body', () => {
 	const source = '---\n# Keep this\nid: page_visibility\ndraft: true\ncustom: hello\n---\n\nBody';
-	const next = apply(source, updateFrontmatterValue(source, 'published', true));
+	const next = apply(source, updateFrontmatterValue(source, 'published', true, ['draft']));
 	expect(next).toContain('published: true');
 	expect(next).not.toContain('draft:');
 	expect(next).toContain('# Keep this');
 	expect(next).toContain('custom: hello');
 	expect(next).toContain('---\n\nBody');
-	expect(readFrontmatter('---\npublished: yes\n---').error).toBe(
-		'published must be true or false.'
-	);
+	expect(readFrontmatter('---\npublished: yes\n---').error).toBeNull();
 });

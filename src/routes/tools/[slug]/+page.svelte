@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import BackLink from '#lib/components/BackLink.svelte';
-	import Header from '#lib/editor/document/Header.svelte';
+	import Header from '#lib/crafts/Header.svelte';
 	import Layout from '#lib/editor/document/Layout.svelte';
 
 	let { data } = $props();

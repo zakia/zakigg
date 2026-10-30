@@ -3,13 +3,12 @@ import type { EditorState } from '@codemirror/state';
 import { syntaxTree } from '@codemirror/language';
 import { feature } from '../feature';
 import { focusSource } from '../source';
-import { renderCraftMarkdown } from '#lib/editor/document/markdown-renderer.js';
+import { readEmbedSource } from '../../document/embeds';
+import { editorOptions } from '../../configuration';
 import type { ComponentEmbedAttrs } from '#lib/editor/components/registry.js';
-import { mount, unmount } from 'svelte';
-import Embed from '#lib/crafts/Embed.svelte';
 
 export class ComponentEmbedWidget extends WidgetType {
-	private instance: ReturnType<typeof mount> | undefined;
+	private cleanup: (() => void) | undefined;
 
 	constructor(
 		readonly raw: string,
@@ -50,10 +49,7 @@ export class ComponentEmbedWidget extends WidgetType {
 		wrapper.appendChild(mountTarget);
 
 		try {
-			this.instance = mount(Embed, {
-				target: mountTarget,
-				props: { attrs: this.attrs }
-			});
+			this.cleanup = view.state.facet(editorOptions).renderEmbed?.(mountTarget, this.attrs);
 		} catch (error) {
 			const err = document.createElement('div');
 			err.className = 'component-embed-error';
@@ -65,14 +61,8 @@ export class ComponentEmbedWidget extends WidgetType {
 	}
 
 	destroy() {
-		if (this.instance) {
-			try {
-				unmount(this.instance);
-			} catch {
-				/* ignore */
-			}
-			this.instance = undefined;
-		}
+		this.cleanup?.();
+		this.cleanup = undefined;
 	}
 
 	ignoreEvent() {
@@ -81,6 +71,7 @@ export class ComponentEmbedWidget extends WidgetType {
 }
 
 function findEmbeds(state: EditorState) {
+	if (!state.facet(editorOptions).renderEmbed) return [];
 	const text = state.doc.toString();
 	const results: Array<{ from: number; to: number; raw: string; attrs: ComponentEmbedAttrs }> = [];
 
@@ -92,14 +83,13 @@ function findEmbeds(state: EditorState) {
 				const trimmed = raw.trimStart();
 				if (/^<[A-Z][A-Za-z0-9]*/.test(trimmed)) {
 					try {
-						const blocks = renderCraftMarkdown(raw);
-						const comp = blocks.find((b) => b.kind === 'component');
-						if (comp && comp.kind === 'component') {
+						const attrs = readEmbedSource(raw);
+						if (attrs) {
 							results.push({
 								from: ref.from,
 								to: ref.to,
 								raw,
-								attrs: comp.attrs
+								attrs
 							});
 						}
 					} catch {

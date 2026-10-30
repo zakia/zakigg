@@ -1,4 +1,5 @@
 import { parseMarkdownAst } from '#lib/editor/document/markdown-ast.js';
+import { editorOptions } from '../../configuration';
 import { wikiLinkHref } from '#lib/editor/document/markdown-renderer.js';
 import { syntaxTree } from '@codemirror/language';
 import { Decoration, EditorView, type KeyBinding } from '@codemirror/view';
@@ -26,7 +27,7 @@ export const preview = feature({
 				node,
 				wiki,
 				callout,
-				href: linkHrefFromMarkdown(wiki ? full : text)
+				href: linkHrefFromMarkdown(wiki ? full : text, state.facet(editorOptions).resolveWikiLink)
 			};
 		}),
 	render(_state, source) {
@@ -80,8 +81,11 @@ function linkAtPosition(view: EditorView, position: number) {
 				Math.min(view.state.doc.length, node.to + 1)
 			);
 			return (
-				linkHrefFromMarkdown(full) ??
-				linkHrefFromMarkdown(view.state.doc.sliceString(node.from, node.to))
+				linkHrefFromMarkdown(full, view.state.facet(editorOptions).resolveWikiLink) ??
+				linkHrefFromMarkdown(
+					view.state.doc.sliceString(node.from, node.to),
+					view.state.facet(editorOptions).resolveWikiLink
+				)
 			);
 		}
 	}
@@ -113,9 +117,9 @@ function handleLinkMouseDown(event: MouseEvent, view: EditorView) {
 	return true;
 }
 
-function linkHrefFromMarkdown(markdown: string): string | null {
+function linkHrefFromMarkdown(markdown: string, resolve = wikiLinkHref): string | null {
 	const wiki = /^\[\[([^\]\n]+)\]\]$/.exec(markdown);
-	if (wiki) return safeLinkHref(wikiLinkHref(wiki[1].split('|', 1)[0].trim()));
+	if (wiki) return safeLinkHref(resolve(wiki[1].split('|', 1)[0].trim()));
 
 	try {
 		const first = parseMarkdownAst(markdown).children[0];

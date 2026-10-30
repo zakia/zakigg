@@ -4,7 +4,7 @@ import {
 	parseStoredPage,
 	readPage,
 	type Page
-} from '../../Page';
+} from '#lib/crafts/Page.js';
 import { updateFrontmatterValue } from '../../features/frontmatter/source';
 import { importNoteAsset } from './storage';
 import { readZipEntries } from './zip';

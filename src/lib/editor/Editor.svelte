@@ -16,7 +16,7 @@
 	import { basicSetup } from 'codemirror';
 	import { preview, editing } from './features';
 	import { frontmatterRange } from './features/frontmatter/source';
-	import { createMediaMarkdown } from './features/media/insert';
+	import { editorOptions, type EditorOptions } from './configuration';
 
 	let {
 		initialMarkdown,
@@ -24,7 +24,8 @@
 		autofocus = false,
 		mode = 'live',
 		onMarkdownChange,
-		onReady
+		onReady,
+		options = {}
 	}: {
 		initialMarkdown: string;
 		ariaLabel?: string;
@@ -32,6 +33,7 @@
 		mode?: 'live' | 'source';
 		onMarkdownChange?: (markdown: string) => void;
 		onReady?: (view: EditorView) => void;
+		options?: EditorOptions;
 	} = $props();
 
 	let host = $state<HTMLDivElement>();
@@ -92,6 +94,7 @@
 	function extensions() {
 		return [
 			basicSetup,
+			editorOptions.of(options),
 			yamlFrontmatter({ content: markdown({ base: markdownLanguage, codeLanguages }) }),
 			syntaxHighlighting(highlightStyle),
 			editing,
@@ -155,7 +158,7 @@
 
 	function handleDrop(event: DragEvent) {
 		const files = event.dataTransfer?.files;
-		if (!files?.length) return false;
+		if (!files?.length || !options.insertFile) return false;
 		event.preventDefault();
 		const position = editor?.posAtCoords({ x: event.clientX, y: event.clientY });
 		void insertFiles(
@@ -167,7 +170,7 @@
 
 	function handlePaste(event: ClipboardEvent) {
 		const files = event.clipboardData?.files;
-		if (!files?.length) return false;
+		if (!files?.length || !options.insertFile) return false;
 		event.preventDefault();
 		void insertFiles(Array.from(files));
 		return true;
@@ -188,15 +191,13 @@
 				}
 			})
 		});
-		const results = await Promise.allSettled(files.map(createMediaMarkdown));
+		const results = await Promise.allSettled(files.map((file) => options.insertFile!(file)));
 		if (editor !== current) return;
 		const pending = current.state.field(pendingInserts)[id];
 		if (!pending) return;
 		const markdown = results
 			.filter(
-				(
-					result
-				): result is PromiseFulfilledResult<Awaited<ReturnType<typeof createMediaMarkdown>>> =>
+				(result): result is PromiseFulfilledResult<{ markdown: string }> =>
 					result.status === 'fulfilled'
 			)
 			.map((result) => result.value.markdown)

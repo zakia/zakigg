@@ -1,14 +1,7 @@
-import { stringify as stringifyYaml } from 'yaml';
 import type { ComponentEmbedRegistry } from '../components/registry';
-import {
-	normalizeMetadataProperties,
-	metadataPropertiesToPageFrontmatter,
-	type MetadataProperties,
-	type PageFrontmatter,
-	type Page
-} from '../Page';
-import { parseMarkdownAst } from './markdown-ast';
-import { readFrontmatter } from '../features/frontmatter/source';
+import type { Document } from '../Document';
+import { validateMarkdown } from './validation';
+import { readFrontmatter } from './frontmatter';
 
 const MARKDOWN_FILE_RE = /\.(md|markdown|mdown|mkdn)$/i;
 const MARKDOWN_MIME_TYPES = new Set(['text/markdown', 'text/x-markdown']);
@@ -16,19 +9,19 @@ const MARKDOWN_BLOCK_RE =
 	/^[ \t]{0,3}(?:#{1,6}\s+\S|[-+*]\s+\S|\d+[.)]\s+\S|>\s+\S|`{3,}|~{3,}|-{3,}\s*$|\*{3,}\s*$|_{3,}\s*$|\|.+\||<[A-Z][A-Za-z0-9]*)/m;
 const MARKDOWN_INLINE_RE = /(?:!\[[^\]]*]\([^)]+\)|\[[^\]]+]\([^)]+\)|`[^`]+`|\*\*[^*]+\*\*)/;
 
-export type NoteMarkdownFrontmatter = PageFrontmatter;
+export type NoteMarkdownFrontmatter = Record<string, unknown>;
 
 export type ParsedMarkdown = {
 	markdown: string;
 	frontmatter?: NoteMarkdownFrontmatter;
-	properties?: MetadataProperties;
+	properties?: Record<string, unknown>;
 	hasFrontmatter: boolean;
 };
 
 export function parseEditorMarkdown(markdown: string, embeds?: ComponentEmbedRegistry) {
 	const parsed = parseMarkdownFrontmatter(markdown);
-	const tree = parseMarkdownAst(parsed.markdown) as MarkdownNode;
-	if (embeds) validateComponents(tree, embeds);
+	const error = validateMarkdown(markdown, embeds)[0];
+	if (error) throw new Error(error.message);
 	return parsed;
 }
 
@@ -81,24 +74,10 @@ export function downloadMarkdownFile(markdown: string) {
 }
 
 export function serializePageMarkdown(
-	page: Page,
+	page: Pick<Document, 'markdown'>,
 	options: { assetPaths?: Map<string, string> } = {}
 ) {
 	return rewriteAssetSources(page.markdown, options.assetPaths ?? new Map());
-}
-
-export function getPageFrontmatter(page: Page): NoteMarkdownFrontmatter {
-	return {
-		id: page.id,
-		title: page.title,
-		...(page.frontmatter?.slug ? { slug: page.slug } : {}),
-		...(page.frontmatter?.description ? { description: page.frontmatter.description } : {}),
-		tags: page.tags,
-		date: dateOnly(page.createdAt),
-		...(typeof page.frontmatter?.published === 'boolean'
-			? { published: page.frontmatter.published }
-			: {})
-	};
 }
 
 // Only top-of-file frontmatter counts. Later `---` fences remain horizontal
@@ -106,68 +85,14 @@ export function getPageFrontmatter(page: Page): NoteMarkdownFrontmatter {
 export function parseMarkdownFrontmatter(markdown: string): ParsedMarkdown {
 	const parsed = readFrontmatter(markdown);
 	if (!parsed.range) return { markdown, hasFrontmatter: false };
-	const properties = parsed.values ? normalizeMetadataProperties(parsed.values) : undefined;
+	const properties = parsed.values ?? undefined;
 
 	return {
 		markdown: markdown.slice(parsed.range.bodyFrom),
-		frontmatter: properties ? metadataPropertiesToPageFrontmatter(properties) : undefined,
+		frontmatter: properties,
 		properties,
 		hasFrontmatter: true
 	};
-}
-
-export function serializeMetadataPropertiesYaml(properties: unknown) {
-	const normalized = normalizeMetadataProperties(properties);
-	if (!Object.keys(normalized).length) return '';
-
-	const serializable = Object.fromEntries(
-		Object.entries(normalized).map(([key, value]) => [
-			key,
-			Array.isArray(value) ? (value.length ? value : null) : value === '' ? null : value
-		])
-	);
-
-	return stringifyYaml(serializable, { lineWidth: 0, nullStr: '' }).trimEnd();
-}
-
-type MarkdownNode = {
-	type: string;
-	name?: string | null;
-	attributes?: Array<{ type: string; name?: string; value?: string | null | { value?: string } }>;
-	children?: MarkdownNode[];
-};
-
-function validateComponents(node: MarkdownNode, embeds: ComponentEmbedRegistry) {
-	if (node.type === 'html')
-		throw new Error('Raw HTML is not supported. Use an allowed component instead.');
-	if (node.type === 'mdxJsxFlowElement' || node.type === 'mdxJsxTextElement') {
-		const name = node.name ?? '';
-		if (!['br', 'Columns', 'Column', 'YoutubeEmbed'].includes(name)) {
-			const result = embeds.parseProps(name, readComponentProps(name, node.attributes ?? []));
-			if (!result.ok) throw new Error(result.message);
-		}
-	}
-	for (const child of node.children ?? []) validateComponents(child, embeds);
-}
-
-function readComponentProps(name: string, attributes: NonNullable<MarkdownNode['attributes']>) {
-	const props: Record<string, unknown> = {};
-	for (const attribute of attributes) {
-		if (attribute.type !== 'mdxJsxAttribute')
-			throw new Error(`Spread attributes are not allowed on <${name}>.`);
-		const key = attribute.name ?? '';
-		if (!key || /^on[A-Z]/.test(key)) throw new Error(`Invalid prop on <${name}>.`);
-		if (attribute.value == null) props[key] = true;
-		else if (typeof attribute.value === 'string') props[key] = attribute.value;
-		else {
-			try {
-				props[key] = JSON.parse(attribute.value.value ?? '');
-			} catch {
-				throw new Error(`Prop “${key}” on <${name}> must be a JSON literal.`);
-			}
-		}
-	}
-	return props;
 }
 
 function rewriteAssetSources(markdown: string, paths: Map<string, string>) {
@@ -189,11 +114,4 @@ function rewriteAssetSources(markdown: string, paths: Map<string, string>) {
 
 function getFileKey(file: File) {
 	return [file.name, file.type, file.size, file.lastModified].join(':');
-}
-
-function dateOnly(value: string) {
-	const time = Date.parse(value);
-	return Number.isFinite(time)
-		? new Date(time).toISOString().slice(0, 10)
-		: new Date().toISOString().slice(0, 10);
 }

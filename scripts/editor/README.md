@@ -12,7 +12,7 @@ Use the development server's port if it differs. The check uses the supplied pag
 
 Synthetic Markdown covers frontmatter, a component containing nested Markdown, a table, a horizontal rule, a fenced code block, nested and task lists, media, headings, and a blockquote. At desktop and mobile widths, the check scrolls to text before and after widgets, clicks its actual rendered position, checks the exact source selection, types a marker, and verifies the complete Markdown change. The image response is supplied locally by the browser check.
 
-The check temporarily replaces the open document in memory. It restores the original Markdown, selection, editor mode, viewport, and scroll position in `finally`, removes its browser helper and image route, and never saves to Git. It creates no screenshots or other files. Use an isolated session and close it afterward.
+The check temporarily replaces the open document in memory. It restores the original Markdown, selection, editor mode, viewport, and scroll position in `finally`, removes its browser helper and image route, and never presses Save. It creates no screenshots or other files. Use an isolated session and close it afterward.
 
 ## List selection
 
@@ -26,4 +26,4 @@ This check drags text forward and backward within and across bullet, nested, ord
 
 Text selection checks assert the exact anchor, head, and selected Markdown using native text coordinates. Preview marker interactions require the original anchor to remain intact when extending a selection, or its new anchor to stay within the clicked source prefix when starting a drag; a marker widget does not identify one particular source character. Each case confirms that selecting did not change the document and types a replacement to verify the complete resulting source.
 
-Fixture scrolling temporarily disables smooth scrolling so reset animations cannot move pointer endpoints during a drag. Failures are collected before reporting. Original source, selection, mode, viewport, scroll position, scroll behavior, and released mouse/Shift state are restored in `finally`. No Git save occurs.
+Fixture scrolling temporarily disables smooth scrolling so reset animations cannot move pointer endpoints during a drag. Failures are collected before reporting. Original source, selection, mode, viewport, scroll position, scroll behavior, and released mouse/Shift state are restored in `finally`. No document save occurs.

@@ -1,4 +1,3 @@
-import { saveNoteAsset } from '#lib/editor/document/persistence/storage.js';
 import {
 	altTextFromFile,
 	escapeAlt,
@@ -20,8 +19,11 @@ export type MediaInsert = {
  * local blob while editing and to GCS after commit. The renderer detects the
  * media kind from the URL's file extension.
  */
-export async function createMediaMarkdown(file: File): Promise<MediaInsert> {
-	const asset = await saveNoteAsset(file);
+export async function createMediaMarkdown(
+	file: File,
+	saveAsset: (file: File) => Promise<{ id: string }>
+): Promise<MediaInsert> {
+	const asset = await saveAsset(file);
 	const url = mediaUrlForAsset(asset.id, file.name, file.type);
 	const alt = altTextFromFile(file);
 

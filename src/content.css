@@ -297,7 +297,7 @@
 		padding: 0;
 	}
 
-	/* The frontmatter widget mirrors document/Header.svelte. */
+	/* The frontmatter widget shares the craft article heading presentation. */
 	:scope.editor-prose > .article-header {
 		display: grid;
 		gap: var(--s-1);
@@ -332,6 +332,11 @@
 		font-size: var(--s-1);
 		gap: var(--s-2);
 		margin: 0;
+	}
+
+	:scope.editor-prose .article-header .frontmatter-properties {
+		display: block;
+		overflow-wrap: anywhere;
 	}
 
 	:scope.editor-prose .article-tags {

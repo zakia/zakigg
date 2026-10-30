@@ -5,8 +5,8 @@
 	import Content from '#lib/crafts/Content.svelte';
 	import Edit from '#lib/crafts/Edit.svelte';
 	import { getRepositoryCraft } from '#lib/crafts/repository.remote.js';
-	import { parseStoredPage } from '#lib/editor/Page.js';
-	import Header from '#lib/editor/document/Header.svelte';
+	import { parseStoredPage } from '#lib/crafts/Page.js';
+	import Header from '#lib/crafts/Header.svelte';
 	import Layout from '#lib/editor/document/Layout.svelte';
 	import { titleFromSlug } from '#lib/editor/document/slug.js';
 

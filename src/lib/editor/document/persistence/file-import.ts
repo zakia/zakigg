@@ -5,7 +5,13 @@ import { isMediaFile } from './assets';
 import { altTextFromFile, escapeAlt, mediaUrlForAsset } from '#lib/editor/features/media/source.js';
 import { saveNoteAsset } from './storage';
 import { getFirstMarkdownHeading } from '../markdown-ast';
-import { createPage, titleFromSlug, readPage, type Page, type PageFrontmatter } from '../../Page';
+import {
+	createPage,
+	titleFromSlug,
+	readPage,
+	type Page,
+	type PageFrontmatter
+} from '#lib/crafts/Page.js';
 
 const TEXT_FILE_RE =
 	/\.(?:txt|text|csv|json|ya?ml|xml|html?|css|[cm]?js|[cm]?ts|jsx|tsx|svelte|svx)$/i;
@@ -58,7 +64,9 @@ async function importTextDocument(file: File, embeds: ComponentEmbedRegistry) {
 	const parsed = parseEditorMarkdown(await file.text(), embeds);
 	const fallbackTitle = titleFromFile(file);
 	const title =
-		parsed.frontmatter?.title || getFirstMarkdownHeading(parsed.markdown) || fallbackTitle;
+		(typeof parsed.frontmatter?.title === 'string' ? parsed.frontmatter.title : '') ||
+		getFirstMarkdownHeading(parsed.markdown) ||
+		fallbackTitle;
 
 	const properties: PageFrontmatter = { ...parsed.frontmatter, title };
 	delete properties.id;

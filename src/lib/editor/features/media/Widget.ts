@@ -1,6 +1,6 @@
 import { WidgetType, type EditorView } from '@codemirror/view';
-import { resolveNoteAssetObjectUrl } from '#lib/editor/document/persistence/storage.js';
-import { assetIdFromMediaUrl, mediaKindForUrl } from './source';
+import { editorOptions } from '../../configuration';
+import { mediaKindForUrl } from './source';
 import { focusSource } from '../source';
 
 export class Widget extends WidgetType {
@@ -132,14 +132,14 @@ export class Widget extends WidgetType {
 		view: EditorView
 	) {
 		let src = this.src;
-		const id = assetIdFromMediaUrl(src);
-		if (!id) {
+		const resolve = view.state.facet(editorOptions).resolveAttachment;
+		if (!resolve) {
 			if (element instanceof HTMLAnchorElement) element.href = src;
 			else element.src = src;
 			return;
 		}
 		try {
-			src = await resolveNoteAssetObjectUrl(id);
+			src = await resolve(src);
 			if (src.startsWith('blob:')) this.objectUrl.value = src;
 		} catch {
 			src = this.src;

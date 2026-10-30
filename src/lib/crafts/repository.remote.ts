@@ -2,13 +2,12 @@ import { command, getRequestEvent, query } from '$app/server';
 import { error, redirect } from '@sveltejs/kit';
 import * as v from 'valibot';
 import { compileCraft, createPublicCraftList } from '#lib/crafts/publication.js';
-import { parseStoredPage, toStoredPage } from '#lib/editor/Page.js';
+import { parseStoredPage, toStoredPage } from '#lib/crafts/Page.js';
 import { auth } from '#lib/server/auth/index.js';
-import {
-	getContentRepository,
-	RepositoryConflict,
-	parseRepositoryMarkdown
-} from '#lib/server/content/repository.js';
+import { getContentRepository } from '#lib/server/content/repository.js';
+import { validateMarkdown } from '#lib/editor/document/validation.js';
+import { componentEmbeds } from '#lib/embeds/index.js';
+import { validateCraftSource } from './validation';
 import { tools } from '#lib/tools/registry.js';
 
 const toolSlugs = new Set(tools.filter((tool) => !tool.draft).map((tool) => tool.slug));
@@ -21,8 +20,7 @@ const SafeIdSchema = v.pipe(
 );
 const SlugSchema = v.pipe(v.string(), v.nonEmpty(), v.maxLength(240));
 const PageJsonSchema = v.object({
-	pageJson: v.pipe(v.string(), v.nonEmpty(), v.maxLength(8_000_000)),
-	expectedSha: v.nullable(v.pipe(v.string(), v.nonEmpty(), v.maxLength(128)))
+	pageJson: v.pipe(v.string(), v.nonEmpty(), v.maxLength(8_000_000))
 });
 
 export const listRepositoryCrafts = query(async () => {
@@ -61,7 +59,7 @@ export const getRepositoryCraft = query(SlugSchema, async (slug) => {
 	};
 });
 
-export const saveRepositoryCraft = command(PageJsonSchema, async ({ pageJson, expectedSha }) => {
+export const saveRepositoryCraft = command(PageJsonSchema, async ({ pageJson }) => {
 	auth({ required: true });
 	assertSameOrigin();
 	let input: unknown;
@@ -72,24 +70,16 @@ export const saveRepositoryCraft = command(PageJsonSchema, async ({ pageJson, ex
 	}
 	const page = parseStoredPage(input);
 	if (!page) throw error(400, 'Invalid Markdown document');
-	try {
-		if (parseRepositoryMarkdown(page.markdown).id !== page.id)
-			throw new Error('Document ID mismatch');
-	} catch {
-		throw error(400, 'Markdown must contain valid frontmatter and a matching document ID');
-	}
+	const diagnostic = validateMarkdown(page.markdown, componentEmbeds)[0];
+	const invalid = diagnostic?.message || validateCraftSource(page.markdown);
+	if (invalid) throw error(400, invalid);
+
 	const repository = getContentRepository();
 	const duplicate = (await repository.list()).find(
 		(document) => document.page.slug === page.slug && document.page.id !== page.id
 	);
 	if (duplicate) throw error(409, `Another document already uses /crafts/${page.slug}`);
-	let saved;
-	try {
-		saved = await repository.save(page, expectedSha);
-	} catch (cause) {
-		if (cause instanceof RepositoryConflict) throw error(409, cause.message);
-		throw cause;
-	}
+	const saved = await repository.save(page);
 	const compiled = compileCraft(saved);
 	getRepositoryCraft(saved.page.slug).set({
 		meta: compiled.summary,

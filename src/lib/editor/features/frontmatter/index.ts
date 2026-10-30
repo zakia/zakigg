@@ -1,4 +1,4 @@
-import { tagColor } from '#lib/components/tag.js';
+import { editorOptions } from '../../configuration';
 import type { EditorState } from '@codemirror/state';
 import { feature, touches } from '../feature';
 import { Decoration, EditorView, WidgetType, type KeyBinding } from '@codemirror/view';
@@ -8,7 +8,9 @@ export const preview = feature({
 	find(state) {
 		const parsed = readFrontmatter(state.doc.toString());
 		// The closing fence belongs to the widget; the body and separating newline do not.
-		return [{ ...parsed, from: 0, to: parsed.range?.fenceTo ?? 0 }];
+		return parsed.range || parsed.error
+			? [{ ...parsed, from: 0, to: parsed.range?.fenceTo ?? 0 }]
+			: [];
 	},
 	active: touches,
 	render,
@@ -23,6 +25,13 @@ export const keys: KeyBinding[] = [
 export const theme = [];
 
 function propertyText(value: unknown) {
+	if (value && typeof value === 'object') {
+		try {
+			return JSON.stringify(value);
+		} catch {
+			return '[recursive value]';
+		}
+	}
 	return String(value ?? '');
 }
 
@@ -83,9 +92,7 @@ export function enterFromBody(view: EditorView) {
 
 	if (line.number === bodyLine.number) {
 		const targetLine =
-			line.number > fenceLine.number + 1
-				? view.state.doc.lineAt(range.bodyFrom - 1)
-				: fenceLine;
+			line.number > fenceLine.number + 1 ? view.state.doc.lineAt(range.bodyFrom - 1) : fenceLine;
 		view.dispatch({
 			selection: { anchor: targetLine.from },
 			scrollIntoView: true
@@ -101,7 +108,9 @@ class FrontmatterSummary extends WidgetType {
 	constructor(
 		readonly title: string,
 		readonly detail: string,
-		readonly tags: string[]
+		readonly tags: string[],
+		readonly extra: string,
+		readonly color?: (tag: string) => string
 	) {
 		super();
 	}
@@ -109,7 +118,8 @@ class FrontmatterSummary extends WidgetType {
 		return (
 			this.title === other.title &&
 			this.detail === other.detail &&
-			this.tags.join('\0') === other.tags.join('\0')
+			this.tags.join('\0') === other.tags.join('\0') &&
+			this.extra === other.extra
 		);
 	}
 	toDOM(view: EditorView) {
@@ -135,11 +145,20 @@ class FrontmatterSummary extends WidgetType {
 			for (const name of this.tags) {
 				const tag = document.createElement('span');
 				tag.className = 'tag-badge';
-				tag.style.setProperty('--tag-color', tagColor(name));
+				tag.style.setProperty('--tag-color', this.color?.(name) ?? 'currentColor');
 				tag.textContent = name;
 				tags.append(tag);
 			}
 			root.append(tags);
+		}
+		if (this.extra) {
+			const properties = document.createElement('button');
+			properties.type = 'button';
+			properties.className = 'frontmatter-open meta frontmatter-properties';
+			properties.setAttribute('aria-label', 'Edit document properties as YAML');
+			properties.addEventListener('click', () => open(view));
+			properties.textContent = this.extra;
+			root.append(properties);
 		}
 		return root;
 	}
@@ -163,7 +182,7 @@ class ErrorWidget extends WidgetType {
 
 type Frontmatter = ReturnType<typeof readFrontmatter> & { from: number; to: number };
 
-function render(_state: EditorState, source: Frontmatter) {
+function render(state: EditorState, source: Frontmatter) {
 	if (source.error)
 		return [Decoration.widget({ widget: new ErrorWidget(source.error), block: true }).range(0)];
 	return [
@@ -172,7 +191,12 @@ function render(_state: EditorState, source: Frontmatter) {
 			widget: new FrontmatterSummary(
 				propertyText(source.values?.title) || 'Untitled',
 				formatDate(propertyText(source.values?.date)),
-				Array.isArray(source.values?.tags) ? source.values.tags.map(String).filter(Boolean) : []
+				Array.isArray(source.values?.tags) ? source.values.tags.map(String).filter(Boolean) : [],
+				Object.entries(source.values ?? {})
+					.filter(([key]) => !['title', 'date', 'tags'].includes(key))
+					.map(([key, value]) => `${key}: ${propertyText(value)}`)
+					.join(' · '),
+				state.facet(editorOptions).tagColor
 			)
 		}).range(source.from, source.to)
 	];

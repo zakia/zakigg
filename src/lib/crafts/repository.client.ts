@@ -1,16 +1,15 @@
-import { getReferencedAssetIds, toStoredPage, type Page } from '#lib/editor/Page.js';
+import { getReferencedAssetIds, type StoredPage } from '#lib/crafts/Page.js';
 import { loadNoteAsset } from '#lib/editor/document/persistence/storage.js';
 import { saveRepositoryCraft } from './repository.remote';
 
-export async function commitRepositoryCraft(page: Page, expectedSha: string | null) {
+export async function commitRepositoryCraft(page: StoredPage) {
 	await uploadReferencedAssets(page);
 	return saveRepositoryCraft({
-		pageJson: JSON.stringify(toStoredPage(page)),
-		expectedSha
+		pageJson: JSON.stringify(page)
 	});
 }
 
-async function uploadReferencedAssets(page: Page) {
+async function uploadReferencedAssets(page: StoredPage) {
 	for (const id of getReferencedAssetIds(page.markdown)) {
 		const asset = await loadNoteAsset(id);
 		if (!asset) continue;

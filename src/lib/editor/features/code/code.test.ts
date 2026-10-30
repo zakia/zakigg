@@ -52,7 +52,7 @@ describe('code fence preview', () => {
 
 		expect(decorations().widgetCount).toBe(2);
 		state = state.update({ selection: { anchor: source.indexOf('const') + 2 } }).state;
-		expect(decorations().classes).toContain('cm-code-source-line cm-code-source-first');
+		expect(decorations().classes).toContain('code-source-line code-source-first');
 		expect(decorations().widgetCount).toBe(0);
 		state = state.update({ selection: { anchor: source.indexOf('After') } }).state;
 		expect(decorations().widgetCount).toBe(2);

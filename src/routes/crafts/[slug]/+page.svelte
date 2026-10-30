@@ -2,7 +2,6 @@
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import BackLink from '#lib/components/BackLink.svelte';
-	import Icon from '#lib/components/Icon.svelte';
 	import Content from '#lib/crafts/Content.svelte';
 	import Edit from '#lib/crafts/Edit.svelte';
 	import { getRepositoryCraft } from '#lib/crafts/repository.remote.js';
@@ -21,32 +20,23 @@
 	<BackLink href={resolve('crafts')} />
 {/snippet}
 
-{#snippet actions()}
-	<!-- eslint-disable svelte/no-navigation-without-resolve -->
-	<a class="edit-link" href={`${resolve('/crafts/[slug]', { slug })}?edit`}>
-		<Icon icon="mdi:pencil-outline" />
-		Edit
-	</a>
-	<!-- eslint-enable svelte/no-navigation-without-resolve -->
-{/snippet}
-
 <svelte:head>
-	<title>{data.meta?.title ?? titleFromSlug(slug)}{isEditing ? ' – Edit' : ''} – zaki.gg</title>
+	<title>{data.meta?.title ?? titleFromSlug(slug)} – zaki.gg</title>
 	{#if data.meta}
 		<meta name="description" content={data.meta.description} />
 		<meta property="og:title" content={data.meta.title} />
 		<meta property="og:description" content={data.meta.description} />
 	{/if}
-	{#if isEditing}
+	{#if !data.meta?.published}
 		<meta name="robots" content="noindex, nofollow" />
 	{/if}
 </svelte:head>
 
-{#if isEditing}
+{#if data.editable || isEditing}
 	<Edit {slug} {initialPage} initialSha={data.sha} editable={data.editable} />
 {:else if data.meta && data.document}
-	<Layout {navigation} {actions}>
-		<article>
+	<Layout {navigation}>
+		<article class="prose">
 			<Header
 				title={data.meta.title}
 				date={data.meta.date}
@@ -57,7 +47,7 @@
 		</article>
 	</Layout>
 {:else}
-	<Layout {navigation} {actions}>
+	<Layout {navigation}>
 		<article class="craft-missing">
 			<h1>Craft not found</h1>
 			<p>No published craft exists at /crafts/{slug}.</p>
@@ -66,25 +56,6 @@
 {/if}
 
 <style>
-	.edit-link {
-		align-items: center;
-		color: var(--content-1);
-		display: inline-flex;
-		font-size: var(--s-1);
-		gap: var(--s-4);
-		text-decoration: none;
-	}
-
-	.edit-link:hover,
-	.edit-link:focus-visible {
-		color: var(--content);
-	}
-
-	.edit-link :global(svg) {
-		height: 1rem;
-		width: 1rem;
-	}
-
 	.craft-missing {
 		display: grid;
 		gap: var(--s-1);

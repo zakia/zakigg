@@ -31,16 +31,6 @@
 			<Icon icon={link.icon} />
 		</a>
 	{/each}
-	<button
-		type="button"
-		class="nav-trigger"
-		popovertarget="site-appearance-popover"
-		aria-label="Appearance settings"
-		data-dock-item={variant === 'dock' ? '' : undefined}
-	>
-		{#if variant === 'dock'}<span class="tooltip">Appearance</span>{/if}
-		<Icon icon="mdi:tune-variant" />
-	</button>
 </div>
 
 <style>
@@ -48,8 +38,7 @@
 		display: contents;
 	}
 
-	a,
-	.nav-trigger {
+	a {
 		align-items: center;
 		background: transparent;
 		border: 0;
@@ -64,20 +53,18 @@
 	}
 
 	a.active,
-	.nav-trigger:hover,
-	.nav-trigger:focus-visible {
+	a:hover,
+	a:focus-visible {
 		color: var(--brand);
 	}
 
-	:global(.desktop-dock) a,
-	:global(.desktop-dock) .nav-trigger {
+	:global(.desktop-dock) a {
 		border-radius: 999px;
 		height: 2.5rem;
 		width: 3rem;
 	}
 
-	:global(.desktop-dock) a :global(svg),
-	:global(.desktop-dock) .nav-trigger :global(svg) {
+	:global(.desktop-dock) a :global(svg) {
 		height: 100%;
 		width: 100%;
 	}
@@ -97,18 +84,15 @@
 		white-space: nowrap;
 	}
 
-	:global(.desktop-dock) a:hover .tooltip,
-	:global(.desktop-dock) .nav-trigger:hover .tooltip {
+	:global(.desktop-dock) a:hover .tooltip {
 		opacity: 1;
 	}
 
-	:global(.mobile-nav) a,
-	:global(.mobile-nav) .nav-trigger {
+	:global(.mobile-nav) a {
 		height: var(--mobile-nav-content-height);
 	}
 
-	:global(.mobile-nav) a :global(svg),
-	:global(.mobile-nav) .nav-trigger :global(svg) {
+	:global(.mobile-nav) a :global(svg) {
 		height: 1.5rem;
 		width: 1.5rem;
 	}

@@ -17,7 +17,7 @@ export class Header extends WidgetType {
 	}
 	toDOM(view: EditorView) {
 		const header = document.createElement('div');
-		header.className = 'cm-code-header';
+		header.className = 'code-header';
 		header.contentEditable = 'false';
 		header.addEventListener('keydown', (event) => {
 			if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'z') return;
@@ -48,16 +48,16 @@ export class Header extends WidgetType {
 			if (changes) view.dispatch({ changes, userEvent: 'input' });
 		});
 		const details = document.createElement('div');
-		details.className = 'cm-code-details';
+		details.className = 'code-details';
 		if (this.block.meta) {
 			const title = document.createElement('span');
-			title.className = 'cm-code-meta';
+			title.className = 'code-meta';
 			title.textContent = this.block.meta;
 			details.append(title);
 		}
 		const copy = document.createElement('button');
 		copy.type = 'button';
-		copy.className = 'cm-code-copy';
+		copy.className = 'code-copy';
 		copy.textContent = 'Copy';
 		copy.setAttribute('aria-label', 'Copy code block');
 		copy.addEventListener('click', async () => {
@@ -74,7 +74,7 @@ export class Header extends WidgetType {
 			}, 1300);
 		});
 		const controls = document.createElement('div');
-		controls.className = 'cm-code-controls';
+		controls.className = 'code-controls';
 		controls.append(copy, language);
 		header.append(details, controls);
 		return header;

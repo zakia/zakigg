@@ -8,6 +8,7 @@
 	import '../app.css';
 	import Header from '../lib/components/Header.svelte';
 	import MobileStatusBar from '../lib/components/MobileStatusBar.svelte';
+	import CompactThemeControls from '../lib/components/CompactThemeControls.svelte';
 
 	let { children }: { children: Snippet } = $props();
 
@@ -53,10 +54,17 @@
 <div class="app" class:immersive>
 	{#if !immersive && !privateWorkspace}
 		<MobileStatusBar />
-		<Header />
+		{#if page.url.pathname !== '/'}
+			<div class="page-theme-controls">
+				<CompactThemeControls />
+			</div>
+		{/if}
 	{/if}
 	<main id="main" class:grid-bg={!immersive && !privateWorkspace} class:immersive-main={immersive}>
 		{@render children()}
+		{#if !immersive && !privateWorkspace}
+			<Header />
+		{/if}
 	</main>
 	{#if !immersive && !privateWorkspace}<div class="preview"></div>{/if}
 </div>
@@ -80,6 +88,20 @@
 		min-height: 100vh;
 		min-height: 100dvh;
 		background-color: var(--base);
+		position: relative;
+	}
+
+	.page-theme-controls {
+		position: absolute;
+		right: var(--s0);
+		top: var(--s0);
+		z-index: 997;
+	}
+
+	@media print {
+		.page-theme-controls {
+			display: none;
+		}
 	}
 
 	.app.immersive {
@@ -98,12 +120,6 @@
 
 	main.immersive-main {
 		min-height: 0;
-	}
-
-	@media (max-width: 48rem) {
-		main {
-			padding-bottom: var(--mobile-nav-height);
-		}
 	}
 
 	@media (max-width: 48rem) and (display-mode: standalone),

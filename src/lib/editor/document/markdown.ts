@@ -1,7 +1,12 @@
 import { stringify as stringifyYaml } from 'yaml';
 import type { ComponentEmbedRegistry } from '../components/registry';
-import { normalizeMetadataProperties, type MetadataProperties } from './metadata';
-import { metadataPropertiesToPageFrontmatter, type PageFrontmatter, type Page } from '../Page';
+import {
+	normalizeMetadataProperties,
+	metadataPropertiesToPageFrontmatter,
+	type MetadataProperties,
+	type PageFrontmatter,
+	type Page
+} from '../Page';
 import { parseMarkdownAst } from './markdown-ast';
 import { readFrontmatter } from '../features/frontmatter/source';
 

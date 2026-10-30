@@ -4,17 +4,15 @@
 	let {
 		navigation,
 		children,
-		actions,
-		editing = false
+		actions
 	}: {
 		navigation?: Snippet;
 		children: Snippet;
 		actions?: Snippet;
-		editing?: boolean;
 	} = $props();
 </script>
 
-<div class="document-layout" class:editing>
+<div class="document-layout">
 	{#if navigation}
 		<nav class="navigation" aria-label="Document navigation">{@render navigation()}</nav>
 	{/if}
@@ -29,11 +27,13 @@
 		--document-end-space: calc(var(--s3) * 3);
 		--vertical-spacing: var(--s3);
 		box-sizing: border-box;
+		column-gap: var(--s1);
 		display: grid;
+		flex: 1;
 		grid-template-areas: 'back article actions';
-		grid-template-columns: 100px minmax(0, 680px) 100px;
+		grid-template-columns: minmax(0, 1fr) minmax(0, 680px) minmax(0, 1fr);
 		margin-inline: auto;
-		max-width: calc(880px + var(--s0) * 2);
+		max-width: 1400px;
 		min-width: 0;
 		padding-bottom: var(--document-end-space);
 		padding-inline: var(--s0);
@@ -41,20 +41,13 @@
 		width: 100%;
 	}
 
-	.document-layout.editing {
-		--vertical-spacing: var(--s0);
-		background: color-mix(in oklch, var(--base) 92%, var(--base-1));
-		column-gap: var(--s0);
-		flex: 1;
-		grid-template-columns: minmax(0, 1fr) minmax(0, 680px) minmax(0, 1fr);
-		max-width: none;
-		min-height: 100vh;
-		position: relative;
-	}
-
 	.navigation {
+		align-items: center;
 		align-self: start;
+		display: flex;
 		grid-area: back;
+		justify-self: end;
+		min-height: 2.35rem;
 		position: sticky;
 		top: var(--vertical-spacing);
 		width: fit-content;
@@ -71,30 +64,31 @@
 	.actions {
 		align-self: start;
 		grid-area: actions;
-		justify-self: end;
+		justify-self: start;
 		position: sticky;
 		top: var(--vertical-spacing);
 	}
 
-	@media (max-width: 768px) {
+	@media (max-width: 72rem) {
 		.document-layout {
-			--document-end-space: calc(var(--s3) * 2);
+			--document-end-space: calc(var(--s3) * 2 + var(--mobile-nav-height, 0px));
 			grid-template-areas:
 				'back actions'
 				'article article';
-			grid-template-columns: minmax(0, 1fr) auto;
+			grid-template-columns: auto auto;
+			justify-content: space-between;
+			max-width: calc(680px + var(--s0) * 2);
 			padding-top: calc(var(--vertical-spacing) / 2);
-		}
-
-		.document-layout.editing {
-			--document-end-space: calc(var(--s3) * 2 + var(--mobile-nav-height));
-			grid-template-columns: minmax(0, 1fr) auto;
-			row-gap: var(--s1);
+			row-gap: var(--s0);
 		}
 
 		.navigation,
 		.actions {
 			position: static;
+		}
+
+		.actions {
+			justify-self: end;
 		}
 	}
 </style>

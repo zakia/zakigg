@@ -38,7 +38,7 @@ export const preview = feature({
 				Decoration.replace({
 					widget: new Label(
 						label,
-						source.wiki ? 'cm-live-link' : 'cm-live-callout-label',
+						source.wiki ? 'link' : 'callout-label',
 						source.from + 1,
 						source.href
 					)
@@ -48,7 +48,7 @@ export const preview = feature({
 		const marks = children(source.node).filter((child) => child.name === 'LinkMark');
 		return marks.length >= 4
 			? [
-					...mark(marks[0].to, marks[1].from, 'cm-live-link', source.href),
+					...mark(marks[0].to, marks[1].from, 'link', source.href),
 					...hide(source.from, marks[0].to),
 					...hide(marks[1].from, source.to)
 				]
@@ -57,7 +57,7 @@ export const preview = feature({
 	edit(_state, source) {
 		if (source.wiki || source.callout) return [];
 		const marks = children(source.node).filter((child) => child.name === 'LinkMark');
-		return marks.length >= 4 ? mark(marks[0].to, marks[1].from, 'cm-live-link', source.href) : [];
+		return marks.length >= 4 ? mark(marks[0].to, marks[1].from, 'link', source.href) : [];
 	}
 });
 
@@ -65,15 +65,7 @@ export const keys: KeyBinding[] = [{ key: 'Mod-Enter', run: openLinkAtCursor }];
 
 export const events = EditorView.domEventHandlers({ mousedown: handleLinkMouseDown });
 
-export const theme = EditorView.baseTheme({
-	'.cm-live-link': { color: 'var(--brand)', textDecoration: 'underline' },
-	'.cm-live-callout-label': {
-		color: 'var(--brand)',
-		fontSize: '0.85em',
-		fontWeight: '750',
-		letterSpacing: '0.04em'
-	}
-});
+export const theme = [];
 
 function linkAtPosition(view: EditorView, position: number) {
 	for (const side of [-1, 1] as const) {

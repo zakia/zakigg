@@ -1,50 +1,15 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import Icon from '#lib/components/Icon.svelte';
 	import InfoTip from '#lib/components/InfoTip.svelte';
 	import HueSlider from '#lib/components/HueSlider.svelte';
 	import { copyToClipboard } from '#lib/attachments/copy-to-clipboard.js';
+	import CompactThemeControls from '#lib/components/CompactThemeControls.svelte';
 	import { theme, themeHues } from '#lib/theme.svelte.js';
 
-	let customOpen = $state(false);
-	let customPicker: HTMLDetailsElement;
-	let sliderCard: HTMLDivElement;
-	let pickerPosition = $state({ left: 48, top: 0 });
-	let pickerPositioned = $state(false);
+	let { variant = 'bar' }: { variant?: 'bar' | 'compact' } = $props();
+
 	const isCustomHue = $derived(!themeHues.some((color) => color.value === Number(theme.hue)));
 	const colorCodes = $derived(getColorCodes(Number(theme.hue)));
-
-	function positionPicker() {
-		if (!customPicker?.open || !sliderCard) return;
-		const swatch = customPicker.querySelector('summary')?.getBoundingClientRect();
-		if (!swatch) return;
-		const card = sliderCard.getBoundingClientRect();
-		const track = sliderCard.querySelector('.hue-input')?.getBoundingClientRect();
-		const gap = 12;
-		const margin = 12;
-		const rightEdge = document.documentElement.clientWidth - margin;
-		const bottomEdge =
-			Math.min(
-				window.innerHeight,
-				customPicker.closest('.homepage')?.getBoundingClientRect().bottom ?? window.innerHeight
-			) - margin;
-		const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
-
-		let left = swatch.right + gap;
-		let top =
-			swatch.top +
-			swatch.height / 2 -
-			(track ? track.top + track.height / 2 - card.top : card.height / 2);
-		if (left + card.width > rightEdge) left = swatch.left - gap - card.width;
-		if (left < margin) {
-			left = clamp(swatch.left + swatch.width / 2 - card.width / 2, margin, rightEdge - card.width);
-			top = swatch.top - gap - card.height;
-			if (top < margin) top = swatch.bottom + gap;
-		}
-		top = clamp(top, margin, Math.max(margin, bottomEdge - card.height));
-		pickerPosition = { left: left - swatch.left, top: top - swatch.top };
-		pickerPositioned = true;
-	}
 
 	function getColorCodes(hue: number) {
 		const oklch = `oklch(65% 0.2 ${hue})`;
@@ -79,76 +44,54 @@
 
 		return { hex, rgb, hsl, oklch };
 	}
-
-	onMount(() => {
-		function closeOnOutsideClick(event: PointerEvent) {
-			if (!customPicker.contains(event.target as Node)) customOpen = false;
-		}
-
-		function closeOnEscape(event: KeyboardEvent) {
-			if (event.key !== 'Escape' || !customOpen) return;
-			event.preventDefault();
-			customOpen = false;
-			customPicker.querySelector('summary')?.focus();
-		}
-
-		document.addEventListener('pointerdown', closeOnOutsideClick);
-		document.addEventListener('keydown', closeOnEscape);
-		window.addEventListener('resize', positionPicker);
-
-		return () => {
-			document.removeEventListener('pointerdown', closeOnOutsideClick);
-			document.removeEventListener('keydown', closeOnEscape);
-			window.removeEventListener('resize', positionPicker);
-		};
-	});
 </script>
 
-<section class="theme-controls" aria-label="Appearance controls">
-	<div class="theme-options" role="group" aria-label="Theme and color">
-		<button
-			type="button"
-			class="theme-mode-toggle"
-			onclick={theme.toggle}
-			aria-label={theme.mode === 'light' ? 'Use dark mode' : 'Use light mode'}
-			title={theme.mode === 'light' ? 'Dark mode' : 'Light mode'}
-		>
-			<Icon icon={theme.mode === 'light' ? 'line-md:moon' : 'line-md:sunny'} />
-		</button>
-
-		{#each themeHues as color (color.value)}
+{#if variant === 'compact'}
+	<CompactThemeControls />
+{:else}
+	<section
+		class="theme-controls"
+		aria-label="Appearance controls"
+	>
+		<div class="theme-options" role="group" aria-label="Theme and color">
 			<button
 				type="button"
-				class="theme-preset"
-				class:is-active={Number(theme.hue) === color.value}
-				style={`--preset-hue: ${color.value}`}
-				onclick={() => {
-					theme.setHue(String(color.value));
-					customOpen = false;
-				}}
-				aria-label={`${color.label} theme`}
-				aria-pressed={Number(theme.hue) === color.value}
-				title={color.label}
-			></button>
-		{/each}
+				class="theme-mode-toggle"
+				onclick={theme.toggle}
+				aria-label={theme.mode === 'light' ? 'Use dark mode' : 'Use light mode'}
+				title={theme.mode === 'light' ? 'Dark mode' : 'Light mode'}
+			>
+				<Icon icon={theme.mode === 'light' ? 'line-md:moon' : 'line-md:sunny'} />
+			</button>
 
-		<details
-			class="custom-picker"
-			bind:this={customPicker}
-			bind:open={customOpen}
-			ontoggle={(event) => {
-				pickerPositioned = false;
-				if (event.currentTarget.open) requestAnimationFrame(positionPicker);
-			}}
-		>
-			<summary class:is-active={isCustomHue} aria-label="Custom color" title="Custom color"
-			></summary>
+			{#each themeHues as color (color.value)}
+				<button
+					type="button"
+					class="theme-preset"
+					class:is-active={Number(theme.hue) === color.value}
+					style={`--preset-hue: ${color.value}`}
+					onclick={() => theme.setHue(String(color.value))}
+					aria-label={`${color.label} theme`}
+					aria-pressed={Number(theme.hue) === color.value}
+					title={color.label}
+				></button>
+			{/each}
+
+			<button
+				type="button"
+				class="custom-swatch"
+				class:is-active={isCustomHue}
+				popovertarget="custom-hue-popover"
+				aria-label="Custom color"
+				title="Custom color"
+			></button>
+
 			<div
-				bind:this={sliderCard}
+				id="custom-hue-popover"
+				popover="auto"
 				class="slider-card"
-				class:is-positioned={pickerPositioned}
-				style:left={`${pickerPosition.left}px`}
-				style:top={`${pickerPosition.top}px`}
+				role="dialog"
+				aria-label="Custom hue settings"
 			>
 				<div class="hue-row">
 					<HueSlider
@@ -218,9 +161,9 @@
 					</div>
 				</dl>
 			</div>
-		</details>
-	</div>
-</section>
+		</div>
+	</section>
+{/if}
 
 <style>
 	.theme-controls {
@@ -237,7 +180,7 @@
 
 	.theme-mode-toggle,
 	.theme-preset,
-	summary {
+	.custom-swatch {
 		border: 0;
 		border-radius: 50%;
 		box-sizing: border-box;
@@ -267,17 +210,13 @@
 	}
 
 	.theme-preset.is-active,
-	summary.is-active {
+	.custom-swatch.is-active {
 		outline: 2px solid var(--brand);
 		outline-offset: 3px;
 	}
 
-	.custom-picker {
-		flex: none;
-		position: relative;
-	}
-
-	summary {
+	.custom-swatch {
+		anchor-name: --custom-hue-swatch;
 		background: conic-gradient(
 			oklch(77% 0.14 25),
 			oklch(77% 0.14 85),
@@ -287,17 +226,11 @@
 			oklch(77% 0.14 25)
 		);
 		box-shadow: 0 2px 9px color-mix(in oklch, var(--brand) 23%, transparent);
-		display: block;
-		list-style: none;
-	}
-
-	summary::-webkit-details-marker {
-		display: none;
 	}
 
 	.theme-mode-toggle:focus-visible,
 	.theme-preset:focus-visible,
-	summary:focus-visible {
+	.custom-swatch:focus-visible {
 		outline: 2px solid var(--content);
 		outline-offset: 3px;
 	}
@@ -311,15 +244,33 @@
 		border-radius: var(--radius-lg);
 		box-shadow: 0 16px 36px rgb(0 0 0 / 0.14);
 		box-sizing: border-box;
+		color: var(--content);
+		inset: auto;
+		left: calc(anchor(right) + 0.75rem);
+		margin: 0;
+		max-height: calc(100dvh - 2rem);
+		overflow: auto;
 		padding: 0.6rem 0.75rem 0.7rem;
-		position: absolute;
-		visibility: hidden;
+		position: fixed;
+		position-anchor: --custom-hue-swatch;
+		top: max(1rem, min(calc(anchor(top) - 2rem), calc(100dvh - 22rem)));
 		width: min(16.5rem, calc(100vw - 1.5rem));
-		z-index: 10;
 	}
 
-	.slider-card.is-positioned {
-		visibility: visible;
+	@supports not (top: anchor(top)) {
+		.slider-card {
+			left: 50%;
+			top: 50%;
+			transform: translate(-50%, -50%);
+		}
+	}
+
+	@media (max-width: 48rem) {
+		.slider-card {
+			left: 50%;
+			top: 50%;
+			transform: translate(-50%, -50%);
+		}
 	}
 
 	@media (max-width: 25rem) {

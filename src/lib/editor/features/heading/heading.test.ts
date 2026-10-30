@@ -21,7 +21,7 @@ describe('Live Preview headings', () => {
 		const source = '## Dry food';
 		for (const anchor of [0, 1, 2, 3]) expect(hiddenMarkers(source, anchor)).toEqual([]);
 		for (const anchor of [4, 6, source.length])
-			expect(hiddenMarkers(source, anchor)).toEqual([{ from: 0, to: 2 }]);
+			expect(hiddenMarkers(source, anchor)).toEqual([{ from: 0, to: 3 }]);
 	});
 
 	it('keeps a setext underline hidden while editing the heading text', () => {

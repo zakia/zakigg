@@ -20,31 +20,7 @@ export const keys: KeyBinding[] = [
 	{ key: 'ArrowUp', run: enterFromBody }
 ];
 
-export const theme = EditorView.baseTheme({
-	// CodeMirror measures block widget height without external margins. Keep spacing inside the widget.
-	'.cm-frontmatter-summary': { display: 'grid', gap: 'var(--s-2)', paddingBottom: 'var(--s0)' },
-	'.cm-frontmatter-h1': { margin: '0' },
-	'.cm-frontmatter-open': {
-		background: 'transparent',
-		border: '0',
-		color: 'var(--content)',
-		cursor: 'pointer',
-		display: 'grid',
-		gap: 'var(--s-2)',
-		padding: '0',
-		textAlign: 'left',
-		width: '100%'
-	},
-	'.cm-frontmatter-title': {
-		fontSize: 'var(--s3)',
-		fontWeight: '760',
-		letterSpacing: '-0.035em',
-		lineHeight: '1.08'
-	},
-	'.cm-frontmatter-detail': { color: 'var(--content-1)', fontSize: 'var(--s-1)' },
-	'.cm-frontmatter-tags': { display: 'flex', flexWrap: 'wrap', gap: '0.375rem' },
-	'.cm-frontmatter-error': { color: 'var(--error)', paddingBottom: 'var(--s0)' }
-});
+export const theme = [];
 
 function propertyText(value: unknown) {
 	return String(value ?? '');
@@ -82,22 +58,43 @@ export function enterFromBody(view: EditorView) {
 	const range = readFrontmatter(view.state.doc.toString()).range;
 	if (!range || !view.state.selection.main.empty) return false;
 	const position = view.state.selection.main.head;
-	if (position < range.bodyFrom) return false;
 	const line = view.state.doc.lineAt(position);
-	if (line.number !== view.state.doc.lineAt(range.bodyFrom).number) return false;
+	const fenceLine = view.state.doc.lineAt(range.fenceTo);
+	const bodyLine = view.state.doc.lineAt(range.bodyFrom);
+
+	if (line.number <= fenceLine.number || line.number > bodyLine.number) return false;
+
 	if (
+		line.number === bodyLine.number &&
 		view.state.doc.lineAt(view.moveVertically(view.state.selection.main, false).head).number ===
-		line.number
-	)
+			line.number
+	) {
 		return false;
-	// Enter on the separator line before the body. This keeps Up and Down
-	// symmetric when the summary expands.
-	view.dispatch({
-		selection: { anchor: view.state.doc.lineAt(range.bodyFrom - 1).from },
-		scrollIntoView: true
-	});
-	view.focus();
-	return true;
+	}
+
+	if (line.number > fenceLine.number && line.number < bodyLine.number) {
+		view.dispatch({
+			selection: { anchor: fenceLine.from },
+			scrollIntoView: true
+		});
+		view.focus();
+		return true;
+	}
+
+	if (line.number === bodyLine.number) {
+		const targetLine =
+			line.number > fenceLine.number + 1
+				? view.state.doc.lineAt(range.bodyFrom - 1)
+				: fenceLine;
+		view.dispatch({
+			selection: { anchor: targetLine.from },
+			scrollIntoView: true
+		});
+		view.focus();
+		return true;
+	}
+
+	return false;
 }
 
 class FrontmatterSummary extends WidgetType {
@@ -117,27 +114,24 @@ class FrontmatterSummary extends WidgetType {
 	}
 	toDOM(view: EditorView) {
 		const root = document.createElement('div');
-		root.className = 'cm-frontmatter-summary';
+		root.className = 'article-header';
 		root.contentEditable = 'false';
 		const heading = document.createElement('h1');
-		heading.className = 'cm-frontmatter-h1';
+		heading.className = 'title';
 		const button = document.createElement('button');
 		button.type = 'button';
-		button.className = 'cm-frontmatter-open';
+		button.className = 'frontmatter-open';
 		button.setAttribute('aria-label', 'Edit frontmatter YAML');
-		const title = document.createElement('span');
-		title.className = 'cm-frontmatter-title';
-		title.textContent = this.title;
-		button.append(title);
+		button.textContent = this.title;
 		button.addEventListener('click', () => open(view));
 		heading.append(button);
-		const detail = document.createElement('span');
-		detail.className = 'cm-frontmatter-detail';
+		const detail = document.createElement('p');
+		detail.className = 'meta';
 		detail.textContent = this.detail;
 		root.append(heading, detail);
 		if (this.tags.length) {
 			const tags = document.createElement('div');
-			tags.className = 'cm-frontmatter-tags';
+			tags.className = 'article-tags';
 			for (const name of this.tags) {
 				const tag = document.createElement('span');
 				tag.className = 'tag-badge';
@@ -160,7 +154,7 @@ class ErrorWidget extends WidgetType {
 	}
 	toDOM() {
 		const element = document.createElement('div');
-		element.className = 'cm-frontmatter-error';
+		element.className = 'frontmatter-error';
 		element.setAttribute('role', 'alert');
 		element.textContent = `Frontmatter error: ${this.message}`;
 		return element;

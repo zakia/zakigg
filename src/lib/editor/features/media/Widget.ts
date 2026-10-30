@@ -33,7 +33,7 @@ export class Widget extends WidgetType {
 	}
 	toDOM(view: EditorView) {
 		const wrapper: HTMLElement = document.createElement(this.preview ? 'div' : 'span');
-		wrapper.className = this.preview ? 'cm-live-media cm-live-media-preview' : 'cm-live-media';
+		wrapper.className = this.preview ? 'media-embed media-preview' : 'media-embed';
 		wrapper.contentEditable = 'false';
 		wrapper.draggable = false;
 		wrapper.addEventListener('dragstart', (event) => event.preventDefault());
@@ -46,7 +46,7 @@ export class Widget extends WidgetType {
 		if (this.preview) {
 			wrapper.addEventListener('mousedown', (event) => event.preventDefault());
 		} else if (kind === 'image') {
-			wrapper.classList.add('cm-live-image');
+			wrapper.classList.add('image-embed');
 			wrapper.tabIndex = 0;
 			wrapper.setAttribute('role', 'group');
 			wrapper.setAttribute('aria-label', this.alt ? `Image: ${this.alt}` : 'Image');
@@ -99,14 +99,14 @@ export class Widget extends WidgetType {
 			element.textContent = this.alt || 'Download';
 			element.download = '';
 		}
-		element.addEventListener('error', () => wrapper.classList.add('cm-live-media-error'));
+		element.addEventListener('error', () => wrapper.classList.add('media-error'));
 		element.addEventListener('load', () => view.requestMeasure());
 		element.addEventListener('loadedmetadata', () => view.requestMeasure());
 		wrapper.append(element);
 		if (!this.preview) {
 			const edit = document.createElement('button');
 			edit.type = 'button';
-			edit.className = 'cm-live-media-edit';
+			edit.className = 'media-edit-btn';
 			edit.textContent = kind === 'image' ? '</>' : 'Edit';
 			edit.setAttribute(
 				'aria-label',

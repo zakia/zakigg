@@ -28,19 +28,8 @@ export const preview = [
 	Prec.highest(keymap.of(list.navigation))
 ];
 
-/** Commands and styles shared by live and source modes. */
+/** Commands and events shared by live and source modes. */
 export const editing = [
-	frontmatter.theme,
-	code.theme,
-	link.theme,
-	list.theme,
-	media.theme,
-	table.theme,
-	rule.theme,
-	heading.theme,
-	format.theme,
-	quote.theme,
-	embed.theme,
 	link.events,
 	Prec.highest(keymap.of([...link.keys, ...frontmatter.keys, ...code.keys, ...list.keys]))
 ];

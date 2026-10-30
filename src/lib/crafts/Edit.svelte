@@ -1,10 +1,21 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
+	import { onDestroy, onMount, untrack } from 'svelte';
+	import type { EditorView } from '@codemirror/view';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import Icon from '#lib/components/Icon.svelte';
 	import BackLink from '#lib/components/BackLink.svelte';
-	import { Workspace, createPage, titleFromSlug, type Page } from '#lib/editor/index.js';
+	import {
+		Editor,
+		Actions,
+		Layout,
+		Session,
+		createPage,
+		titleFromSlug,
+		updateFrontmatterValue,
+		type FrontmatterValue,
+		type Page
+	} from '#lib/editor/index.js';
 	import { commitRepositoryCraft } from './repository.client';
 
 	let {
@@ -26,6 +37,56 @@
 	let titleInput = $state(untrack(() => initialPage?.title ?? titleFromSlug(slug)));
 	let tagsInput = $state(untrack(() => initialPage?.tags.join(', ') ?? ''));
 	const editCollectionHref = resolve('crafts');
+
+	let editorMode = $state<'live' | 'source'>('live');
+	let editorView = $state<EditorView | undefined>();
+	let session = $state<Session | null>(null);
+	let currentSessionCraftId: string | null = null;
+
+	$effect(() => {
+		const targetCraft = craft;
+		if (targetCraft && targetCraft.id !== currentSessionCraftId) {
+			currentSessionCraftId = targetCraft.id;
+			session?.destroy();
+			session = new Session({
+				page: targetCraft,
+				saved: Boolean(currentSha) || !editable,
+				backup: async (nextPage) => nextPage,
+				save
+			});
+		} else if (!targetCraft) {
+			currentSessionCraftId = null;
+			session?.destroy();
+			session = null;
+		}
+	});
+
+	onDestroy(() => session?.destroy());
+
+	onMount(() => {
+		function handleSaveShortcut(event: KeyboardEvent) {
+			if (event.key.toLowerCase() !== 's' || (!event.metaKey && !event.ctrlKey)) return;
+			event.preventDefault();
+			void session?.save();
+		}
+		function beforeUnload(event: BeforeUnloadEvent) {
+			if (!save || !session?.dirty) return;
+			event.preventDefault();
+			event.returnValue = '';
+		}
+		window.addEventListener('keydown', handleSaveShortcut);
+		window.addEventListener('beforeunload', beforeUnload);
+		return () => {
+			window.removeEventListener('keydown', handleSaveShortcut);
+			window.removeEventListener('beforeunload', beforeUnload);
+		};
+	});
+
+	function updateSourceProperty(key: string, value: FrontmatterValue) {
+		if (!editorView) return;
+		const change = updateFrontmatterValue(editorView.state.doc.toString(), key, value);
+		if (change) editorView.dispatch({ changes: change, userEvent: 'input' });
+	}
 
 	$effect(() => {
 		craft = initialPage;
@@ -109,8 +170,7 @@
 	}
 
 	function navigateToEditCraft(slug: string, options?: Parameters<typeof goto>[1]) {
-		// eslint-disable-next-line svelte/no-navigation-without-resolve
-		return goto(`${resolve('/crafts/[slug]', { slug })}?edit`, options);
+		return goto(craftHref(slug), options);
 	}
 </script>
 
@@ -119,9 +179,11 @@
 {/snippet}
 
 <svelte:head>
-	<title>{craft?.title ?? titleFromSlug(slug)} – Edit – zaki.gg</title>
-	<meta name="description" content="Edit this craft on zaki.gg." />
-	<meta name="robots" content="noindex, nofollow" />
+	<title>{craft?.title ?? titleFromSlug(slug)} – zaki.gg</title>
+	<meta name="description" content="Craft on zaki.gg." />
+	{#if !craft?.frontmatter?.published}
+		<meta name="robots" content="noindex, nofollow" />
+	{/if}
 </svelte:head>
 
 {#if !craft}
@@ -150,15 +212,31 @@
 {:else}
 	<section class="craft-edit-page">
 		{#if notice}<p class="notice" role="status">{notice}</p>{/if}
-		{#key `${craft.id}:${Boolean(save)}`}
-			<Workspace
-				page={craft}
-				publicHref={craftHref(craft.slug)}
-				{save}
-				saved={Boolean(currentSha) || !editable}
-				{navigation}
-			/>
-		{/key}
+		{#if session}
+			{@const currentSession = session}
+			<Layout {navigation}>
+				{#snippet actions()}
+					<Actions
+						status={currentSession.status}
+						saving={currentSession.saving}
+						dirty={currentSession.dirty}
+						published={currentSession.page.frontmatter?.published === true}
+						mode={editorMode}
+						onToggleMode={() => (editorMode = editorMode === 'live' ? 'source' : 'live')}
+						onSave={save ? () => void currentSession.save() : undefined}
+						onSetPublished={(value) => updateSourceProperty('published', value)}
+					/>
+				{/snippet}
+				<Editor
+					initialMarkdown={currentSession.markdown}
+					mode={editorMode}
+					ariaLabel={`${craft.title} editor`}
+					autofocus
+					onMarkdownChange={(markdown) => currentSession.update(markdown)}
+					onReady={(view) => (editorView = view)}
+				/>
+			</Layout>
+		{/if}
 	</section>
 {/if}
 

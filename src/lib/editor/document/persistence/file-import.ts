@@ -5,8 +5,7 @@ import { isMediaFile } from './assets';
 import { altTextFromFile, escapeAlt, mediaUrlForAsset } from '#lib/editor/features/media/source.js';
 import { saveNoteAsset } from './storage';
 import { getFirstMarkdownHeading } from '../markdown-ast';
-import type { MetadataProperties } from '../metadata';
-import { createPage, titleFromSlug, readPage, type Page } from '../../Page';
+import { createPage, titleFromSlug, readPage, type Page, type PageFrontmatter } from '../../Page';
 
 const TEXT_FILE_RE =
 	/\.(?:txt|text|csv|json|ya?ml|xml|html?|css|[cm]?js|[cm]?ts|jsx|tsx|svelte|svx)$/i;
@@ -61,7 +60,7 @@ async function importTextDocument(file: File, embeds: ComponentEmbedRegistry) {
 	const title =
 		parsed.frontmatter?.title || getFirstMarkdownHeading(parsed.markdown) || fallbackTitle;
 
-	const properties: MetadataProperties = { ...parsed.properties, title };
+	const properties: PageFrontmatter = { ...parsed.frontmatter, title };
 	delete properties.id;
 	return createPage(properties, parsed.markdown);
 }

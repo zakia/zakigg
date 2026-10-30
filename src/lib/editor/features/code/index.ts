@@ -25,7 +25,7 @@ export const preview = feature({
 		];
 		for (let number = block.firstLine + 1; number < block.lastLine; number++) {
 			ranges.push(
-				Decoration.line({ class: 'cm-code-content-line' }).range(state.doc.line(number).from)
+				Decoration.line({ class: 'code-content-line' }).range(state.doc.line(number).from)
 			);
 		}
 		if (block.lastLine > block.firstLine && closing.from < state.doc.length) {
@@ -40,12 +40,12 @@ export const preview = feature({
 		for (let number = block.firstLine; number <= block.lastLine; number++) {
 			const edge =
 				number === block.firstLine
-					? ' cm-code-source-first'
+					? ' code-source-first'
 					: number === block.lastLine
-						? ' cm-code-source-last'
+						? ' code-source-last'
 						: '';
 			ranges.push(
-				Decoration.line({ class: `cm-code-source-line${edge}` }).range(state.doc.line(number).from)
+				Decoration.line({ class: `code-source-line${edge}` }).range(state.doc.line(number).from)
 			);
 		}
 		return ranges;
@@ -61,73 +61,7 @@ export const keys: KeyBinding[] = [
 	{ key: 'ArrowDown', run: enterDown }
 ];
 
-export const theme = EditorView.baseTheme({
-	'.cm-code-header': {
-		alignItems: 'flex-end',
-		background: 'var(--base-2)',
-		border: '1px solid var(--edge)',
-		borderBottom: '0',
-		borderRadius: 'var(--radius) var(--radius) 0 0',
-		boxSizing: 'border-box',
-		display: 'flex',
-		height: '2.25rem',
-		justifyContent: 'space-between',
-		padding: '0 var(--s0)'
-	},
-	'.cm-code-header select, .cm-code-header button': {
-		background: 'transparent',
-		border: '0',
-		color: 'var(--content-1)',
-		cursor: 'pointer',
-		font: 'inherit',
-		fontSize: 'var(--s-1)',
-		minHeight: '1.25rem'
-	},
-	'.cm-code-details': { minWidth: '0' },
-	'.cm-code-controls': {
-		alignItems: 'center',
-		display: 'flex',
-		gap: 'var(--s-2)',
-		marginLeft: 'auto'
-	},
-	'.cm-code-meta': {
-		color: 'var(--content-2)',
-		fontSize: 'var(--s-1)',
-		overflow: 'hidden',
-		textOverflow: 'ellipsis',
-		whiteSpace: 'nowrap'
-	},
-	'.cm-code-header button:hover, .cm-code-header select:hover': { color: 'var(--content)' },
-	'.cm-line.cm-code-content-line, .cm-line.cm-code-source-line': {
-		background: 'var(--base-2)',
-		borderLeft: '1px solid var(--edge)',
-		borderRight: '1px solid var(--edge)',
-		fontFamily: 'var(--font-mono)',
-		fontSize: 'var(--s-1)',
-		lineHeight: '1.5rem',
-		paddingLeft: 'var(--s0)',
-		paddingRight: 'var(--s0)'
-	},
-	'.cm-line.cm-code-source-first': {
-		borderRadius: 'var(--radius) var(--radius) 0 0',
-		boxShadow: 'inset 0 1px var(--edge)',
-		boxSizing: 'border-box',
-		height: '2.25rem',
-		paddingTop: '0.75rem'
-	},
-	'.cm-line.cm-code-source-last': {
-		borderRadius: '0 0 var(--radius) var(--radius)',
-		boxShadow: 'inset 0 -1px var(--edge)'
-	},
-	'.cm-code-footer': {
-		background: 'var(--base-2)',
-		border: '1px solid var(--edge)',
-		borderTop: '0',
-		borderRadius: '0 0 var(--radius) var(--radius)',
-		boxSizing: 'border-box',
-		height: '1.5rem'
-	}
-});
+export const theme = [];
 
 function enterCodeFence(direction: 'up' | 'down'): Command {
 	return (view) => {
@@ -152,7 +86,7 @@ function enterCodeFence(direction: 'up' | 'down'): Command {
 class Footer extends WidgetType {
 	toDOM() {
 		const footer = document.createElement('div');
-		footer.className = 'cm-code-footer';
+		footer.className = 'code-footer';
 		footer.setAttribute('aria-hidden', 'true');
 		return footer;
 	}

@@ -61,7 +61,7 @@
 <style>
 	.tool-collection {
 		gap: var(--s1);
-		padding-block: var(--s2) calc(var(--s4) + 5rem);
+		padding-block: var(--s2);
 	}
 
 	header {

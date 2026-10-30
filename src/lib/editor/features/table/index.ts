@@ -13,15 +13,7 @@ export const preview = feature({
 	]
 });
 
-export const theme = EditorView.baseTheme({
-	'.cm-live-table': { overflowX: 'auto', paddingBlock: 'var(--s-2)' },
-	'.cm-live-table table': { borderCollapse: 'collapse', width: '100%' },
-	'.cm-live-table th,\n\t.cm-live-table td': {
-		border: '1px solid var(--edge)',
-		padding: 'var(--s-2)',
-		textAlign: 'left'
-	}
-});
+export const theme = [];
 
 class Widget extends WidgetType {
 	constructor(
@@ -35,7 +27,7 @@ class Widget extends WidgetType {
 	}
 	toDOM(view: EditorView) {
 		const wrapper = document.createElement('div');
-		wrapper.className = 'cm-live-table';
+		wrapper.className = 'table-container';
 		wrapper.contentEditable = 'false';
 		wrapper.title = 'Click to edit table Markdown';
 		wrapper.setAttribute('role', 'button');

@@ -1,12 +1,5 @@
 import { stringify as stringifyYaml } from 'yaml';
 import { getFirstMarkdownHeading, getMarkdownText } from './document/markdown-ast';
-import {
-	metadataEntriesToRecord,
-	normalizeMetadataEntries,
-	normalizeMetadataProperties,
-	type MetadataEntry,
-	type MetadataProperties
-} from './document/metadata';
 import { DEFAULT_DOCUMENT_SLUG, normalizeDocumentSlug } from './document/slug';
 import { hasFrontmatterStart, readFrontmatter } from './features/frontmatter/source';
 
@@ -23,7 +16,11 @@ export type PageFrontmatter = {
 	tags?: string[];
 	date?: string;
 	published?: boolean;
+	[key: string]: unknown;
 };
+
+export type MetadataEntry = { key: string; value: unknown };
+export type MetadataProperties = Record<string, unknown>;
 
 /** Serializable snapshot. Metadata is normalized from Markdown when the page is saved. */
 export type Page = {
@@ -49,19 +46,28 @@ export type PageSummary = Pick<
 
 export type PageMetadataPatch = Partial<PageFrontmatter>;
 
-/** New documents get explicit metadata and a body, never a competing Page snapshot. */
-export function createPage(properties: MetadataProperties = {}, body = ''): Page {
-	const title = properties.title || getFirstMarkdownHeading(body) || 'Untitled';
-	const metadata = normalizeMetadataEntries({
-		id: createPageId(),
+/** New documents get explicit frontmatter and a body. */
+export function createPage(frontmatter: PageFrontmatter = {}, body = ''): Page {
+	const title = frontmatter.title || getFirstMarkdownHeading(body) || 'Untitled';
+	const id = frontmatter.id || createPageId();
+	const slug = normalizePageSlug(frontmatter.slug || title);
+	const tags = normalizePageTags(frontmatter.tags);
+	const date = frontmatter.date || new Date().toISOString().slice(0, 10);
+	const published = Object.hasOwn(frontmatter, 'draft')
+		? isPublished(frontmatter)
+		: (frontmatter.published ?? false);
+
+	const resolved: PageFrontmatter = {
+		id,
 		title,
-		slug: normalizePageSlug(properties.slug || title),
-		tags: [],
-		date: new Date().toISOString().slice(0, 10),
-		published: Object.hasOwn(properties, 'draft') ? isPublished(properties) : false,
-		...properties
-	});
-	return readPage(createCanonicalMarkdownSource(metadata, body));
+		slug,
+		tags,
+		date,
+		published,
+		...frontmatter
+	};
+
+	return readPage(createCanonicalMarkdownSource(resolved, body));
 }
 
 /** Reading/editing preserves source bytes, including incomplete YAML while typing. */
@@ -69,51 +75,54 @@ export function readPage(markdown: string, previous?: Page): Page {
 	return hydratePage({ ...previous, version: PAGE_VERSION, format: 'markdown', markdown });
 }
 
-// Compatibility boundary for existing IndexedDB records and exported archives.
 function hydratePage(input: Partial<Page>): Page {
 	const now = new Date().toISOString();
 	const parsed = parseCanonicalMarkdownSource(input.markdown ?? '');
-	const parsedProperties = metadataEntriesToRecord(parsed.properties);
-	const properties = normalizeMetadataEntries(
-		parsed.hasFrontmatter && !parsed.error
-			? parsed.properties
-			: (input.properties ?? {
-					...(input.frontmatter ?? {}),
-					...(input.tags?.length ? { tags: input.tags } : {})
-				})
+	const values = parsed.frontmatter ?? (input.frontmatter as Record<string, unknown>) ?? {};
+
+	const id = normalizePageId(input.id || values.id) || createPageId();
+	const title = normalizePageTitle(
+		parsed.hasFrontmatter && !parsed.error && hasOwn(values, 'title')
+			? values.title
+			: input.title || getFirstMarkdownHeading(parsed.body)
 	);
-	const seed = {
-		id: normalizePageId(input.id || parsedProperties.id) || createPageId(),
-		slug: normalizePageSlug(
-			input.slug || parsedProperties.slug || parsedProperties.title || input.title || DEFAULT_SLUG
-		),
-		title: normalizePageTitle(
-			parsed.hasFrontmatter && !parsed.error && hasOwn(parsedProperties, 'title')
-				? parsedProperties.title
-				: input.title || getFirstMarkdownHeading(parsed.body)
-		),
-		tags: normalizePageTags(input.tags),
-		properties,
-		createdAt: normalizeDate(input.createdAt) || now,
-		updatedAt: normalizeDate(input.updatedAt) || now
-	};
+	const slug = normalizePageSlug(
+		input.slug || values.slug || values.title || input.title || DEFAULT_SLUG
+	);
+	const tags = normalizePageTags(values.tags ?? input.tags);
+	const createdAt = normalizeDate(values.date) || normalizeDate(input.createdAt) || now;
+	const updatedAt = normalizeDate(input.updatedAt) || now;
+
+	const seed = { id, slug, title, tags, createdAt, updatedAt };
 	const metadata = resolvePageMetadata(seed, parsed.hasFrontmatter ? {} : input.frontmatter);
-	const canonicalProperties = createCanonicalProperties({ ...seed, ...metadata });
-	const canonicalFrontmatter = metadataPropertiesToPageFrontmatter(
-		metadataEntriesToRecord(canonicalProperties)
-	);
+
+	const canonicalFrontmatter: PageFrontmatter = {
+		...values,
+		id: seed.id,
+		title: metadata.title,
+		...(values.slug || input.frontmatter?.slug ? { slug: metadata.slug } : {}),
+		...(values.description ? { description: String(values.description).trim().replace(/\s+/g, ' ') } : {}),
+		tags: metadata.tags,
+		date:
+			typeof values.date === 'string' && values.date.trim()
+				? values.date.trim()
+				: metadata.createdAt.slice(0, 10),
+		published: isPublished(values)
+	};
+
+	const properties = Object.entries(canonicalFrontmatter).map(([key, value]) => ({ key, value }));
 
 	return {
 		version: PAGE_VERSION,
 		format: 'markdown',
 		...seed,
 		...metadata,
-		properties: canonicalProperties,
-		...(canonicalFrontmatter ? { frontmatter: canonicalFrontmatter } : {}),
+		properties,
+		frontmatter: canonicalFrontmatter,
 		markdown:
 			parsed.hasFrontmatter || (input.version === PAGE_VERSION && input.format === 'markdown')
 				? (input.markdown ?? '')
-				: createCanonicalMarkdownSource(canonicalProperties, parsed.body)
+				: createCanonicalMarkdownSource(canonicalFrontmatter, parsed.body)
 	};
 }
 
@@ -181,13 +190,10 @@ export function getReferencedAssetIds(markdown: string) {
 }
 
 export function resolvePageMetadata(
-	page: Pick<Page, 'title' | 'slug' | 'tags' | 'properties' | 'createdAt'>,
+	page: Pick<Page, 'title' | 'slug' | 'tags' | 'createdAt'> & { frontmatter?: PageFrontmatter },
 	patch: PageMetadataPatch = {}
 ): Pick<Page, 'title' | 'slug' | 'tags' | 'createdAt'> & { frontmatter?: PageFrontmatter } {
-	const fromProperties = metadataPropertiesToPageFrontmatter(
-		metadataEntriesToRecord(normalizeMetadataEntries(page.properties))
-	);
-	const frontmatter = normalizePageFrontmatter({ ...fromProperties, ...patch });
+	const frontmatter = normalizePageFrontmatter({ ...page.frontmatter, ...patch });
 	const title = normalizePageTitle(frontmatter?.title || page.title);
 	const slug = normalizePageSlug(frontmatter?.slug || page.slug || title);
 	const createdAt = frontmatter?.date ? normalizeDate(frontmatter.date) : page.createdAt;
@@ -201,30 +207,36 @@ export function resolvePageMetadata(
 	};
 }
 
-export function metadataPropertiesToPageFrontmatter(
-	value: MetadataProperties
-): PageFrontmatter | undefined {
-	const properties = normalizeMetadataProperties(value);
-	const frontmatter: PageFrontmatter = {};
-	if (typeof properties.id === 'string' && properties.id.trim())
-		frontmatter.id = normalizePageId(properties.id);
-	if (typeof properties.title === 'string' && properties.title.trim())
-		frontmatter.title = normalizePageTitle(properties.title);
-	if (typeof properties.slug === 'string' && properties.slug.trim())
-		frontmatter.slug = normalizePageSlug(properties.slug);
-	if (typeof properties.description === 'string' && properties.description.trim())
-		frontmatter.description = properties.description.trim().replace(/\s+/g, ' ');
-	if (hasOwn(properties, 'tags')) frontmatter.tags = normalizePageTags(properties.tags);
-	if (typeof properties.date === 'string' && properties.date.trim())
-		frontmatter.date = properties.date.trim();
-	frontmatter.published = isPublished(properties);
-	return Object.keys(frontmatter).length ? frontmatter : undefined;
+export function metadataPropertiesToPageFrontmatter(value: unknown): PageFrontmatter | undefined {
+	return normalizePageFrontmatter(value);
+}
+
+export function normalizeMetadataProperties(value: unknown): MetadataProperties {
+	if (!value || typeof value !== 'object') return {};
+	if (Array.isArray(value)) {
+		return Object.fromEntries(
+			value.map((entry) => [entry?.key, entry?.value]).filter(([k]) => Boolean(k))
+		);
+	}
+	return { ...(value as Record<string, unknown>) };
+}
+
+export function metadataEntriesToRecord(entries: MetadataEntry[]): MetadataProperties {
+	return Object.fromEntries(entries.map((entry) => [entry.key, entry.value]));
+}
+
+export function normalizeMetadataEntries(value: unknown): MetadataEntry[] {
+	if (!value || typeof value !== 'object') return [];
+	if (Array.isArray(value)) {
+		return value.filter((entry) => entry && typeof entry === 'object' && entry.key);
+	}
+	return Object.entries(value).map(([key, value]) => ({ key, value }));
 }
 
 export function normalizePageFrontmatter(value: unknown): PageFrontmatter | undefined {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return;
 	const record = value as Record<string, unknown>;
-	const frontmatter: PageFrontmatter = {};
+	const frontmatter: PageFrontmatter = { ...record };
 	if (typeof record.id === 'string' && record.id.trim())
 		frontmatter.id = normalizePageId(record.id);
 	if (typeof record.title === 'string' && record.title.trim())
@@ -256,8 +268,12 @@ export function summarizePage(page: Page): PageSummary {
 	};
 }
 
-export function createCanonicalMarkdownSource(properties: MetadataEntry[], body: string) {
-	const yaml = stringifyYaml(metadataEntriesToRecord(properties), {
+export function createCanonicalMarkdownSource(
+	frontmatter: PageFrontmatter | MetadataEntry[],
+	body: string
+) {
+	const record = Array.isArray(frontmatter) ? metadataEntriesToRecord(frontmatter) : frontmatter;
+	const yaml = stringifyYaml(record, {
 		lineWidth: 0,
 		nullStr: ''
 	}).trimEnd();
@@ -269,27 +285,17 @@ export function createCanonicalMarkdownSource(properties: MetadataEntry[], body:
 
 function parseCanonicalMarkdownSource(markdown: string) {
 	const parsed = readFrontmatter(markdown);
+	const values =
+		parsed.values && typeof parsed.values === 'object' && !Array.isArray(parsed.values)
+			? (parsed.values as Record<string, unknown>)
+			: null;
 	return {
-		properties: parsed.values ? normalizeMetadataEntries(parsed.values) : ([] as MetadataEntry[]),
+		frontmatter: values,
+		properties: values ? Object.entries(values).map(([key, value]) => ({ key, value })) : [],
 		body: parsed.range ? markdown.slice(parsed.range.bodyFrom) : markdown,
 		hasFrontmatter: Boolean(parsed.range || hasFrontmatterStart(markdown)),
 		error: Boolean(parsed.error)
 	};
-}
-
-function createCanonicalProperties(
-	page: Pick<Page, 'id' | 'properties' | 'title' | 'slug' | 'tags' | 'createdAt' | 'frontmatter'>
-) {
-	return normalizeMetadataEntries({
-		...metadataEntriesToRecord(page.properties),
-		id: page.id,
-		title: page.title,
-		...(page.frontmatter?.slug ? { slug: page.slug } : {}),
-		...(page.frontmatter?.description ? { description: page.frontmatter.description } : {}),
-		tags: page.tags,
-		date: page.frontmatter?.date || page.createdAt.slice(0, 10),
-		published: page.frontmatter?.published === true
-	});
 }
 
 function normalizePageId(value: unknown) {

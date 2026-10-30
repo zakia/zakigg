@@ -12,14 +12,7 @@ export const preview = feature({
 	]
 });
 
-export const theme = EditorView.baseTheme({
-	'.cm-live-rule': {
-		border: '0',
-		borderTop: '1px solid var(--edge)',
-		paddingBlock: 'var(--s1)',
-		width: '100%'
-	}
-});
+export const theme = [];
 
 class Widget extends WidgetType {
 	constructor(readonly from: number) {
@@ -31,7 +24,7 @@ class Widget extends WidgetType {
 	toDOM(view: EditorView) {
 		const rule = document.createElement('button');
 		rule.type = 'button';
-		rule.className = 'cm-live-rule';
+		rule.className = 'rule';
 		rule.title = 'Click to edit Markdown';
 		rule.setAttribute('aria-label', 'Edit horizontal rule Markdown');
 		rule.addEventListener('mousedown', (event) => revealSource(event, view, this.from + 1));

@@ -3,8 +3,7 @@ import { EditorSelection, EditorState } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
 import { enterFromBody } from './index';
 
-function navigateFromBody(source: string, staysOnLine = false) {
-	const position = source.indexOf('Body');
+function navigateAt(source: string, position: number, staysOnLine = false) {
 	const state = EditorState.create({
 		doc: source,
 		selection: EditorSelection.cursor(position)
@@ -22,6 +21,10 @@ function navigateFromBody(source: string, staysOnLine = false) {
 	return { handled: enterFromBody(view), target };
 }
 
+function navigateFromBody(source: string, staysOnLine = false) {
+	return navigateAt(source, source.indexOf('Body'), staysOnLine);
+}
+
 describe('frontmatter arrow navigation', () => {
 	it('lands on the closing divider when it directly precedes the body', () => {
 		const source = '---\ntitle: Test\n---\nBody';
@@ -31,6 +34,10 @@ describe('frontmatter arrow navigation', () => {
 	it('visits a blank line after the divider before moving to the divider', () => {
 		const source = '---\ntitle: Test\n---\n\nBody';
 		expect(navigateFromBody(source)).toEqual({ handled: true, target: source.indexOf('\n\n') + 1 });
+		expect(navigateAt(source, source.indexOf('\n\n') + 1)).toEqual({
+			handled: true,
+			target: source.lastIndexOf('---')
+		});
 	});
 
 	it('keeps Up within a wrapped body line', () => {

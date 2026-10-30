@@ -14,8 +14,7 @@
 @utility layout {
 	--vertical-spacing: 5vh;
 	@apply px-s0 mx-auto grid max-w-2xl;
-	padding-top: var(--vertical-spacing);
-	padding-bottom: calc(var(--vertical-spacing) * 2);
+	padding-block: var(--vertical-spacing);
 }
 
 @utility list-reset {

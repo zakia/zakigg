@@ -1,4 +1,20 @@
-# LedgerClean
+# Project glossary
+
+## Markdown editor
+
+**Document**:
+A piece of authored content stored under a key, with complete Markdown source including any YAML frontmatter.
+
+**Properties**:
+The authored metadata in a document's YAML frontmatter. Other representations of those properties are derived from the source.
+
+**Editing session**:
+The ongoing work on one document, including its current source, unsaved changes, and explicit saves to the backing store.
+
+**Attachment**:
+A binary file referenced by a document, such as an image, video, audio clip, or downloadable file. Its content is stored separately from the document's Markdown.
+
+## LedgerClean
 
 LedgerClean organizes imported financial transactions using reusable rules and explicit exceptions.
 

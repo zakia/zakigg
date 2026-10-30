@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import Icon from '#lib/components/Icon.svelte';
 
 	type Props = {
@@ -7,10 +6,8 @@
 		saving: boolean;
 		dirty: boolean;
 		published: boolean;
-		publicHref?: string;
 		mode: 'live' | 'source';
 		onToggleMode: () => void;
-		onDownloadMarkdown: () => void;
 		onSave?: () => void;
 		onSetPublished: (value: boolean) => void;
 	};
@@ -20,229 +17,251 @@
 		saving,
 		dirty,
 		published,
-		publicHref,
 		mode,
 		onToggleMode,
-		onDownloadMarkdown,
 		onSave,
 		onSetPublished
 	}: Props = $props();
-	let menu = $state<HTMLDetailsElement>();
 
-	function closeMenu() {
-		menu?.removeAttribute('open');
-	}
+	let justSaved = $state(false);
+	let saveTimeout: ReturnType<typeof setTimeout> | undefined;
 
-	onMount(() => {
-		function closeOutside(event: PointerEvent) {
-			if (menu && event.target instanceof Node && !menu.contains(event.target)) closeMenu();
+	$effect(() => {
+		if (saving) {
+			justSaved = false;
+			if (saveTimeout) clearTimeout(saveTimeout);
+		} else if (!dirty && status.state === 'saved') {
+			justSaved = true;
+			saveTimeout = setTimeout(() => {
+				justSaved = false;
+			}, 2000);
 		}
-		function closeOnEscape(event: KeyboardEvent) {
-			if (event.key === 'Escape') closeMenu();
-		}
-		document.addEventListener('pointerdown', closeOutside);
-		document.addEventListener('keydown', closeOnEscape);
 		return () => {
-			document.removeEventListener('pointerdown', closeOutside);
-			document.removeEventListener('keydown', closeOnEscape);
+			if (saveTimeout) clearTimeout(saveTimeout);
 		};
 	});
 </script>
 
-<div class="document-actions" aria-label="Document actions">
-	<span
-		class="save-indicator"
-		class:error={status.state === 'error'}
-		class:working={status.state === 'saving' || status.state === 'dirty'}
-		role="status"
-		aria-label={status.label}
-		title={status.label}>{status.label}</span
-	>
-	{#if onSave}
+<div class="document-actions" role="toolbar" aria-label="Document actions">
+	<div class="toolbar-capsule">
+		{#if onSave}
+			<button
+				type="button"
+				class="capsule-btn status-btn"
+				class:published
+				aria-pressed={published}
+				aria-label={published
+					? 'Status: Published. Click to mark as draft.'
+					: 'Status: Draft. Click to publish.'}
+				title={published ? 'Published · Click to mark as draft' : 'Draft · Click to publish'}
+				onclick={() => onSetPublished(!published)}
+			>
+				<span class="status-dot" class:published aria-hidden="true"></span>
+				<span class="btn-label">{published ? 'Published' : 'Draft'}</span>
+			</button>
+			<span class="capsule-divider" aria-hidden="true"></span>
+		{/if}
+
 		<button
 			type="button"
-			class="commit-action"
-			disabled={saving || !dirty}
-			title="Save Markdown"
-			onclick={() => void onSave()}
+			class="capsule-btn mode-btn"
+			class:active={mode === 'source'}
+			aria-pressed={mode === 'source'}
+			aria-label={mode === 'live' ? 'Show Markdown source (</>)' : 'Show live preview'}
+			title={mode === 'live' ? 'Show Markdown source (</>)' : 'Show live preview'}
+			onclick={onToggleMode}
 		>
-			<Icon icon={saving ? 'mdi:loading' : 'mdi:content-save-outline'} />
-			<span>{saving ? 'Saving…' : 'Save'}</span>
+			<Icon icon="mdi:code-tags" />
+			<span class="sr-only">{mode === 'live' ? 'Markdown source' : 'Live preview'}</span>
 		</button>
-	{/if}
-	{#if publicHref}
-		<!-- eslint-disable svelte/no-navigation-without-resolve -->
-		<a class="view-action" href={publicHref} title="Exit editor and view craft">
-			<Icon icon="mdi:eye-outline" />
-			<span>View</span>
-		</a>
-		<!-- eslint-enable svelte/no-navigation-without-resolve -->
-	{/if}
-	<details class="more-actions" bind:this={menu}>
-		<summary aria-label="More document actions" title="More document actions">
-			<Icon icon="mdi:dots-horizontal" />
-		</summary>
-		<div class="more-menu" role="group" aria-label="More document actions">
-			<button
-				type="button"
-				onclick={() => {
-					onToggleMode();
-					closeMenu();
-				}}
-			>
-				<Icon icon="mdi:language-markdown-outline" />
-				<span>{mode === 'live' ? 'Show Markdown source' : 'Show Live Preview'}</span>
-			</button>
-			{#if publicHref}
-				<!-- eslint-disable svelte/no-navigation-without-resolve -->
-				<a href={publicHref} onclick={closeMenu}>
-					<Icon icon="mdi:open-in-new" />
-					<span>View site page</span>
-				</a>
-				<!-- eslint-enable svelte/no-navigation-without-resolve -->
+
+		{#if onSave && (dirty || saving || justSaved)}
+			<span class="capsule-divider" aria-hidden="true"></span>
+			{#if dirty || saving}
+				<button
+					type="button"
+					class="capsule-btn save-btn dirty"
+					class:saving
+					disabled={saving}
+					aria-label={saving ? 'Saving changes' : 'Save changes'}
+					title={saving ? 'Saving…' : `${status.label} · Save (⌘S)`}
+					onclick={() => void onSave()}
+				>
+					<Icon icon={saving ? 'mdi:loading' : 'mdi:content-save-outline'} />
+					<span class="btn-label">{saving ? 'Saving…' : 'Save'}</span>
+				</button>
+			{:else}
+				<div
+					class="capsule-btn save-btn saved"
+					title="All changes saved in Git"
+					aria-label="All changes saved"
+				>
+					<Icon icon="mdi:check" />
+					<span class="btn-label">Saved</span>
+				</div>
 			{/if}
-			{#if onSave}
-				<label class="publication-setting">
-					<input
-						type="checkbox"
-						checked={published}
-						onchange={(event) => onSetPublished(event.currentTarget.checked)}
-					/>
-					<span>Published</span>
-				</label>
-				<p class="publication-hint">Takes effect immediately when saved.</p>
-			{/if}
-			<button
-				type="button"
-				onclick={() => {
-					onDownloadMarkdown();
-					closeMenu();
-				}}
-			>
-				<Icon icon="mdi:download-outline" />
-				<span>Download Markdown</span>
-			</button>
-		</div>
-	</details>
+		{/if}
+	</div>
+
+	{#if status.state === 'error'}
+		<p class="save-error" role="alert">{status.label}</p>
+	{/if}
 </div>
 
 <style>
 	.document-actions {
-		flex-wrap: wrap;
-		justify-content: flex-end;
-		align-items: center;
-		display: flex;
-		gap: var(--s-2);
+		display: grid;
+		gap: var(--s-3);
+		justify-items: start;
 		z-index: 4;
 	}
-	.save-indicator {
-		color: var(--content-1);
-		font-size: var(--s-2);
-		max-width: 24rem;
-	}
-	.save-indicator.working {
-		color: var(--content-1);
-	}
-	.save-indicator.error {
-		color: var(--error);
-	}
-	.commit-action,
-	.view-action,
-	.more-actions summary {
+
+	.toolbar-capsule {
 		align-items: center;
-		backdrop-filter: blur(14px);
+		backdrop-filter: blur(16px);
+		background: color-mix(in oklch, var(--base-1) 92%, var(--base));
 		border: 1px solid var(--edge);
 		border-radius: 999px;
-		cursor: pointer;
+		box-shadow:
+			0 4px 16px rgb(0 0 0 / 0.08),
+			0 1px 3px rgb(0 0 0 / 0.04);
 		display: inline-flex;
-		gap: var(--s-3);
-		justify-content: center;
-		min-height: 2.1rem;
+		height: 2.35rem;
+		padding: 0.18rem;
+		transition: width 0.2s ease;
+		white-space: nowrap;
 	}
-	.view-action {
-		background: var(--base-1);
-		color: var(--content);
-		font-size: var(--s-1);
-		font-weight: 600;
-		padding: 0 var(--s-2);
-		text-decoration: none;
+
+	.capsule-divider {
+		background: var(--edge);
+		flex-shrink: 0;
+		height: 1.1rem;
+		margin-inline: 0.15rem;
+		width: 1px;
 	}
-	.view-action:hover,
-	.view-action:focus-visible {
-		background: var(--base-2);
-	}
-	.commit-action {
-		background: var(--brand);
-		color: var(--brand-content);
-		font: inherit;
-		font-size: var(--s-1);
-		font-weight: 700;
-		padding: 0 var(--s-2);
-	}
-	.commit-action:disabled {
-		opacity: 0.7;
-	}
-	.more-actions {
-		position: relative;
-	}
-	.more-actions summary {
-		background: var(--base-1);
-		color: var(--content);
-		list-style: none;
-		width: 2.1rem;
-	}
-	.more-actions summary::-webkit-details-marker {
-		display: none;
-	}
-	.more-menu {
-		background: var(--base-1);
-		border: 1px solid var(--edge);
-		border-radius: var(--radius);
-		box-shadow: 0 16px 38px rgb(0 0 0 / 0.14);
-		display: grid;
-		min-width: 13rem;
-		padding: var(--s-3);
-		position: absolute;
-		right: 0;
-		top: calc(100% + var(--s-3));
-	}
-	.more-menu button,
-	.more-menu a,
-	.publication-setting {
+
+	.capsule-btn {
 		align-items: center;
 		background: transparent;
 		border: 0;
-		border-radius: calc(var(--radius) * 0.5);
-		color: var(--content);
-		cursor: pointer;
-		display: flex;
-		font: inherit;
-		font-size: var(--s-1);
-		gap: var(--s-2);
-		padding: var(--s-2);
-		text-align: left;
-		text-decoration: none;
-	}
-	.publication-hint {
-		margin: 0;
-		padding: 0 var(--s-2) var(--s-2);
+		border-radius: 999px;
 		color: var(--content-1);
+		cursor: pointer;
+		display: inline-flex;
+		font: inherit;
+		font-size: 0.78rem;
+		font-weight: 600;
+		gap: 0.35rem;
+		height: 100%;
+		justify-content: center;
+		padding: 0 0.65rem;
+		text-decoration: none;
+		transition:
+			background-color 0.16s ease,
+			color 0.16s ease,
+			transform 0.12s ease;
+		user-select: none;
+	}
+
+	.capsule-btn:hover:not(:disabled) {
+		background: color-mix(in oklch, var(--content) 8%, transparent);
+		color: var(--content);
+	}
+
+	.capsule-btn:focus-visible {
+		box-shadow: var(--focus-ring);
+		outline: none;
+	}
+
+	.capsule-btn:disabled {
+		cursor: default;
+	}
+
+	.mode-btn {
+		padding: 0 0.55rem;
+	}
+
+	.mode-btn.active {
+		background: color-mix(in oklch, var(--brand) 14%, transparent);
+		color: var(--brand);
+	}
+
+	.status-dot {
+		background: color-mix(in oklch, var(--warning) 75%, var(--content));
+		border-radius: 50%;
+		box-shadow: 0 0 0 2px color-mix(in oklch, var(--warning) 25%, transparent);
+		display: inline-block;
+		flex-shrink: 0;
+		height: 0.5rem;
+		transition: background-color 0.2s ease;
+		width: 0.5rem;
+	}
+
+	.status-dot.published {
+		background: color-mix(in oklch, var(--success) 75%, var(--content));
+		box-shadow: 0 0 0 2px color-mix(in oklch, var(--success) 25%, transparent);
+	}
+
+	.status-btn.published {
+		color: var(--content);
+	}
+
+	.save-btn.saved {
+		color: var(--content-1);
+		cursor: default;
+		opacity: 0.85;
+	}
+
+	.save-btn.dirty {
+		background: var(--brand);
+		color: var(--brand-content);
+		font-weight: 700;
+		padding-inline: 0.75rem;
+	}
+
+	.save-btn.dirty:hover:not(:disabled) {
+		background: color-mix(in oklch, var(--brand) 88%, var(--content));
+		color: var(--brand-content);
+	}
+
+	.save-btn.saving {
+		opacity: 0.8;
+	}
+
+	.save-btn.saving :global(svg) {
+		animation: spin 0.8s linear infinite;
+	}
+
+	.capsule-btn :global(svg) {
+		flex-shrink: 0;
+		height: 1.05rem;
+		width: 1.05rem;
+	}
+
+	.save-error {
+		color: var(--error);
 		font-size: var(--s-2);
-		max-width: 17rem;
+		line-height: 1.35;
+		margin: 0;
+		max-width: 18rem;
+		text-align: left;
 	}
-	.more-menu button:hover,
-	.more-menu a:hover {
-		background: var(--base-2);
+
+	.sr-only {
+		border: 0;
+		clip: rect(0, 0, 0, 0);
+		height: 1px;
+		margin: -1px;
+		overflow: hidden;
+		padding: 0;
+		position: absolute;
+		white-space: nowrap;
+		width: 1px;
 	}
-	.more-menu button:disabled {
-		cursor: wait;
-		opacity: 0.5;
-	}
-	.more-menu :global(svg),
-	.commit-action :global(svg),
-	.view-action :global(svg),
-	.more-actions summary :global(svg) {
-		height: 1rem;
-		width: 1rem;
+
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
 	}
 </style>

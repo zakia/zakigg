@@ -102,6 +102,7 @@
 			pendingInserts,
 			livePreviewCompartment.of(mode === 'live' ? preview : []),
 			EditorView.contentAttributes.of({
+				class: 'editor-prose',
 				'aria-label': ariaLabel,
 				'aria-multiline': 'true',
 				spellcheck: 'false'
@@ -123,9 +124,13 @@
 					minHeight: '100%'
 				},
 				'&.cm-focused': { outline: 'none' },
-				'.cm-scroller': { fontFamily: 'inherit', lineHeight: '1.65', overflow: 'visible' },
+				'.cm-scroller': {
+					fontFamily: 'inherit',
+					lineHeight: 'calc(1em + 0.6rem)',
+					overflow: 'visible'
+				},
 				'.cm-content': { caretColor: 'var(--brand)', padding: '0 0 8rem' },
-				'.cm-line': { padding: '0' },
+				':where(.cm-line)': { padding: '0' },
 				'.cm-gutters': { display: 'none' },
 				'.cm-activeLine': { backgroundColor: 'transparent' },
 				// Code lines have an opaque background, so the selection layer must paint over them.

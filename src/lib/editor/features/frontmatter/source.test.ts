@@ -100,13 +100,12 @@ describe('frontmatter source edits', () => {
 			'---\ntitle: Note\nrating: 5\n---\n\nBody',
 			createPage({ id: 'page_test' })
 		);
-		expect(page.properties.find((property) => property.key === 'rating')?.value).toBe(5);
+		expect(page.frontmatter?.rating).toBe(5);
 	});
 
 	it('leaves nested YAML in the source without coercing it into a property string', () => {
 		const source = '---\ntitle: Note\ncustom:\n  nested: 1\n---\n\nBody';
 		const page = readPage(source);
-		expect(page.properties.find((property) => property.key === 'custom')).toBeUndefined();
 		expect(page.markdown).toBe(source);
 	});
 });

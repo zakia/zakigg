@@ -649,7 +649,7 @@
 		display: grid;
 		margin-inline: auto;
 		max-width: 52rem;
-		padding: var(--s2) var(--s0) calc(var(--s4) + 5rem);
+		padding: var(--s2) var(--s0);
 		position: relative;
 		width: 100%;
 	}

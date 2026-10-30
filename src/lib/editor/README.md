@@ -8,24 +8,20 @@ appearance; they do not maintain another document model.
 
 | File                              | Owns                                                           |
 | --------------------------------- | -------------------------------------------------------------- |
-| `Page.ts`                         | The stored page and normalized metadata derived from Markdown. |
+| `Page.ts`                         | The stored page and frontmatter derived from Markdown.         |
 | `Editor.svelte`                   | The CodeMirror view, mode switching, and file insertion.       |
-| `Workspace.svelte`                | Composition: editor, actions, layout, and save callbacks.      |
+| `Actions.svelte`                  | Floating editor toolbar (mode toggle, save, publication).      |
 | `Session.svelte.ts`               | Current source, browser backups, and the Git save baseline.    |
 | `features/index.ts`               | The features installed in live and source modes.               |
 | `document/Layout.svelte`          | Shared document grid, responsive regions, and end spacing.     |
 | `document/persistence/storage.ts` | IndexedDB pages, assets, and migrations.                       |
-| `../crafts/Edit.svelte`           | Loading a craft, its URL, and the repository adapter.          |
+| `../crafts/Edit.svelte`           | Loading a craft, its URL, repository adapter, and composition. |
 | `../crafts/Content.svelte`        | Rendering published content.                                   |
 
 `editor` is the reusable Markdown and document layer. `crafts` applies it to
 craft pages: collection, published view, edit route, tags, and repository calls.
-The workflow is consolidated through `Workspace` and `Session`, while those
-product responsibilities remain separate. Custom embeds live in `../embeds`;
-image and video share `../embeds/media/MediaEmbed.svelte`.
-
-`Workspace` creates one `Session` for one page ID. CodeMirror changes flow to
-`session.update(markdown)`. `session.page` derives metadata from the current text.
+`Edit.svelte` manages `Session` for the current page ID. CodeMirror changes flow to
+`session.update(markdown)`. `session.page` derives frontmatter from the current text.
 Controls dispatch changes to YAML in CodeMirror, preserving undo and selection.
 The session accepts a page, whether it came from Git, a browser backup function,
 and an optional repository save function. There is no separate publication service.
@@ -131,7 +127,7 @@ put public rendering inside a CodeMirror widget lifecycle.
 3. The save lock is independent of typing. Repeated saves share the in-flight
    operation. Only the captured source becomes the saved baseline; typing during
    that save remains dirty. Undoing to the saved source makes the document clean.
-4. `published` controls inclusion in the public site. Changing the checkbox only
+4. `published` controls inclusion in the public site. Toggling publication only
    edits YAML; it takes effect after Save to Git and a site build. Legacy `draft`
    is read with inverted meaning; explicit `published` takes precedence. Changing
    the setting removes the legacy key. A commit is not deployment confirmation.

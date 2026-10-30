@@ -2,7 +2,7 @@
 	import { resolve } from '$app/paths';
 </script>
 
-<article class="layout">
+<article class="layout prose">
 	<h1 class="font-hand">Adham Zaki</h1>
 	<p>
 		<em>Crafting interfaces.</em> Building polished software and web experiences. Experimenting with

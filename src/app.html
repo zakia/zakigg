@@ -14,27 +14,36 @@
 	</head>
 	<body data-sveltekit-preload-data="hover">
 		<script>
-			try {
-				const t = localStorage.getItem('theme');
-				const h = localStorage.getItem('hue');
-				const gridSpacing = localStorage.getItem('zaki.gg:grid-spacing');
-				const gridDotSize = localStorage.getItem('zaki.gg:grid-dot-size');
-				const gridFixed = localStorage.getItem('zaki.gg:grid-fixed');
-				if (t) document.documentElement.setAttribute('data-theme', t);
-				if (h) document.documentElement.style.setProperty('--hue', h);
-				if (gridSpacing)
-					document.documentElement.style.setProperty('--grid-spacing', `${gridSpacing}px`);
-				if (gridDotSize)
-					document.documentElement.style.setProperty('--grid-dot-size', `${gridDotSize}px`);
-				if (gridFixed)
-					document.documentElement.style.setProperty(
-						'--grid-background-attachment',
-						gridFixed === 'true' ? 'fixed' : 'scroll'
-					);
+			(() => {
+				try {
+					const root = document.documentElement;
+					const t = localStorage.getItem('theme');
+					const gridFixed = localStorage.getItem('zaki.gg:grid-fixed');
+					if (t === 'dark' || t === 'light') root.dataset.theme = t;
+					function applyNumber(key, property, min, max, unit = 'px') {
+						const raw = localStorage.getItem(key);
+						if (raw === null || !raw.trim()) return;
+						const value = Number(raw);
+						if (Number.isFinite(value) && value >= min && value <= max)
+							root.style.setProperty(property, `${value}${unit}`);
+					}
+					applyNumber('hue', '--hue', 0, 360, '');
+					applyNumber('zaki.gg:grid-spacing', '--grid-spacing', 24, 112);
+					applyNumber('zaki.gg:grid-dot-size', '--grid-dot-size', 0, 6);
+					if (gridFixed === 'true' || gridFixed === 'false')
+						root.style.setProperty(
+							'--grid-background-attachment',
+							gridFixed === 'true' ? 'fixed' : 'scroll'
+						);
 
-				const themeColor = document.querySelector('#theme-color');
-				if (themeColor) themeColor.setAttribute('content', t === 'dark' ? '#050605' : '#f6f9f6');
-			} catch (e) {}
+					const themeColor = document.querySelector('#theme-color');
+					if (themeColor)
+						themeColor.setAttribute(
+							'content',
+							root.dataset.theme === 'dark' ? '#050605' : '#f6f9f6'
+						);
+				} catch {}
+			})();
 		</script>
 		<div style="display: contents">%sveltekit.body%</div>
 	</body>

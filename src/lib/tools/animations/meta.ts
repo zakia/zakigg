@@ -1,9 +1,9 @@
 import type { ToolMeta } from '#lib/tools/types.js';
 
 export const meta: ToolMeta = {
-	title: 'Spring Physics & CSS linear()',
+	title: 'Springs vs. CSS easing',
 	description:
-		'Interactive damped harmonic oscillator playground compiling physical mass, stiffness, and damping into GPU-accelerated CSS linear() easing.',
+		'Compare spring physics with CSS easing through the same UI interactions. Tune the feel and turn springs into CSS linear() transitions in real time.',
 	tags: ['physics', 'animation', 'css', 'svelte'],
 	date: '2026-10-29',
 	draft: false,

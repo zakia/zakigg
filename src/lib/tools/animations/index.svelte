@@ -1,1372 +1,872 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
-	import BackLink from '#lib/components/BackLink.svelte';
-	import Icon from '#lib/components/Icon.svelte';
 	import { copyToClipboard } from '#lib/attachments/copy-to-clipboard.js';
+	import BackLink from '#lib/components/BackLink.svelte';
 	import { springLinear } from '#lib/utils/spring.js';
+	import { resolve } from '$app/paths';
+	import EasingCurve, { type BezierPoints } from './EasingCurve.svelte';
+	import InteractionScenes from './InteractionScenes.svelte';
 
-	// --- Physics State ---
-	let mass = $state(1);
+	const springPresets = [
+		{ name: 'Snappy', stiffness: 420, damping: 34, mass: 1 },
+		{ name: 'Balanced', stiffness: 240, damping: 20, mass: 1 },
+		{ name: 'Bouncy', stiffness: 180, damping: 12, mass: 1 },
+		{ name: 'Gentle', stiffness: 120, damping: 22, mass: 1.4 }
+	];
+	const cssPresets: { name: string; value: string; points: BezierPoints }[] = [
+		{ name: 'Ease', value: 'ease', points: [0.25, 0.1, 0.25, 1] },
+		{ name: 'Ease in', value: 'ease-in', points: [0.42, 0, 1, 1] },
+		{ name: 'Ease out', value: 'ease-out', points: [0, 0, 0.58, 1] },
+		{ name: 'Ease in out', value: 'ease-in-out', points: [0.42, 0, 0.58, 1] },
+		{ name: 'Linear', value: 'linear', points: [0, 0, 1, 1] }
+	];
+	const coordinates = ['x₁', 'y₁', 'x₂', 'y₂'];
+	const durationPresets = [200, 300, 500, 1000];
 	let stiffness = $state(240);
 	let damping = $state(20);
-	let velocity = $state(0);
+	let mass = $state(1);
+	let easing = $state('ease-in-out');
+	let points = $state<BezierPoints>([0.42, 0, 0.58, 1]);
+	let duration = $state(500);
+	let playback = $state(0);
+	let switchOn = $state(false);
+	let menuOpen = $state(false);
+	let notificationVisible = $state(false);
 
-	// --- Interactive Demo State ---
-	let demoActive = $state(true);
-	let animationKey = $state(0);
-	let codeTab = $state<'css' | 'linear' | 'ts'>('css');
+	const spring = $derived(springLinear({ stiffness, damping, mass }));
+	// Use the exact, evenly spaced samples sent to CSS linear().
+	const springSamples = $derived(spring.css.slice(7, -1).split(',').map(Number));
+	const cssEasing = $derived(easing === 'custom' ? `cubic-bezier(${points.join(', ')})` : easing);
+	const allOpen = $derived(switchOn && menuOpen && notificationVisible);
 
-	// --- Presets ---
-	interface Preset {
-		name: string;
-		desc: string;
-		mass: number;
-		stiffness: number;
-		damping: number;
-		velocity: number;
+	function animateBoth() {
+		const next = !allOpen;
+		switchOn = next;
+		menuOpen = next;
+		notificationVisible = next;
+		playback++;
 	}
 
-	const presets: Preset[] = [
-		{
-			name: 'Balanced (Motion)',
-			desc: 'Crisp ~7% overshoot, firm brake',
-			mass: 1,
-			stiffness: 240,
-			damping: 20,
-			velocity: 0
-		},
-		{
-			name: 'Snappy UI',
-			desc: 'High tension, quick snap',
-			mass: 1,
-			stiffness: 420,
-			damping: 34,
-			velocity: 0
-		},
-		{
-			name: 'Bouncy / Playful',
-			desc: 'Multiple visible oscillations',
-			mass: 1,
-			stiffness: 180,
-			damping: 12,
-			velocity: 0
-		},
-		{
-			name: 'Weighty Physics',
-			desc: 'Heavy mass with solid inertia',
-			mass: 2.8,
-			stiffness: 260,
-			damping: 28,
-			velocity: 0
-		},
-		{
-			name: 'Critically Damped',
-			desc: 'Fastest settle, zero bounce',
-			mass: 1,
-			stiffness: 144,
-			damping: 24,
-			velocity: 0
-		},
-		{
-			name: 'Overdamped',
-			desc: 'Viscous, gentle deceleration',
-			mass: 1,
-			stiffness: 100,
-			damping: 32,
-			velocity: 0
-		}
-	];
-
-	function applyPreset(p: Preset) {
-		mass = p.mass;
-		stiffness = p.stiffness;
-		damping = p.damping;
-		velocity = p.velocity;
-		replay();
+	function toggleSwitch() {
+		switchOn = !switchOn;
+		playback++;
+	}
+	function toggleMenu() {
+		menuOpen = !menuOpen;
+		playback++;
+	}
+	function toggleNotification() {
+		notificationVisible = !notificationVisible;
+		playback++;
 	}
 
-	// --- Analytical Spring Derivation ---
-	const spring = $derived(
-		springLinear({
-			mass,
-			stiffness,
-			damping,
-			velocity,
-			resolution: 12
-		})
-	);
-
-	// Physical characteristics
-	const w0 = $derived(Math.sqrt(Math.max(stiffness, 0.01) / Math.max(mass, 0.01)));
-	const zeta = $derived(damping / (2 * Math.sqrt(Math.max(stiffness, 0.01) * Math.max(mass, 0.01))));
-	const regime = $derived(
-		zeta < 0.999 ? 'Underdamped' : zeta > 1.001 ? 'Overdamped' : 'Critically Damped'
-	);
-
-	// Peak calculation
-	const maxOvershoot = $derived.by(() => {
-		const durSec = spring.duration / 1000;
-		const samples = 100;
-		let maxVal = 0;
-		for (let i = 0; i <= samples; i++) {
-			const v = spring.solver((i / samples) * durSec);
-			if (v > maxVal) maxVal = v;
-		}
-		return maxVal > 1.001 ? ((maxVal - 1) * 100).toFixed(1) : '0';
-	});
-
-	function replay() {
-		animationKey++;
+	function applySpring(preset: (typeof springPresets)[number]) {
+		stiffness = preset.stiffness;
+		damping = preset.damping;
+		mass = preset.mass;
+		animateBoth();
 	}
 
-	function toggleDemo() {
-		demoActive = !demoActive;
-		animationKey++;
+	function applyCSS(preset: (typeof cssPresets)[number]) {
+		easing = preset.value;
+		points = [...preset.points];
+		animateBoth();
 	}
 
-	// --- SVG Curve Geometry ---
-	const chart = $derived.by(() => {
-		const durSec = spring.duration / 1000;
-		const samples = 120;
-		let minVal = 0;
-		let maxVal = 1;
-		let peak = { val: -Infinity, timeMs: 0 };
+	function changePoints(next: BezierPoints) {
+		points = next;
+		easing = 'custom';
+	}
 
-		const rawPoints: { t: number; v: number }[] = [];
-		for (let i = 0; i <= samples; i++) {
-			const t = (i / samples) * durSec;
-			const v = spring.solver(t);
-			rawPoints.push({ t, v });
-			if (v > peak.val) {
-				peak = { val: v, timeMs: Math.round(t * 1000) };
-			}
-			if (v < minVal) minVal = v;
-			if (v > maxVal) maxVal = v;
-		}
+	function numberValue(input: HTMLInputElement, fallback: number) {
+		const value = input.valueAsNumber;
+		return Number.isFinite(value) && value >= Number(input.min) && value <= Number(input.max)
+			? value
+			: fallback;
+	}
 
-		const padLeft = 45;
-		const padRight = 25;
-		const padTop = 32;
-		const padBottom = 28;
-		const width = 640;
-		const height = 210;
-		const plotW = width - padLeft - padRight;
-		const plotH = height - padTop - padBottom;
+	function changeCoordinate(index: number, input: HTMLInputElement) {
+		const next: BezierPoints = [...points];
+		next[index] = numberValue(input, next[index]);
+		changePoints(next);
+	}
 
-		const minYVal = Math.min(0, minVal - 0.05);
-		const maxYVal = Math.max(1.15, maxVal + 0.08);
-		const valSpan = maxYVal - minYVal || 1;
-
-		const mapX = (t: number) => padLeft + (t / durSec) * plotW;
-		const mapY = (v: number) => padTop + plotH - ((v - minYVal) / valSpan) * plotH;
-
-		const pts = rawPoints.map((p) => `${mapX(p.t).toFixed(1)},${mapY(p.v).toFixed(1)}`);
-		const path = `M ${pts.join(' L ')}`;
-
-		const peakPoint =
-			peak.val > 1.002
-				? {
-						x: mapX(peak.timeMs / 1000),
-						y: mapY(peak.val),
-						val: peak.val,
-						timeMs: peak.timeMs
-					}
-				: null;
-
-		return {
-			width,
-			height,
-			plotW,
-			plotH,
-			padLeft,
-			path,
-			peakPoint,
-			targetY: mapY(1),
-			zeroY: mapY(0)
-		};
-	});
-
-	// Swatch demo palette items
-	const demoSwatches = [
-		{ label: 'Ruby', hue: 25 },
-		{ label: 'Amber', hue: 50 },
-		{ label: 'Sky', hue: 215 },
-		{ label: 'Iris', hue: 290 }
-	];
-
-	// Formatted code snippets
-	const cssSnippet = $derived(
-		`/* Damped Harmonic Oscillator -> CSS linear() */\n.element {\n  --spring-duration: ${spring.duration}ms;\n  --spring-ease: ${spring.css};\n\n  transition: transform var(--spring-duration) var(--spring-ease);\n}`
-	);
-
-	const linearSnippet = $derived(spring.css);
-
-	const tsSnippet = $derived(
-		`import { springLinear } from '#lib/utils/spring.js';\n\nconst spring = springLinear({\n  mass: ${mass},\n  stiffness: ${stiffness},\n  damping: ${damping},\n  velocity: ${velocity}\n});\n\nconsole.log(spring.duration); // ${spring.duration}ms\nconsole.log(spring.css);      // linear(...)`
-	);
-
-	const activeCode = $derived(
-		codeTab === 'css' ? cssSnippet : codeTab === 'linear' ? linearSnippet : tsSnippet
-	);
+	function transitionCode(time: number, curve: string) {
+		return `.demo {\n  --duration: ${time}ms;\n  --easing: ${curve};\n\n  transition:\n    transform var(--duration) var(--easing),\n    opacity var(--duration) var(--easing);\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .demo { transition: none; }\n}`;
+	}
+	const springCode = $derived(transitionCode(spring.duration, spring.css));
+	const easingCode = $derived(transitionCode(duration, cssEasing));
 </script>
 
-<div
-	class="spring-playground"
-	style={`--spring-duration: ${spring.duration}ms; --spring-ease: ${spring.css};`}
->
-	<div class="playground-inner">
-		<!-- Navigation Header -->
-		<header class="playground-header">
-			<BackLink href={resolve('tools')} label="Tools" />
-			<div class="header-titles">
-				<h1>Spring Physics & CSS linear()</h1>
-				<p>
-					Damped harmonic oscillator engine that compiles continuous differential equations into
-					GPU-accelerated CSS <code>linear(...)</code> easing functions.
-				</p>
-			</div>
-		</header>
+<div class="spring-playground">
+	<header>
+		<BackLink href={resolve('tools')} label="Tools" />
+		<p class="eyebrow">A feel for motion</p>
+		<h1>Springs vs. CSS easing</h1>
+		<p class="intro">
+			The same interactions, two ways to move. Pick a preset, shape the curve, and see how it feels.
+		</p>
+	</header>
 
-		<!-- Diagnostics Ribbon -->
-		<div class="diagnostics-ribbon" role="region" aria-label="Spring diagnostics">
-			<div class="diagnostic-card">
-				<span class="diag-label">Duration</span>
-				<span class="diag-value"><strong>{spring.duration}</strong>ms</span>
+	<div class="comparison">
+		<section class="motion-panel spring-panel" aria-labelledby="spring-title">
+			<div class="panel-heading">
+				<div class="title-row">
+					<span class="motion-dot"></span>
+					<h2 id="spring-title">Spring physics</h2>
+				</div>
 			</div>
-			<div class="diagnostic-card">
-				<span class="diag-label">Damping Ratio (ζ)</span>
-				<span class="diag-value"><strong>{zeta.toFixed(2)}</strong></span>
-				<span class="regime-badge" class:underdamped={zeta < 1} class:critically={zeta === 1}>
-					{regime}
-				</span>
-			</div>
-			<div class="diagnostic-card">
-				<span class="diag-label">Overshoot</span>
-				<span class="diag-value">
-					<strong>{maxOvershoot !== '0' ? `+${maxOvershoot}%` : '0%'}</strong>
-				</span>
-			</div>
-			<div class="diagnostic-card">
-				<span class="diag-label">Natural Frequency</span>
-				<span class="diag-value"><strong>{w0.toFixed(1)}</strong> rad/s</span>
-			</div>
-		</div>
-
-		<!-- Presets Bar -->
-		<section class="presets-section" aria-label="Presets">
-			<span class="presets-title">Presets:</span>
-			<div class="presets-list">
-				{#each presets as p (p.name)}
-					{@const active =
-						mass === p.mass &&
-						stiffness === p.stiffness &&
-						damping === p.damping &&
-						velocity === p.velocity}
-					<button
-						type="button"
-						class="preset-button"
-						class:is-active={active}
-						onclick={() => applyPreset(p)}
-						title={p.desc}
-					>
-						{p.name}
-					</button>
-				{/each}
-			</div>
-		</section>
-
-		<!-- Main Workspace Grid -->
-		<div class="workspace-grid">
-			<!-- Left Column: Controls & Physics Curve -->
-			<div class="panel controls-panel">
-				<h2>Physics Parameters</h2>
-
-				<div class="controls-stack">
-					<!-- Stiffness Slider -->
-					<div class="control-row">
-						<div class="control-label-group">
-							<label for="input-stiffness">Stiffness (k)</label>
-							<span class="control-hint">Tension & snap</span>
-						</div>
-						<div class="control-input-group">
+			<div class="curve-demo">
+				<div class="preset-buttons" role="group" aria-label="Spring presets">
+					{#each springPresets as preset (preset.name)}
+						<button
+							type="button"
+							aria-pressed={stiffness === preset.stiffness &&
+								damping === preset.damping &&
+								mass === preset.mass}
+							onclick={() => applySpring(preset)}>{preset.name}</button
+						>
+					{/each}
+				</div>
+				<div class="curve-workspace">
+					<EasingCurve
+						label="Spring"
+						samples={springSamples}
+						duration={spring.duration}
+						easing={spring.css}
+						{playback}
+					/>
+					<div class="curve-controls spring-controls">
+						<div class="spring-parameter">
+							<label for="stiffness"
+								>Stiffness <input
+									id="stiffness"
+									aria-label="Stiffness value"
+									type="number"
+									min="50"
+									max="500"
+									step="10"
+									value={stiffness}
+									oninput={(e) => (stiffness = numberValue(e.currentTarget, stiffness))}
+									onblur={(e) => (e.currentTarget.value = String(stiffness))}
+								/></label
+							>
 							<input
-								id="input-stiffness"
+								aria-label="Stiffness"
 								type="range"
-								min="20"
-								max="600"
+								min="50"
+								max="500"
 								step="10"
 								bind:value={stiffness}
-								oninput={replay}
-							/>
-							<input
-								type="number"
-								min="10"
-								max="1000"
-								step="10"
-								bind:value={stiffness}
-								oninput={replay}
-								class="number-box"
 							/>
 						</div>
-					</div>
-
-					<!-- Damping Slider -->
-					<div class="control-row">
-						<div class="control-label-group">
-							<label for="input-damping">Damping (c)</label>
-							<span class="control-hint">Braking resistance</span>
-						</div>
-						<div class="control-input-group">
+						<div class="spring-parameter">
+							<label for="damping"
+								>Damping <input
+									id="damping"
+									aria-label="Damping value"
+									type="number"
+									min="5"
+									max="50"
+									step="1"
+									value={damping}
+									oninput={(e) => (damping = numberValue(e.currentTarget, damping))}
+									onblur={(e) => (e.currentTarget.value = String(damping))}
+								/></label
+							>
 							<input
-								id="input-damping"
+								aria-label="Damping"
 								type="range"
-								min="2"
-								max="60"
+								min="5"
+								max="50"
 								step="1"
 								bind:value={damping}
-								oninput={replay}
-							/>
-							<input
-								type="number"
-								min="0"
-								max="100"
-								step="1"
-								bind:value={damping}
-								oninput={replay}
-								class="number-box"
 							/>
 						</div>
-					</div>
-
-					<!-- Mass Slider -->
-					<div class="control-row">
-						<div class="control-label-group">
-							<label for="input-mass">Mass (m)</label>
-							<span class="control-hint">Inertia & weight</span>
-						</div>
-						<div class="control-input-group">
+						<div class="spring-parameter">
+							<label for="mass"
+								>Mass <input
+									id="mass"
+									aria-label="Mass value"
+									type="number"
+									min="0.2"
+									max="3"
+									step="0.1"
+									value={mass}
+									oninput={(e) => (mass = numberValue(e.currentTarget, mass))}
+									onblur={(e) => (e.currentTarget.value = String(mass))}
+								/></label
+							>
 							<input
-								id="input-mass"
+								aria-label="Mass"
 								type="range"
 								min="0.2"
-								max="5"
+								max="3"
 								step="0.1"
 								bind:value={mass}
-								oninput={replay}
-							/>
-							<input
-								type="number"
-								min="0.1"
-								max="10"
-								step="0.1"
-								bind:value={mass}
-								oninput={replay}
-								class="number-box"
 							/>
 						</div>
-					</div>
-
-					<!-- Initial Velocity Slider -->
-					<div class="control-row">
-						<div class="control-label-group">
-							<label for="input-velocity">Initial Velocity (v₀)</label>
-							<span class="control-hint">Release kick</span>
-						</div>
-						<div class="control-input-group">
-							<input
-								id="input-velocity"
-								type="range"
-								min="-40"
-								max="40"
-								step="2"
-								bind:value={velocity}
-								oninput={replay}
-							/>
-							<input
-								type="number"
-								min="-100"
-								max="100"
-								step="1"
-								bind:value={velocity}
-								oninput={replay}
-								class="number-box"
-							/>
-						</div>
-					</div>
-				</div>
-
-				<!-- SVG Spring Curve Visualizer -->
-				<div class="curve-visualizer" aria-label="Spring displacement curve">
-					<div class="curve-header">
-						<span class="curve-title">Displacement Curve x(t)</span>
-						<span class="curve-legend">
-							<span class="legend-target">Target (1.0)</span>
-							{#if chart.peakPoint}
-								<span class="legend-peak">Peak ({chart.peakPoint.val.toFixed(2)})</span>
-							{/if}
-						</span>
-					</div>
-
-					<div class="svg-container">
-						<svg
-							viewBox={`0 0 ${chart.width} ${chart.height}`}
-							preserveAspectRatio="none"
-							class="curve-svg"
-						>
-							<!-- Grid Lines -->
-							<!-- Baseline 0 -->
-							<line
-								x1={chart.padLeft}
-								y1={chart.zeroY}
-								x2={chart.width - 25}
-								y2={chart.zeroY}
-								class="axis-line"
-							/>
-							<text x="32" y={chart.zeroY + 4} class="axis-label">0.0</text>
-
-							<!-- Target Line 1 -->
-							<line
-								x1={chart.padLeft}
-								y1={chart.targetY}
-								x2={chart.width - 25}
-								y2={chart.targetY}
-								class="target-line"
-							/>
-							<text x="32" y={chart.targetY + 4} class="axis-label">1.0</text>
-
-							<!-- Time Label Markers -->
-							<text x={chart.padLeft} y={chart.height - 8} class="time-label">0ms</text>
-							<text x={chart.padLeft + chart.plotW / 2} y={chart.height - 8} class="time-label mid"
-								>{Math.round(spring.duration / 2)}ms</text
-							>
-							<text x={chart.width - 25} y={chart.height - 8} class="time-label end"
-								>{spring.duration}ms</text
-							>
-
-							<!-- Spring Curve Path -->
-							<path d={chart.path} class="spring-path" />
-
-							<!-- Peak Overshoot Marker -->
-							{#if chart.peakPoint}
-								<circle
-									cx={chart.peakPoint.x}
-									cy={chart.peakPoint.y}
-									r="4.5"
-									class="peak-marker-dot"
-								/>
-								<text
-									x={chart.peakPoint.x}
-									y={Math.max(chart.peakPoint.y - 10, 14)}
-									class="peak-marker-text"
-								>
-									+{maxOvershoot}% ({chart.peakPoint.timeMs}ms)
-								</text>
-							{/if}
-
-							<!-- Animated Playhead Line -->
-							{#key animationKey}
-								<line
-									x1={chart.padLeft}
-									y1={10}
-									x2={chart.padLeft}
-									y2={chart.height - 24}
-									class="playhead-line"
-									style={`--sweep-distance: ${chart.plotW}px; animation-duration: ${spring.duration}ms;`}
-								/>
-							{/key}
-						</svg>
+						<p class="timing-note">{spring.duration}ms to settle</p>
 					</div>
 				</div>
 			</div>
+			<InteractionScenes
+				label="Spring"
+				duration={spring.duration}
+				easing={spring.css}
+				{switchOn}
+				{menuOpen}
+				{notificationVisible}
+				onswitch={toggleSwitch}
+				onmenu={toggleMenu}
+				onnotification={toggleNotification}
+			/>
+		</section>
 
-			<!-- Right Column: Interactive Demos & Code Output -->
-			<div class="panel demos-panel">
-				<div class="demos-header">
-					<h2>Interactive Testbeds</h2>
-					<div class="demo-actions">
-						<button type="button" class="action-button" onclick={replay} title="Replay current animation">
-							<Icon icon="mdi:replay" />
-							<span>Replay</span>
-						</button>
+		<section class="motion-panel css-panel" aria-labelledby="css-title">
+			<div class="panel-heading">
+				<div class="title-row">
+					<span class="motion-dot"></span>
+					<h2 id="css-title">CSS easing</h2>
+				</div>
+				<p>Choose a curve. Decide how long it takes.</p>
+			</div>
+			<div class="curve-demo">
+				<div class="preset-buttons" role="group" aria-label="CSS easing presets">
+					{#each cssPresets as preset}
 						<button
 							type="button"
-							class="action-button primary"
-							onclick={toggleDemo}
-							title="Toggle demo state between open/closed"
+							aria-pressed={easing === preset.value}
+							onclick={() => applyCSS(preset)}>{preset.name}</button
 						>
-							<Icon icon={demoActive ? 'mdi:arrow-collapse-horizontal' : 'mdi:arrow-expand-horizontal'} />
-							<span>{demoActive ? 'Retract' : 'Launch'}</span>
-						</button>
-					</div>
+					{/each}
 				</div>
-
-				<div class="demos-stack">
-					<!-- Demo 1: Fan-Out Swatches (Theme Controls pattern) -->
-					<div class="testbed-card">
-						<div class="testbed-label">
-							<span class="testbed-title">1. Fanning Launcher (Natural Stagger)</span>
-							<span class="testbed-subtitle">All release simultaneously; relative distance scales velocity</span>
-						</div>
-
-						<div class="launcher-stage" class:is-expanded={demoActive}>
-							<div class="launcher-items">
-								{#each demoSwatches as swatch, i (i)}
-									{@const slotOffset = demoSwatches.length - i}
-									<div class="swatch-slot" style={`--slot-offset: ${slotOffset};`}>
-										<div
-											class="demo-swatch-ball"
-											style={`--swatch-hue: ${swatch.hue};`}
-											title={swatch.label}
-										></div>
-									</div>
+				<div class="curve-workspace">
+					<EasingCurve
+						label="CSS"
+						{points}
+						{duration}
+						easing={cssEasing}
+						{playback}
+						onchange={changePoints}
+						oncommit={animateBoth}
+					/>
+					<div class="curve-controls css-controls">
+						<fieldset class="bezier-controls">
+							<legend>cubic-bezier</legend>
+							{#each coordinates as coordinate, index}
+								<label
+									>{coordinate}<input
+										aria-label={`Bézier ${index % 2 === 0 ? 'x' : 'y'}${Math.floor(index / 2) + 1}`}
+										type="number"
+										min={index % 2 === 0 ? 0 : -1}
+										max={index % 2 === 0 ? 1 : 2}
+										step="0.01"
+										value={points[index]}
+										oninput={(e) => changeCoordinate(index, e.currentTarget)}
+										onblur={(e) => (e.currentTarget.value = String(points[index]))}
+									/></label
+								>
+							{/each}
+						</fieldset>
+						<fieldset class="duration-group">
+							<legend>Duration</legend>
+							<div class="duration-presets">
+								{#each durationPresets as preset}
+									<button
+										type="button"
+										aria-pressed={duration === preset}
+										onclick={() => {
+											duration = preset;
+											animateBoth();
+										}}>{preset}ms</button
+									>
 								{/each}
 							</div>
-
-							<button
-								type="button"
-								class="launcher-trigger"
-								onclick={toggleDemo}
-								aria-label="Toggle launcher demo"
-								title="Toggle launcher"
+							<label class="duration-control" for="duration"
+								>Custom <span
+									><input
+										id="duration"
+										aria-label="Duration"
+										type="number"
+										min="100"
+										max="2000"
+										step="50"
+										value={duration}
+										oninput={(e) => (duration = numberValue(e.currentTarget, duration))}
+										onblur={(e) => (e.currentTarget.value = String(duration))}
+									/> ms</span
+								></label
 							>
-								<Icon icon="mdi:palette" />
-							</button>
-						</div>
+						</fieldset>
+						<p class="timing-note">{easing === 'custom' ? 'Custom curve' : easing}</p>
 					</div>
-
-					<!-- Demo 2: Weighted Sliding Puck -->
-					<div class="testbed-card">
-						<div class="testbed-label">
-							<span class="testbed-title">2. Slider Track & Puck</span>
-							<span class="testbed-subtitle">Direct linear translation with tangible physical braking</span>
-						</div>
-
-						<div
-							class="track-stage"
-							role="button"
-							tabindex="0"
-							onclick={toggleDemo}
-							onkeydown={(e) => e.key === 'Enter' && toggleDemo()}
-						>
-							<div class="track-line" aria-hidden="true"></div>
-							<div class="track-endpoints">
-								<span class="endpoint-marker left">A</span>
-								<span class="endpoint-marker right">B</span>
-							</div>
-							<div class="track-puck" class:at-b={demoActive}>
-								<Icon icon="mdi:lightning-bolt" />
-							</div>
-						</div>
-					</div>
-
-					<!-- Demo 3: Modal / Card Pop -->
-					<div class="testbed-card">
-						<div class="testbed-label">
-							<span class="testbed-title">3. Pop Scale & Overshoot</span>
-							<span class="testbed-subtitle">Tangible scale pop without bouncy wobbles</span>
-						</div>
-
-						<div class="pop-stage">
-							<div class="pop-card" class:is-expanded={demoActive}>
-								<div class="pop-card-icon">
-									<Icon icon="mdi:check-circle" />
-								</div>
-								<div class="pop-card-content">
-									<strong>Confirmed</strong>
-									<span>Compositor accelerated</span>
-								</div>
-							</div>
-						</div>
-					</div>
-				</div>
-
-				<!-- Code Output Inspector -->
-				<div class="code-inspector">
-					<div class="code-inspector-header">
-						<div class="code-tabs" role="tablist">
-							<button
-								type="button"
-								class="code-tab"
-								class:is-active={codeTab === 'css'}
-								onclick={() => (codeTab = 'css')}
-								role="tab"
-								aria-selected={codeTab === 'css'}
-							>
-								CSS Transition
-							</button>
-							<button
-								type="button"
-								class="code-tab"
-								class:is-active={codeTab === 'linear'}
-								onclick={() => (codeTab = 'linear')}
-								role="tab"
-								aria-selected={codeTab === 'linear'}
-							>
-								linear() Easing
-							</button>
-							<button
-								type="button"
-								class="code-tab"
-								class:is-active={codeTab === 'ts'}
-								onclick={() => (codeTab = 'ts')}
-								role="tab"
-								aria-selected={codeTab === 'ts'}
-							>
-								TypeScript API
-							</button>
-						</div>
-
-						<button
-							type="button"
-							class="copy-code-btn"
-							{@attach copyToClipboard(() => activeCode, 'Code')}
-							title="Copy to clipboard"
-						>
-							<Icon icon="mdi:content-copy" />
-							<span>Copy</span>
-						</button>
-					</div>
-
-					<pre class="code-display"><code>{activeCode}</code></pre>
 				</div>
 			</div>
-		</div>
+			<InteractionScenes
+				label="CSS"
+				{duration}
+				easing={cssEasing}
+				{switchOn}
+				{menuOpen}
+				{notificationVisible}
+				onswitch={toggleSwitch}
+				onmenu={toggleMenu}
+				onnotification={toggleNotification}
+			/>
+		</section>
 	</div>
+
+	<details class="code-details">
+		<summary>View generated CSS <span>Updates as you tune</span></summary>
+		<div class="code-columns">
+			{#each [{ label: 'Spring → CSS linear()', code: springCode }, { label: 'CSS easing', code: easingCode }] as snippet}
+				<div class="code-panel">
+					<div class="code-heading">
+						<strong>{snippet.label}</strong><button
+							type="button"
+							{@attach copyToClipboard(() => snippet.code, snippet.label)}>Copy CSS</button
+						>
+					</div>
+					<pre><code>{snippet.code}</code></pre>
+				</div>
+			{/each}
+		</div>
+	</details>
+
+	<article class="writeup" aria-labelledby="writeup-title">
+		<h2 id="writeup-title">Performant spring physics</h2>
+		<nav class="table-of-contents" aria-label="Write-up contents">
+			<h3>Contents</h3>
+			<ol>
+				<li><a href="#why-springs">Choose the feel</a></li>
+				<li><a href="#physics-to-css">Capture the motion with linear()</a></li>
+				<li><a href="#sampling-the-curve">Sample only what matters</a></li>
+				<li><a href="#knowing-when-to-stop">Stop when the motion settles</a></li>
+				<li><a href="#ship-the-css">Generate once, reuse across the project</a></li>
+				<li><a href="#saved-curve-tradeoffs">Understand the saved curve’s limits</a></li>
+			</ol>
+		</nav>
+
+		<section id="why-springs">
+			<h3>Choose the feel</h3>
+			<ul>
+				<li>
+					Start with the switch, menu, and notification demos: judge motion in an actual
+					interaction.
+				</li>
+				<li>Tune stiffness, damping, and mass to control snap, bounce, and weight.</li>
+				<li>Compare that workflow with choosing a Bézier curve and setting its duration.</li>
+			</ul>
+		</section>
+
+		<section id="physics-to-css">
+			<h3>Capture the motion with <code>linear()</code></h3>
+			<ul>
+				<li>
+					Distinguish constant-speed <code>linear</code> from <code>linear(...)</code>, which
+					connects a sequence of progress values.
+				</li>
+				<li>Solve the spring’s position over time and turn those positions into easing stops.</li>
+				<li>
+					Show how values above 1 preserve overshoot, with the browser interpolating between
+					samples.
+				</li>
+			</ul>
+		</section>
+
+		<section id="sampling-the-curve">
+			<h3>Sample only what matters</h3>
+			<ul>
+				<li>Adjust the sampling interval and compare the resulting motion, curve, and CSS size.</li>
+				<li>
+					Explore error-based point reduction: retain detail around sharp changes and remove
+					redundant samples along flatter stretches.
+				</li>
+				<li>Choose a fidelity budget and sample count appropriate to each spring.</li>
+			</ul>
+		</section>
+
+		<section id="knowing-when-to-stop">
+			<h3>Stop when the motion settles</h3>
+			<ul>
+				<li>
+					Derive duration from position and velocity thresholds, cutting off the imperceptible tail.
+				</li>
+				<li>
+					Relate those thresholds to the distance an element moves and the size at which it is
+					displayed.
+				</li>
+			</ul>
+		</section>
+
+		<section id="ship-the-css">
+			<h3>Generate once, reuse across the project</h3>
+			<ul>
+				<li>
+					Export the easing stops and their matching duration. Keep the generator and solver in the
+					authoring tool.
+				</li>
+				<li>
+					Package the result as named CSS variables and reuse the same motion across components.
+				</li>
+				<li>
+					Apply it to <code>transform</code> and <code>opacity</code> transitions while respecting reduced-motion
+					preferences.
+				</li>
+			</ul>
+		</section>
+
+		<section id="saved-curve-tradeoffs">
+			<h3>Understand the saved curve’s limits</h3>
+			<ul>
+				<li>
+					A saved easing replays a fixed motion profile; interrupted transitions do not preserve
+					live spring velocity.
+				</li>
+				<li>
+					Identify interactions where a runtime spring is useful, such as repeated retargeting or
+					gesture-driven movement.
+				</li>
+				<li>Measure playback and generated CSS size before making performance claims.</li>
+			</ul>
+		</section>
+
+		<p class="writeup-reference">
+			Related reading: <a href="https://www.joshwcomeau.com/animation/linear-timing-function/"
+				>Springs and Bounces in Native CSS</a
+			> by Josh W. Comeau.
+		</p>
+	</article>
 </div>
 
 <style>
 	.spring-playground {
-		background-color: var(--base);
-		color: var(--content);
-		min-height: 100vh;
-		min-height: 100dvh;
-		padding: var(--s2) var(--s0) var(--s5);
-		width: 100%;
-	}
-
-	.playground-inner {
-		display: flex;
-		flex-direction: column;
-		gap: var(--s2);
+		width: min(100% - 3rem, 66rem);
 		margin: 0 auto;
-		max-width: 78rem;
-		width: 100%;
+		padding: 1.75rem 0 8rem;
 	}
-
-	/* Header */
-	.playground-header {
+	header {
+		max-width: 42rem;
+	}
+	.eyebrow {
+		margin: 1.75rem 0 0.6rem;
+		color: var(--brand);
+		font-size: 0.75rem;
+		font-weight: 650;
+		letter-spacing: 0.09em;
+		text-transform: uppercase;
+	}
+	h1 {
+		font-size: clamp(2rem, 4vw, 2.8rem);
+		letter-spacing: -0.045em;
+		line-height: 1.12;
+		margin: 0;
+	}
+	.intro {
+		color: var(--content-1);
+		font-size: 1rem;
+		line-height: 1.65;
+		margin: 1rem 0 0;
+		max-width: 38rem;
+	}
+	button {
+		font: inherit;
+	}
+	button {
+		cursor: pointer;
+	}
+	.comparison {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 1.25rem;
+		align-items: stretch;
+	}
+	.motion-panel {
+		--motion-color: var(--brand);
 		display: flex;
 		flex-direction: column;
-		gap: var(--s-1);
-	}
-
-	.header-titles h1 {
-		font-size: var(--s2);
-		font-weight: 700;
-		letter-spacing: -0.02em;
-		line-height: 1.15;
-		margin: var(--s-2) 0 var(--s-4);
-	}
-
-	.header-titles p {
-		color: var(--content-1);
-		font-size: var(--s0);
-		line-height: 1.5;
-		margin: 0;
-		max-width: 50rem;
-	}
-
-	.header-titles code {
-		background: var(--base-2);
-		border-radius: var(--s-4);
-		font-family: inherit;
-		font-size: 0.9em;
-		padding: 0.15em 0.4em;
-	}
-
-	/* Diagnostics Ribbon */
-	.diagnostics-ribbon {
-		display: grid;
-		gap: var(--s-1);
-		grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
-	}
-
-	.diagnostic-card {
+		min-width: 0;
 		background: var(--base-1);
 		border: 1px solid var(--edge);
-		border-radius: var(--radius);
+		border-radius: 1rem;
+		overflow: hidden;
+	}
+	.css-panel {
+		--motion-color: var(--content-1);
+	}
+	.panel-heading {
+		padding: 1.4rem 1.5rem 1.25rem;
+	}
+	.title-row {
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+	}
+	.motion-dot {
+		width: 0.5rem;
+		height: 0.5rem;
+		border-radius: 50%;
+		background: var(--motion-color);
+	}
+	h2 {
+		font-size: 1.1rem;
+		font-weight: 650;
+		letter-spacing: -0.025em;
+		margin: 0;
+	}
+	.panel-heading p {
+		color: var(--content-1);
+		font-size: 0.78rem;
+		margin: 0.4rem 0 0;
+		line-height: 1.5;
+	}
+	.curve-demo {
+		flex: 1;
 		display: flex;
 		flex-direction: column;
-		gap: var(--s-4);
-		padding: var(--s-1) var(--s0);
-		position: relative;
+		padding: 0 1.5rem 1.5rem;
+		container-type: inline-size;
 	}
-
-	.diag-label {
+	.preset-buttons {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.35rem;
+		align-content: start;
+		min-height: 2.25rem;
+		margin-bottom: 1rem;
+	}
+	.preset-buttons button,
+	.duration-presets button {
+		border: 1px solid var(--edge);
+		background: var(--base-1);
 		color: var(--content-1);
-		font-size: var(--s-1);
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
+		padding: 0.35rem 0.65rem;
+		border-radius: 0.4rem;
+		font-size: 0.68rem;
+		font-weight: 500;
+		white-space: nowrap;
 	}
-
-	.diag-value {
-		font-size: var(--s1);
+	.preset-buttons button:hover,
+	.duration-presets button:hover {
+		border-color: var(--motion-color);
+		color: var(--content);
+	}
+	.preset-buttons button[aria-pressed='true'],
+	.duration-presets button[aria-pressed='true'] {
+		border-color: var(--motion-color);
+		background: color-mix(in oklch, var(--motion-color) 10%, var(--base-1));
+		color: var(--motion-color);
+	}
+	.curve-workspace {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) 9rem;
+		align-items: center;
+		flex: 1;
+		gap: 1rem;
+	}
+	.curve-controls {
+		display: grid;
+		gap: 1.25rem;
+		align-content: center;
+		min-width: 0;
+	}
+	.curve-controls label {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.4rem;
+		font-size: 0.72rem;
+		line-height: 1.3;
+	}
+	input[type='number'] {
+		appearance: textfield;
+		width: 3.75rem;
+		min-width: 0;
+		padding: 0.35rem 0.2rem 0.35rem 0.4rem;
+		border: 1px solid var(--edge);
+		border-radius: 0.35rem;
+		background: var(--base);
+		color: var(--content);
+		font: inherit;
+		font-size: 0.7rem;
+		font-variant-numeric: tabular-nums;
+	}
+	input[type='number']::-webkit-inner-spin-button,
+	input[type='number']::-webkit-outer-spin-button {
+		appearance: none;
+		margin: 0;
+	}
+	.spring-parameter {
+		display: grid;
+		gap: 0.5rem;
+		min-width: 0;
+	}
+	input[type='range'] {
+		width: 100%;
+		accent-color: var(--motion-color);
+		cursor: pointer;
+		margin: 0;
+		height: 0.8rem;
+	}
+	.timing-note {
+		color: var(--content-1);
+		font-size: 0.64rem;
+		line-height: 1.5;
+		margin: 0;
+		overflow-wrap: anywhere;
+	}
+	.bezier-controls {
+		display: grid;
+		align-self: start;
+		grid-template-columns: 1fr 1fr;
+		gap: 0.65rem 0.5rem;
+		border: 0;
+		padding: 0;
+		margin: 0;
+		min-width: 0;
+	}
+	.bezier-controls legend {
+		font-family: var(--font-mono);
+		font-size: 0.64rem;
+		color: var(--content-1);
+		padding: 0 0 0.75rem;
+	}
+	.bezier-controls label {
+		display: grid;
+		gap: 0.3rem;
+		font-size: 0.65rem;
+	}
+	.bezier-controls input {
+		width: 100%;
+	}
+	.curve-controls .duration-control {
+		flex-direction: column;
+		align-items: start;
+		gap: 0.5rem;
+	}
+	.duration-group {
+		display: grid;
+		gap: 0.65rem;
+		border: 0;
+		padding: 0;
+		margin: 0;
+		min-width: 0;
+	}
+	.duration-group legend {
+		font-size: 0.72rem;
+		padding: 0 0 0.5rem;
+	}
+	.duration-presets {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0.3rem;
+	}
+	.duration-presets button {
+		padding-inline: 0.3rem;
+		font-size: 0.64rem;
+	}
+	.duration-control > span {
+		font-size: 0.65rem;
+		color: var(--content-1);
+	}
+	.duration-control input {
+		width: 5rem;
+	}
+	@container (max-width: 25rem) {
+		.preset-buttons {
+			min-height: 4.5rem;
+		}
+		.curve-workspace {
+			grid-template-columns: 1fr;
+		}
+		.curve-controls {
+			min-height: 6.5rem;
+			align-content: start;
+		}
+		.spring-controls {
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+			gap: 0.75rem;
+		}
+		.spring-parameter label {
+			flex-direction: column;
+			align-items: start;
+		}
+		.spring-parameter input[type='number'] {
+			width: 100%;
+		}
+		.spring-controls .timing-note {
+			grid-column: 1 / -1;
+		}
+		.css-controls {
+			grid-template-columns: 1fr auto;
+			gap: 0.75rem;
+		}
+		.bezier-controls {
+			grid-template-columns: repeat(4, minmax(0, 1fr));
+			gap: 0.35rem;
+		}
+		.bezier-controls legend {
+			padding-bottom: 0.4rem;
+		}
+		.css-controls .timing-note {
+			grid-column: 1 / -1;
+		}
+		.curve-controls .duration-control {
+			gap: 0.3rem;
+			font-size: 0.65rem;
+		}
+		.duration-control input {
+			width: 4rem;
+		}
+	}
+	.writeup {
+		max-width: 44rem;
+		margin: 3.5rem auto 0;
+	}
+	.writeup > h2 {
+		font-size: 1.6rem;
+		margin-bottom: 1.5rem;
+	}
+	h3 {
+		font-size: 0.9rem;
+		font-weight: 600;
+		margin: 0 0 0.5rem;
+		letter-spacing: -0.015em;
+	}
+	.writeup ul,
+	.writeup ol {
+		color: var(--content-1);
+		font-size: 0.85rem;
+		line-height: 1.8;
+		margin: 0.6rem 0 0;
+		padding-left: 1.25rem;
+	}
+	.writeup li + li {
+		margin-top: 0.4rem;
+	}
+	.writeup ul {
+		list-style: disc;
+	}
+	.writeup ol {
+		list-style: decimal;
+	}
+	.writeup section {
+		margin-top: 2rem;
+		scroll-margin-top: 2rem;
+	}
+	.writeup code {
+		font-size: 0.9em;
+	}
+	.table-of-contents {
+		border-left: 2px solid var(--edge);
+		padding-left: 1.25rem;
+	}
+	.table-of-contents a {
+		color: var(--content);
+		text-decoration: underline;
+		text-decoration-color: var(--edge);
+		text-underline-offset: 0.2em;
+	}
+	.table-of-contents a:hover {
+		color: var(--brand);
+		text-decoration-color: currentColor;
+	}
+	.writeup-reference {
+		margin: 2.5rem 0 0;
+		color: var(--content-1);
+		font-size: 0.75rem;
+		line-height: 1.7;
+	}
+	.writeup-reference a {
+		color: var(--brand);
+		text-decoration: underline;
+		text-underline-offset: 0.2em;
+	}
+	.code-details {
+		margin-top: 1.5rem;
+		border-top: 1px solid var(--edge);
+	}
+	summary {
+		cursor: pointer;
+		padding: 1rem 0;
+		font-size: 0.8rem;
+		font-weight: 550;
+	}
+	summary > span {
+		float: right;
+		color: var(--content-1);
+		font-size: 0.7rem;
 		font-weight: 400;
 	}
-
-	.diag-value strong {
-		color: var(--brand);
-		font-size: var(--s2);
-		font-weight: 700;
-	}
-
-	.regime-badge {
-		align-self: flex-start;
-		border-radius: var(--s-4);
-		font-size: var(--s-2);
-		font-weight: 600;
-		padding: 0.15rem 0.5rem;
-		background: var(--base-2);
-		color: var(--content-1);
-	}
-
-	.regime-badge.underdamped {
-		background: color-mix(in oklch, var(--brand) 18%, transparent);
-		color: var(--brand);
-	}
-
-	.regime-badge.critically {
-		background: color-mix(in oklch, oklch(75% 0.18 145) 18%, transparent);
-		color: oklch(75% 0.18 145);
-	}
-
-	/* Presets */
-	.presets-section {
-		align-items: center;
-		display: flex;
-		flex-wrap: wrap;
-		gap: var(--s-2);
-	}
-
-	.presets-title {
-		color: var(--content-1);
-		font-size: var(--s-1);
-		font-weight: 600;
-	}
-
-	.presets-list {
-		display: flex;
-		flex-wrap: wrap;
-		gap: var(--s-3);
-	}
-
-	.preset-button {
-		background: var(--base-1);
-		border: 1px solid var(--edge);
-		border-radius: 9999px;
-		color: var(--content);
-		cursor: pointer;
-		font-size: var(--s-1);
-		font-weight: 500;
-		padding: var(--s-3) var(--s-1);
-		transition:
-			border-color 0.2s ease,
-			background 0.2s ease,
-			color 0.2s ease;
-	}
-
-	.preset-button:hover {
-		border-color: var(--edge-1);
-		background: var(--base-2);
-	}
-
-	.preset-button.is-active {
-		background: var(--brand);
-		border-color: var(--brand);
-		color: var(--brand-content);
-	}
-
-	/* Workspace Grid */
-	.workspace-grid {
+	.code-columns {
 		display: grid;
-		gap: var(--s2);
-		grid-template-columns: 1fr;
+		grid-template-columns: 1fr 1fr;
+		gap: 1.25rem;
+		padding-bottom: 1rem;
 	}
-
-	@media (min-width: 64rem) {
-		.workspace-grid {
-			grid-template-columns: 1.1fr 0.9fr;
-		}
-	}
-
-	.panel {
-		background: var(--base-1);
+	.code-panel {
+		min-width: 0;
 		border: 1px solid var(--edge);
-		border-radius: var(--radius);
-		display: flex;
-		flex-direction: column;
-		gap: var(--s1);
-		padding: var(--s1);
-	}
-
-	.panel h2 {
-		font-size: var(--s1);
-		font-weight: 600;
-		letter-spacing: -0.01em;
-		margin: 0;
-	}
-
-	/* Controls */
-	.controls-stack {
-		display: flex;
-		flex-direction: column;
-		gap: var(--s0);
-	}
-
-	.control-row {
-		display: flex;
-		flex-direction: column;
-		gap: var(--s-3);
-	}
-
-	@media (min-width: 32rem) {
-		.control-row {
-			align-items: center;
-			flex-direction: row;
-			justify-content: space-between;
-		}
-	}
-
-	.control-label-group {
-		display: flex;
-		flex-direction: column;
-		min-width: 11rem;
-	}
-
-	.control-label-group label {
-		font-weight: 600;
-		font-size: var(--s-1);
-	}
-
-	.control-hint {
-		color: var(--content-1);
-		font-size: var(--s-2);
-	}
-
-	.control-input-group {
-		align-items: center;
-		display: flex;
-		flex: 1;
-		gap: var(--s-2);
-		max-width: 24rem;
-		width: 100%;
-	}
-
-	.control-input-group input[type='range'] {
-		accent-color: var(--brand);
-		flex: 1;
-	}
-
-	.number-box {
-		background: var(--base);
-		border: 1px solid var(--edge);
-		border-radius: var(--s-3);
-		color: var(--content);
-		font-family: inherit;
-		font-size: var(--s-1);
-		font-weight: 600;
-		padding: var(--s-4) var(--s-2);
-		text-align: right;
-		width: 4.5rem;
-	}
-
-	.number-box:focus {
-		border-color: var(--brand);
-		outline: 2px solid color-mix(in oklch, var(--brand) 25%, transparent);
-	}
-
-	/* Curve Visualizer */
-	.curve-visualizer {
-		background: var(--base);
-		border: 1px solid var(--edge);
-		border-radius: var(--radius);
-		display: flex;
-		flex-direction: column;
-		gap: var(--s-2);
-		margin-top: var(--s-1);
-		padding: var(--s0);
-	}
-
-	.curve-header {
-		align-items: center;
-		display: flex;
-		justify-content: space-between;
-	}
-
-	.curve-title {
-		font-size: var(--s-1);
-		font-weight: 600;
-	}
-
-	.curve-legend {
-		display: flex;
-		gap: var(--s-1);
-		font-size: var(--s-2);
-	}
-
-	.legend-target {
-		color: var(--content-1);
-	}
-
-	.legend-peak {
-		color: var(--brand);
-		font-weight: 600;
-	}
-
-	.svg-container {
-		border-radius: var(--s-3);
+		border-radius: 0.6rem;
 		overflow: hidden;
-		position: relative;
-		width: 100%;
-	}
-
-	.curve-svg {
-		display: block;
-		height: auto;
-		width: 100%;
-	}
-
-	.axis-line {
-		stroke: var(--edge);
-		stroke-width: 1;
-	}
-
-	.target-line {
-		stroke: var(--content-1);
-		stroke-dasharray: 4 4;
-		stroke-opacity: 0.45;
-		stroke-width: 1.5;
-	}
-
-	.axis-label {
-		fill: var(--content-1);
-		font-size: 10px;
-		font-weight: 500;
-		text-anchor: end;
-	}
-
-	.time-label {
-		fill: var(--content-1);
-		font-size: 10px;
-		font-weight: 500;
-	}
-
-	.time-label.mid {
-		text-anchor: middle;
-	}
-
-	.time-label.end {
-		text-anchor: end;
-	}
-
-	.spring-path {
-		fill: none;
-		stroke: var(--brand);
-		stroke-linecap: round;
-		stroke-linejoin: round;
-		stroke-width: 2.75;
-	}
-
-	.peak-marker-dot {
-		fill: var(--brand);
-		stroke: var(--base);
-		stroke-width: 2;
-	}
-
-	.peak-marker-text {
-		fill: var(--brand);
-		font-size: 11px;
-		font-weight: 700;
-		text-anchor: middle;
-	}
-
-	@keyframes sweep-line {
-		from {
-			transform: translateX(0px);
-		}
-		to {
-			transform: translateX(var(--sweep-distance));
-		}
-	}
-
-	.playhead-line {
-		animation: sweep-line linear forwards;
-		stroke: var(--content);
-		stroke-opacity: 0.7;
-		stroke-width: 1.5;
-	}
-
-	/* Demos Panel */
-	.demos-panel {
-		gap: var(--s1);
-	}
-
-	.demos-header {
-		align-items: center;
-		display: flex;
-		flex-wrap: wrap;
-		gap: var(--s-2);
-		justify-content: space-between;
-	}
-
-	.demo-actions {
-		display: flex;
-		gap: var(--s-3);
-	}
-
-	.action-button {
-		align-items: center;
-		background: var(--base-2);
-		border: 1px solid var(--edge);
-		border-radius: var(--s-3);
-		color: var(--content);
-		cursor: pointer;
-		display: inline-flex;
-		font-size: var(--s-1);
-		font-weight: 600;
-		gap: var(--s-3);
-		padding: var(--s-3) var(--s-1);
-		transition:
-			background 0.2s ease,
-			border-color 0.2s ease,
-			transform 0.15s ease;
-	}
-
-	.action-button:hover {
-		background: var(--base);
-		border-color: var(--edge-1);
-	}
-
-	.action-button.primary {
-		background: var(--brand);
-		border-color: var(--brand);
-		color: var(--brand-content);
-	}
-
-	.action-button:active {
-		transform: scale(0.97);
-	}
-
-	.demos-stack {
-		display: flex;
-		flex-direction: column;
-		gap: var(--s0);
-	}
-
-	.testbed-card {
-		background: var(--base);
-		border: 1px solid var(--edge);
-		border-radius: var(--radius);
-		display: flex;
-		flex-direction: column;
-		gap: var(--s-1);
-		padding: var(--s0);
-	}
-
-	.testbed-label {
-		display: flex;
-		flex-direction: column;
-	}
-
-	.testbed-title {
-		font-size: var(--s-1);
-		font-weight: 600;
-	}
-
-	.testbed-subtitle {
-		color: var(--content-1);
-		font-size: var(--s-2);
-	}
-
-	/* Stage 1: Launcher Stage */
-	.launcher-stage {
-		align-items: center;
 		background: var(--base-1);
-		border: 1px dashed var(--edge);
-		border-radius: var(--radius);
-		display: flex;
-		height: 4.75rem;
-		justify-content: flex-end;
-		padding: 0 var(--s1);
-		position: relative;
 	}
-
-	.launcher-items {
-		align-items: center;
-		display: flex;
-		gap: var(--s-2);
-		pointer-events: none;
-		position: absolute;
-		right: calc(var(--s1) + 2.5rem + var(--s-2));
-	}
-
-	.swatch-slot {
-		align-items: center;
-		display: flex;
-		height: 2.25rem;
-		justify-content: center;
-		opacity: 0;
-		transform: translateX(calc(var(--slot-offset) * (2.25rem + var(--s-2))));
-		transition:
-			transform var(--spring-duration) var(--spring-ease),
-			opacity var(--spring-duration) var(--spring-ease);
-		width: 2.25rem;
-		will-change: transform, opacity;
-	}
-
-	.launcher-stage.is-expanded .swatch-slot {
-		opacity: 1;
-		transform: translateX(0);
-	}
-
-	.demo-swatch-ball {
-		background: oklch(75% 0.18 var(--swatch-hue));
-		border-radius: 50%;
-		box-shadow: 0 4px 12px oklch(75% 0.18 var(--swatch-hue) / 0.35);
-		height: 2.25rem;
-		width: 2.25rem;
-	}
-
-	.launcher-trigger {
-		align-items: center;
-		background: var(--brand);
-		border: 0;
-		border-radius: 50%;
-		box-shadow: 0 4px 14px color-mix(in oklch, var(--brand) 35%, transparent);
-		color: var(--brand-content);
-		cursor: pointer;
-		display: flex;
-		height: 2.5rem;
-		justify-content: center;
-		padding: 0;
-		position: relative;
-		transition: transform 180ms ease;
-		width: 2.5rem;
-		z-index: 2;
-	}
-
-	.launcher-trigger:hover {
-		transform: scale(1.08);
-	}
-
-	/* Stage 2: Slider Puck Track */
-	.track-stage {
-		align-items: center;
-		background: var(--base-1);
-		border: 1px dashed var(--edge);
-		border-radius: var(--radius);
-		cursor: pointer;
-		display: flex;
-		height: 4.25rem;
-		padding: 0 var(--s1);
-		position: relative;
-	}
-
-	.track-line {
-		background: var(--edge);
-		height: 4px;
-		left: var(--s1);
-		position: absolute;
-		right: var(--s1);
-		top: calc(50% - 2px);
-	}
-
-	.track-endpoints {
+	.code-heading {
 		display: flex;
 		justify-content: space-between;
-		position: absolute;
-		left: var(--s1);
-		right: var(--s1);
-	}
-
-	.endpoint-marker {
 		align-items: center;
-		background: var(--base);
-		border: 1px solid var(--edge);
-		border-radius: 50%;
-		color: var(--content-1);
-		display: flex;
-		font-size: 11px;
-		font-weight: 700;
-		height: 1.5rem;
-		justify-content: center;
-		width: 1.5rem;
-		z-index: 1;
-	}
-
-	.track-puck {
-		align-items: center;
-		background: var(--brand);
-		border-radius: var(--s-3);
-		box-shadow: 0 4px 14px color-mix(in oklch, var(--brand) 40%, transparent);
-		color: var(--brand-content);
-		display: flex;
-		height: 2.25rem;
-		justify-content: center;
-		left: var(--s1);
-		position: absolute;
-		transform: translateX(0);
-		transition: transform var(--spring-duration) var(--spring-ease);
-		width: 2.25rem;
-		will-change: transform;
-		z-index: 2;
-	}
-
-	.track-puck.at-b {
-		transform: translateX(calc(100% * 8.5));
-	}
-
-	@media (max-width: 40rem) {
-		.track-puck.at-b {
-			transform: translateX(calc(100% * 5));
-		}
-	}
-
-	/* Stage 3: Pop Card */
-	.pop-stage {
-		align-items: center;
-		background: var(--base-1);
-		border: 1px dashed var(--edge);
-		border-radius: var(--radius);
-		display: flex;
-		height: 4.75rem;
-		justify-content: center;
-		padding: 0 var(--s1);
-	}
-
-	.pop-card {
-		align-items: center;
-		background: var(--base);
-		border: 1px solid var(--edge);
-		border-radius: 9999px;
-		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-		display: flex;
-		gap: var(--s-2);
-		padding: var(--s-3) var(--s0);
-		transform: scale(0.82) translateY(8px);
-		opacity: 0.3;
-		transition:
-			transform var(--spring-duration) var(--spring-ease),
-			opacity 200ms ease;
-		will-change: transform, opacity;
-	}
-
-	.pop-card.is-expanded {
-		opacity: 1;
-		transform: scale(1) translateY(0);
-	}
-
-	.pop-card-icon {
-		color: var(--brand);
-		display: flex;
-		font-size: var(--s1);
-	}
-
-	.pop-card-content {
-		display: flex;
-		flex-direction: column;
-		line-height: 1.2;
-	}
-
-	.pop-card-content strong {
-		font-size: var(--s-1);
-	}
-
-	.pop-card-content span {
-		color: var(--content-1);
-		font-size: var(--s-2);
-	}
-
-	/* Code Inspector */
-	.code-inspector {
-		background: var(--base);
-		border: 1px solid var(--edge);
-		border-radius: var(--radius);
-		display: flex;
-		flex-direction: column;
-		overflow: hidden;
-	}
-
-	.code-inspector-header {
-		align-items: center;
-		background: var(--base-2);
+		gap: 0.5rem;
+		padding: 0.75rem 1rem;
 		border-bottom: 1px solid var(--edge);
-		display: flex;
-		justify-content: space-between;
-		padding: var(--s-3) var(--s-1);
+		font-size: 0.7rem;
 	}
-
-	.code-tabs {
-		display: flex;
-		gap: var(--s-4);
-	}
-
-	.code-tab {
-		background: transparent;
-		border: 0;
-		border-radius: var(--s-4);
-		color: var(--content-1);
-		cursor: pointer;
-		font-size: var(--s-1);
-		font-weight: 500;
-		padding: var(--s-4) var(--s-2);
-		transition:
-			background 0.15s ease,
-			color 0.15s ease;
-	}
-
-	.code-tab:hover {
-		color: var(--content);
-	}
-
-	.code-tab.is-active {
+	.code-heading button {
 		background: var(--base);
 		color: var(--content);
-		font-weight: 600;
-	}
-
-	.copy-code-btn {
-		align-items: center;
-		background: var(--base);
 		border: 1px solid var(--edge);
-		border-radius: var(--s-4);
-		color: var(--content);
-		cursor: pointer;
-		display: inline-flex;
-		font-size: var(--s-2);
-		font-weight: 600;
-		gap: var(--s-4);
-		padding: var(--s-4) var(--s-2);
-		transition: background 0.15s ease;
+		border-radius: 0.3rem;
+		padding: 0.3rem 0.5rem;
+		font-size: 0.65rem;
 	}
-
-	.copy-code-btn:hover {
-		background: var(--base-1);
-	}
-
-	.code-display {
-		font-family: 'Fira Mono', ui-monospace, monospace;
-		font-size: var(--s-1);
-		line-height: 1.5;
+	pre {
 		margin: 0;
-		max-height: 14rem;
-		overflow-x: auto;
-		padding: var(--s0);
+		padding: 1rem;
+		max-height: 15rem;
+		overflow: auto;
 		white-space: pre-wrap;
-		word-break: break-all;
+		overflow-wrap: anywhere;
+		font-size: 0.65rem;
+		line-height: 1.8;
 	}
-
-	.code-display code {
-		color: var(--content);
+	button:focus-visible,
+	input:focus-visible,
+	summary:focus-visible {
+		outline: 2px solid var(--brand);
+		outline-offset: 4px;
+	}
+	@media (max-width: 42rem) {
+		.spring-playground {
+			width: min(100% - 2rem, 30rem);
+			padding-top: 1.5rem;
+		}
+		.eyebrow {
+			margin-top: 2rem;
+		}
+		.comparison,
+		.code-columns {
+			grid-template-columns: 1fr;
+		}
+		.comparison {
+			gap: 1rem;
+		}
+		.panel-heading {
+			padding: 1.25rem;
+		}
+		.curve-demo {
+			padding: 0 1.25rem 1.25rem;
+		}
+		summary > span {
+			display: none;
+		}
 	}
 </style>
